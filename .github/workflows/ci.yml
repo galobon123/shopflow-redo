@@ -1,0 +1,99 @@
+# HU-04 · Every PR (and every push to main) builds and tests backend, frontend and the Docker stack.
+# Make the three jobs "required" in the branch protection of main so a red pipeline blocks the merge.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend · build y tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend
+    # contextLoads boots the whole app, so it needs the three real databases.
+    services:
+      postgres:
+        image: postgres:16-bookworm
+        env:
+          POSTGRES_DB: shopflow
+          POSTGRES_USER: shopflow
+          POSTGRES_PASSWORD: ci-password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U shopflow" --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 10
+      neo4j:
+        image: neo4j:5-community
+        env:
+          NEO4J_AUTH: neo4j/ci-password
+        ports: ["7687:7687"]
+        options: >-
+          --health-cmd "cypher-shell -u neo4j -p ci-password 'RETURN 1'" --health-interval 10s --health-timeout 10s --health-retries 12
+    env:
+      JWT_SECRET: ci-only-secret-that-is-at-least-32-bytes-long
+      DB_URL: jdbc:postgresql://localhost:5432/shopflow
+      DB_USER: shopflow
+      DB_PASSWORD: ci-password
+      NEO4J_URI: bolt://localhost:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ci-password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - run: ./mvnw -B verify
+
+  frontend:
+    name: Frontend · build y tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: front-end
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: front-end/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npx ng build --configuration production
+      - run: npx ng test --watch=false
+
+  docker:
+    name: Docker · stack completo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: .env de CI
+        run: |
+          cp .env.example .env
+          sed -i \
+            -e "s|^JWT_SECRET=.*|JWT_SECRET=ci-only-secret-that-is-at-least-32-bytes-long|" \
+            -e "s|^DB_PASSWORD=.*|DB_PASSWORD=ci-password|" \
+            -e "s|^NEO4J_PASSWORD=.*|NEO4J_PASSWORD=ci-password|" \
+            .env
+      # HU-04 · Escenario "Levantar todo el sistema": --wait fails unless every service turns healthy.
+      - run: docker compose up -d --build --wait --wait-timeout 300
+      - name: La tienda responde en http://localhost
+        run: |
+          curl -fsS http://localhost/ | grep -q "<app-root"
+          curl -fsS http://localhost/api/products > /dev/null
+      - name: Logs si algo falló
+        if: failure()
+        run: docker compose ps && docker compose logs --tail=100
