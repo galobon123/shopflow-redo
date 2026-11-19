@@ -137,17 +137,17 @@ Escenario: El servidor no responde
 ---
 
 ### HU-04 · Despliegue con Docker y CI
-**Prioridad:** Must
+**Prioridad:** Must · **Estado:** En curso
 
 > Como **desarrollador** quiero levantar todo el sistema con un comando y que cada cambio se valide solo para desplegar con confianza.
 
 **Tareas**
-- [ ] OPS: `Dockerfile` multi-stage para el backend (Maven → JRE 21 slim).
-- [ ] OPS: `Dockerfile` para el frontend (build de Angular → Nginx, con proxy de `/api` al backend).
-- [ ] OPS: `docker-compose.yml` con Postgres, Redis, Neo4j, backend y frontend, con healthchecks y `depends_on: condition: service_healthy`.
-- [ ] OPS: GitHub Actions que corra build y tests de back y front en cada PR.
-- [ ] OPS: backup diario de Postgres (`pg_dump`) con retención de 7 días.
-- [ ] OPS: HTTPS (Caddy o Nginx + Let's Encrypt) y dominio propio.
+- [x] OPS: `Dockerfile` multi-stage para el backend (Maven → JRE 21 slim).
+- [x] OPS: `Dockerfile` para el frontend (build de Angular → Nginx, con proxy de `/api` al backend).
+- [x] OPS: `docker-compose.yml` con Postgres, Redis, Neo4j, backend y frontend, con healthchecks y `depends_on: condition: service_healthy`.
+- [x] OPS: GitHub Actions que corra build y tests de back y front en cada PR. *(Además levanta el stack completo con `--wait`. Falta activar la protección de `main` en GitHub.)*
+- [ ] OPS: backup diario de Postgres (`pg_dump`) con retención de 7 días. *(Escrito en `docker-compose.prod.yml` + `ops/backup.sh`; falta probarlo en el servidor.)*
+- [ ] OPS: HTTPS (Caddy o Nginx + Let's Encrypt) y dominio propio. *(Caddy configurado en `docker-compose.prod.yml`; falta el dominio y el servidor.)*
 
 **Escenarios**
 ```gherkin
