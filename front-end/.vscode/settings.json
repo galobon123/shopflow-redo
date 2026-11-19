@@ -1,0 +1,6 @@
+{
+    "js/ts.tsdk.path": "node_modules\\typescript\\lib",
+    "angular.probeLocations": [
+    "c:\\Users\\galbo\\OneDrive\\Desktop\\Shopflow\\ShopFlow\\front-end\\node_modules"
+  ]
+}

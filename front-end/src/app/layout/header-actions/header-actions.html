@@ -1,0 +1,41 @@
+<div class="sf-header__actions">
+    <a sfIconButton routerLink="/wishlist" [count]="store.wishListCount()"
+        [attr.aria-label]="'Favoritos, ' + store.wishListCount() + ' productos'">
+        <lucide-icon [img]="icons.heart" />
+    </a>
+    <a sfIconButton routerLink="/cart" [count]="store.cartCount()"
+        [attr.aria-label]="'Carrito, ' + store.cartCount() + ' productos'">
+        <lucide-icon [img]="icons.bag" />
+    </a>
+
+    @if (authStore.isAuthenticated()) {
+        <button class="sf-profile-btn" type="button" [cdkMenuTriggerFor]="profileMenu" [cdkMenuPosition]="menuPosition">
+            <span class="sf-avatar" aria-hidden="true">{{ initials() }}</span>
+            <span class="max-sm:hidden">{{ firstName() }}</span>
+            <lucide-icon [img]="icons.chevronDown" [size]="16" />
+        </button>
+
+        <ng-template #profileMenu>
+            <div class="sf-menu mt-1" cdkMenu aria-label="Cuenta">
+                <div class="sf-menu__who">
+                    <strong>{{ authStore.userName() }}</strong>
+                    <span>{{ authStore.userEmail() }}</span>
+                </div>
+                @if (authStore.isAdmin()) {
+                    <hr class="sf-menu__sep">
+                    <div class="sf-menu__group sf-label">Administración</div>
+                    <a class="sf-menu__item" cdkMenuItem routerLink="/admin/products">
+                        <lucide-icon [img]="icons.shield" />Panel de admin
+                    </a>
+                }
+                <hr class="sf-menu__sep">
+                <button class="sf-menu__item" cdkMenuItem type="button" (cdkMenuItemTriggered)="logout()">
+                    <lucide-icon [img]="icons.logout" />Cerrar sesión
+                </button>
+            </div>
+        </ng-template>
+    } @else {
+        <a sfButton="ghost" size="sm" routerLink="/login">Ingresar</a>
+        <a sfButton size="sm" routerLink="/register">Crear cuenta</a>
+    }
+</div>

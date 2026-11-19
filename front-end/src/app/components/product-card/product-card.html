@@ -1,0 +1,29 @@
+<article class="sf-card">
+    <div class="sf-card__media">
+        @if (product().imageUrl && !imageFailed()) {
+            <img class="sf-card__photo" [src]="product().imageUrl" [alt]="product().name" loading="lazy" (error)="imageFailed.set(true)" />
+        } @else {
+            <span class="absolute inset-0 grid place-items-center p-4 text-center text-body-s text-ink-muted">{{ product().name }}</span>
+        }
+        <div class="sf-card__fav">
+            <ng-content />
+        </div>
+    </div>
+
+    <div class="sf-card__body">
+        @if (product().categoryName) {
+            <span class="sf-label">{{ product().categoryName }}</span>
+        }
+        <h3 class="sf-card__name">{{ product().name }}</h3>
+        <div class="sf-price-row">
+            <span class="sf-price">{{ product().price | ars }}</span>
+        </div>
+    </div>
+
+    <div class="sf-card__foot">
+        <sf-stock-badge [stock]="product().stock" />
+        <button sfButton="secondary" size="sm" type="button" [disabled]="product().stock <= 0" (click)="store.addToCart(product())">
+            <lucide-icon [img]="bagIcon" [size]="16" />Agregar
+        </button>
+    </div>
+</article>

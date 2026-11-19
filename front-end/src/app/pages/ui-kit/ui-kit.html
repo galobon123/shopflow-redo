@@ -1,0 +1,84 @@
+<div class="mx-auto grid max-w-page gap-12 px-4 py-12">
+    <header class="grid gap-3">
+        <span class="sf-label">Sistema de diseño</span>
+        <h1 class="font-display text-display-l">UI Kit de ShopFlow</h1>
+        <p class="max-w-prose text-ink-muted">
+            Las piezas con las que se arma cada pantalla. Las reglas completas están en el design system;
+            esta página muestra los componentes de Angular reales con datos de ejemplo.
+        </p>
+    </header>
+
+    <section class="grid gap-4">
+        <h2 class="font-display text-heading">Botones</h2>
+        <div class="flex flex-wrap items-center gap-3">
+            <button sfButton type="button"><lucide-icon [img]="icons.bag" />Agregar al carrito</button>
+            <button sfButton="secondary" type="button">Seguir comprando</button>
+            <button sfButton="ghost" type="button">Cancelar</button>
+            <button sfButton="danger" type="button"><lucide-icon [img]="icons.trash" />Vaciar carrito</button>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+            <button sfButton size="lg" type="button">Pagar {{ 97800 | ars }}</button>
+            <button sfButton size="lg" type="button" loading>Procesando pago</button>
+            <button sfButton="secondary" size="sm" type="button">Editar</button>
+            <button sfButton type="button" disabled>Sin stock</button>
+        </div>
+        <div class="flex flex-wrap items-center gap-1 bg-surface p-2">
+            <button sfIconButton type="button" aria-label="Favoritos, 3 productos" [count]="3"><lucide-icon [img]="icons.heart" /></button>
+            <button sfIconButton type="button" aria-label="Carrito, 2 productos" [count]="2"><lucide-icon [img]="icons.bag" /></button>
+            <button sfIconButton type="button" [pressed]="favourite()" (click)="favourite.set(!favourite())"
+                [attr.aria-label]="favourite() ? 'Quitar de favoritos' : 'Agregar a favoritos'">
+                <lucide-icon [img]="icons.heart" />
+            </button>
+            <button sfIconButton="danger" type="button" aria-label="Eliminar del carrito"><lucide-icon [img]="icons.trash" /></button>
+        </div>
+    </section>
+
+    <section class="grid gap-4">
+        <h2 class="font-display text-heading">Formularios</h2>
+        <div class="flex flex-wrap items-start gap-8">
+            <sf-field label="Email" hint="Te mandamos el seguimiento del pedido acá."
+                [errors]="{ required: 'Ingresá tu email.', email: 'Revisá el formato: nombre@dominio.com.' }">
+                <input sfInput type="email" autocomplete="email" [formControl]="email" />
+            </sf-field>
+            <sf-field label="Código postal"
+                [errors]="{ pattern: 'El código postal tiene 4 números o el formato C1425ABC.' }">
+                <input sfInput inputmode="numeric" autocomplete="postal-code" [formControl]="zip" />
+            </sf-field>
+        </div>
+        <sf-qty-stepper [value]="qty()" [max]="3" (valueChange)="qty.set($event)" />
+    </section>
+
+    <section class="grid gap-4">
+        <h2 class="font-display text-heading">Catálogo</h2>
+        <div class="flex flex-wrap items-center gap-3">
+            <sf-stock-badge [stock]="12" />
+            <sf-stock-badge [stock]="3" />
+            <sf-stock-badge [stock]="0" />
+            <sf-badge tone="promo">-30%</sf-badge>
+            <sf-badge tone="new">Nuevo</sf-badge>
+        </div>
+        <p class="text-body-s text-ink-muted">
+            Precios: @for (price of prices; track price) { <span class="font-semibold tabular-nums text-ink">{{ price | ars }}</span>@if (!$last) { · } }
+        </p>
+        <div class="responsive-grid">
+            <app-product-card [product]="sample" />
+            <div class="grid content-start gap-3" aria-busy="true" aria-label="Cargando producto">
+                <div sfSkeleton class="aspect-4/5"></div>
+                <div sfSkeleton class="h-3 w-2/5"></div>
+                <div sfSkeleton class="h-4 w-11/12"></div>
+                <div sfSkeleton class="h-5 w-1/3"></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="grid gap-4">
+        <h2 class="font-display text-heading">Estados</h2>
+        <div class="flex flex-wrap items-start gap-12">
+            <sf-empty-state [icon]="icons.search" title="No encontramos «sartén roja»"
+                text="Probá con otra palabra o mirá todas las ollas y sartenes.">
+                <button sfButton="secondary" type="button">Limpiar búsqueda</button>
+            </sf-empty-state>
+            <sf-error-state class="py-12" message="No pudimos cargar los productos. Revisá tu conexión y probá de nuevo." />
+        </div>
+    </section>
+</div>

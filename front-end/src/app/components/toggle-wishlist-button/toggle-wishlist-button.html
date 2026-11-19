@@ -1,0 +1,6 @@
+<button sfIconButton="float" type="button"
+    [pressed]="isInWishlist()"
+    [attr.aria-label]="isInWishlist() ? 'Quitar de favoritos' : 'Agregar a favoritos'"
+    (click)="toggleWishlist()">
+    <lucide-icon [img]="heartIcon" />
+</button>

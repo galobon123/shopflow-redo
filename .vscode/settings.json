@@ -1,0 +1,18 @@
+{
+    "java.compile.nullAnalysis.mode": "automatic",
+    "java.jdt.ls.vmargs": "-Xmx4096m -XX:+UseParallelGC",
+    "files.exclude": {
+        "**/node_modules": true,
+        "**/dist": true,
+        "**/.next": true,
+        "**/.angular": true,
+        "**/target": true
+    },
+    "watcherExclude": {
+        "**/node_modules/**": true,
+        "**/dist/**": true,
+        "**/.next/**": true,
+        "**/.angular/**": true,
+        "**/target/**": true
+    }
+}

@@ -1,0 +1,14 @@
+<aside class="sf-summary max-w-none" aria-label="Resumen de compra">
+    <h2>Resumen de compra</h2>
+
+    <ng-content select="[checkoutItems]" />
+
+    <dl>
+        <div><dt>Productos ({{ itemCount() }})</dt><dd>{{ subtotal() | ars }}</dd></div>
+        <div><dt>IVA (21%)</dt><dd>{{ tax() | ars }}</dd></div>
+    </dl>
+
+    <div class="sf-summary__total"><span>Total</span><strong>{{ total() | ars }}</strong></div>
+
+    <ng-content select="[actionButtons]" />
+</aside>

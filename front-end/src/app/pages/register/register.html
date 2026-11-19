@@ -1,0 +1,46 @@
+<div class="min-h-[calc(100vh-var(--header-height))] flex items-center justify-center px-4 bg-canvas">
+  <div class="w-full max-w-md bg-surface rounded border border-line p-8">
+    <h1 class="font-display text-heading text-center mb-6">Sign Up</h1>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-4">
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Nombre</mat-label>
+        <input matInput type="text" formControlName="name" placeholder="Your name">
+        @if (form.controls.name.touched && form.controls.name.invalid) {
+          <mat-error>{{ form.controls.name.hasError('required') ? 'Name is required' : 'Minimum 2 characters' }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Email</mat-label>
+        <input matInput type="email" formControlName="email" placeholder="email@example.com">
+        @if (form.controls.email.touched && form.controls.email.invalid) {
+          <mat-error>{{ form.controls.email.hasError('required') ? 'Email is required' : 'Email is invalid' }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Password</mat-label>
+        <input matInput type="password" formControlName="password" placeholder="Minimum 8 characters">
+        @if (form.controls.password.touched && form.controls.password.invalid) {
+          <mat-error>{{ form.controls.password.hasError('required') ? 'Password is required' : 'Minimum 8 characters' }}</mat-error>
+        }
+      </mat-form-field>
+
+      <button matButton="filled" type="submit" class="w-full !py-3" [disabled]="authStore.loading()">
+        @if (authStore.loading()) {
+          <span class="flex items-center justify-center gap-2">
+            <mat-progress-spinner diameter="20" strokeWidth="3"></mat-progress-spinner>
+            Signing Up...
+          </span>
+        } @else {
+          Sign Up
+        }
+      </button>
+    </form>
+
+    <p class="text-center text-ink-muted mt-4">
+      Already has an account? <a routerLink="/login" class="sf-link">Sign In</a>
+    </p>
+  </div>
+</div>

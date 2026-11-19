@@ -1,0 +1,49 @@
+<div class="mx-auto max-w-[600px] py-12 text-center">
+    <div appViewPanel class="text-center">
+        <mat-icon class="text-success  mb-4">check_circle</mat-icon>
+        <h1 class="font-display text-display-l mb-2">Order Placed!</h1>
+        <p class="text-ink-muted mb-6">Thank you for your purchase.</p>
+
+        @if (order) {
+            <div class="text-left space-y-3 mb-6">
+                <div class="flex justify-between">
+                    <span class="font-medium">Order ID:</span>
+                    <span>#{{ order.id }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="font-medium">Date:</span>
+                    <span>{{ order.createdAt | date:'medium' }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="font-medium">Total:</span>
+                    <span>${{ order.total | number:'1.2-2' }}</span>
+                </div>
+
+                <hr class="my-3">
+
+                <div class="flex justify-between">
+                    <span class="font-medium">Shipping to:</span>
+                    <span>{{ order.address.firstName }} {{ order.address.lastName }}</span>
+                </div>
+                <div class="text-body-s text-ink-muted">
+                    {{ order.address.address }}, {{ order.address.cityName }} - {{ order.address.stateName }}
+                </div>
+                <div class="text-body-s text-ink-muted">Zip: {{ order.address.zipCode }}</div>
+
+                <hr class="my-3">
+
+                <h3 class="font-medium">Items:</h3>
+                @for (item of order.items; track item.productId) {
+                    <div class="flex justify-between text-body-s">
+                        <span>{{ item.productName }} x {{ item.quantity }}</span>
+                        <span>${{ item.subtotal | number:'1.2-2' }}</span>
+                    </div>
+                }
+            </div>
+        }
+
+        <a matButton="filled" routerLink="/products/all" class="mt-4">
+            Continue Shopping
+        </a>
+    </div>
+</div>

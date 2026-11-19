@@ -1,0 +1,30 @@
+<div class="mx-auto max-w-page px-4 py-6">
+
+    <app-back-button navigateTo="/products/all">Seguir comprando</app-back-button>
+
+    @if (store.wishListCount() > 0) {
+        <div class="mb-8 mt-4 flex items-baseline justify-between gap-4">
+            <h1 class="font-display text-display-l">Mis favoritos</h1>
+            <span class="text-body-s text-ink-muted">{{ store.wishListCount() }} productos</span>
+        </div>
+
+        <div class="responsive-grid">
+            @for (item of store.wishListItems(); track item.productId) {
+                <app-product-card [product]="mapToProduct(item)">
+                    <button sfIconButton="float" type="button" aria-label="Quitar de favoritos"
+                        (click)="store.removeFromWishList(item.productId)">
+                        <lucide-icon [img]="trashIcon" />
+                    </button>
+                </app-product-card>
+            }
+        </div>
+
+        <div class="mt-12">
+            <button sfButton="danger" type="button" (click)="store.clearWishlist()">
+                <lucide-icon [img]="trashIcon" />Vaciar favoritos
+            </button>
+        </div>
+    } @else {
+        <app-empty-wishlist />
+    }
+</div>

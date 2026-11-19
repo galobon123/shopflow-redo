@@ -1,0 +1,135 @@
+/*
+ * ShopFlow UI Kit — tokens.
+ * Source of truth: the "ShopFlow" design system (tokens.json). Every class in the app comes from here:
+ * the default Tailwind palette, radii, shadows and fonts are switched off on purpose.
+ */
+@import "tailwindcss";
+@import "./styles/kit.css";
+
+@theme {
+  --color-*: initial;
+  --color-canvas: #f4f5f7;
+  --color-surface: #ffffff;
+  --color-sunken: #e9ebef;
+  --color-line: #d5d8de;
+  --color-line-strong: #848a96;
+  --color-ink: #14161a;
+  --color-ink-soft: #2b2f36;
+  --color-ink-muted: #5a606b;
+  --color-on-ink: #ffffff;
+  --color-on-ink-muted: #a9aeb8;
+  --color-accent: #2440b8;
+  --color-accent-hover: #1b3290;
+  --color-accent-soft: #e6eafa;
+  --color-on-accent: #ffffff;
+  --color-success: #1d6b47;
+  --color-success-soft: #e3f1e9;
+  --color-warning: #8a5300;
+  --color-warning-soft: #fbefd9;
+  --color-danger: #b42318;
+  --color-danger-soft: #fbe7e5;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --font-*: initial;
+  --font-display: "Newsreader Variable", "Iowan Old Style", Georgia, serif;
+  --font-sans: "Schibsted Grotesk Variable", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "Cascadia Mono", monospace;
+
+  --text-*: initial;
+  --text-display-xl: 56px;
+  --text-display-xl--line-height: 60px;
+  --text-display-xl--letter-spacing: -0.02em;
+  --text-display-l: 40px;
+  --text-display-l--line-height: 44px;
+  --text-display-l--letter-spacing: -0.015em;
+  --text-heading: 28px;
+  --text-heading--line-height: 34px;
+  --text-heading--letter-spacing: -0.01em;
+  --text-title: 18px;
+  --text-title--line-height: 24px;
+  --text-title--font-weight: 600;
+  --text-product-name: 16px;
+  --text-product-name--line-height: 22px;
+  --text-product-name--font-weight: 500;
+  --text-body: 16px;
+  --text-body--line-height: 24px;
+  --text-body-s: 14px;
+  --text-body-s--line-height: 20px;
+  --text-price: 20px;
+  --text-price--line-height: 24px;
+  --text-price--font-weight: 600;
+  --text-label: 12px;
+  --text-label--line-height: 16px;
+  --text-label--letter-spacing: 0.08em;
+  --text-label--font-weight: 600;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-code: 13px;
+  --text-code--line-height: 18px;
+
+  --radius-*: initial;
+  --radius: 4px;
+  --radius-full: 9999px;
+
+  --shadow-*: initial;
+  --shadow-overlay: 0 1px 2px rgba(20, 22, 26, 0.06), 0 12px 32px rgba(20, 22, 26, 0.14);
+  --shadow-focus: 0 0 0 2px #ffffff, 0 0 0 4px #2440b8;
+
+  --container-page: 1200px;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+:root {
+  --header-height: 64px;
+  --sidebar-width: 280px;
+  --control-height: 44px;
+  --card-min: 232px;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 24px;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* Product grid: auto-fill columns of at least --card-min. */
+.responsive-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--card-min), 1fr));
+  gap: calc(var(--spacing) * 4);
+}
+@media (min-width: 768px) {
+  .responsive-grid {
+    gap: calc(var(--spacing) * 6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

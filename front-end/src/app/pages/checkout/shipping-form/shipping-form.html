@@ -1,0 +1,38 @@
+<div appViewPanel>
+    <h2 class="font-display text-heading mb-6 flex items-center gap-2">
+    <mat-icon>local_shipping</mat-icon>
+    Shipping Information
+    </h2>
+    <form [formGroup]="form" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <mat-form-field>
+            <input matInput type="text" placeholder="First Name" formControlName="firstName">
+            @if (form.get('firstName')?.touched && form.get('firstName')?.invalid) {
+                <mat-error>First name is required</mat-error>
+            }
+        </mat-form-field>
+        <mat-form-field>
+            <input matInput type="text" placeholder="Last Name" formControlName="lastName">
+            @if (form.get('lastName')?.touched && form.get('lastName')?.invalid) {
+                <mat-error>Last name is required</mat-error>
+            }
+        </mat-form-field>
+        <mat-form-field class="col-span-2">
+            <textarea matInput placeholder="Address" formControlName="address"></textarea>
+            @if (form.get('address')?.touched && form.get('address')?.invalid) {
+                <mat-error>Address is required</mat-error>
+            }
+        </mat-form-field>
+        <mat-form-field>
+            <input matInput type="number" placeholder="City ID" formControlName="cityId">
+            @if (form.get('cityId')?.touched && form.get('cityId')?.invalid) {
+                <mat-error>City ID is required</mat-error>
+            }
+        </mat-form-field>
+        <mat-form-field>
+            <input matInput type="text" placeholder="Zip Code" formControlName="zipCode">
+            @if (form.get('zipCode')?.touched && form.get('zipCode')?.invalid) {
+                <mat-error>Valid zip code required (1-4 digits)</mat-error>
+            }
+        </mat-form-field>
+    </form>
+</div>

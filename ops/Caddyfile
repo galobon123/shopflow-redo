@@ -1,0 +1,5 @@
+# HU-04 · HTTPS in front of the store. Caddy issues the certificate for {$DOMAIN} automatically.
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy frontend:80
+}

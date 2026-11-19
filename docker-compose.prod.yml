@@ -1,0 +1,52 @@
+# HU-04 · Production extras on top of docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# Needs DOMAIN and PUBLIC_URL in .env, and the domain's DNS pointing to this server (ports 80 and 443 open).
+
+services:
+  # Caddy gets and renews the Let's Encrypt certificate on its own.
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      DOMAIN: ${DOMAIN:?Falta DOMAIN en .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Only Caddy is public; the app and the databases stay inside the Docker network.
+  frontend:
+    ports: !reset []
+  db:
+    ports: !reset []
+  redis:
+    ports: !reset []
+  neo4j:
+    ports: !reset []
+
+  # Daily pg_dump, keeps the last 7 days in ./backups.
+  backup:
+    image: postgres:16-bookworm
+    environment:
+      PGHOST: db
+      PGDATABASE: ${DB_NAME:-shopflow}
+      PGUSER: ${DB_USER}
+      PGPASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./backups:/backups
+      - ./ops/backup.sh:/backup.sh:ro
+    entrypoint: ["bash", "/backup.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
