@@ -6,6 +6,8 @@
     <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-5" novalidate>
       @if (formError(); as message) {
         <sf-alert>{{ message }}</sf-alert>
+      } @else if (expired() === 'true') {
+        <sf-alert tone="info">Tu sesión venció, iniciá sesión de nuevo.</sf-alert>
       }
 
       <sf-field class="max-w-none" label="Email"

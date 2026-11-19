@@ -70,6 +70,17 @@ describe('Login (HU-07)', () => {
     expect(alert()).toContain('No pudimos conectar con el servidor');
   });
 
+  it('explains that the session expired (HU-08)', () => {
+    localStorage.clear();
+    TestBed.configureTestingModule({ imports: [Login], providers: testProviders() });
+    const fixture = TestBed.createComponent(Login);
+    fixture.componentRef.setInput('expired', 'true');
+    fixture.detectChanges();
+
+    const notice = (fixture.nativeElement as HTMLElement).querySelector('[role="status"]');
+    expect(notice?.textContent?.trim()).toBe('Tu sesión venció, iniciá sesión de nuevo.');
+  });
+
   it('goes back to the returnUrl after signing in', () => {
     const { backend, navigate, signIn, alert } = render('/checkout');
     signIn();

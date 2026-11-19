@@ -21,6 +21,8 @@ export class Login {
 
   /** `?returnUrl=/checkout`: where to go after signing in (bound by withComponentInputBinding). */
   readonly returnUrl = input<string>();
+  /** `?expired=true`: sent here because the session ran out (HU-08). */
+  readonly expired = input<string>();
 
   /** Wrong credentials, too many attempts (429, with the wait) or no connection. */
   protected readonly formError = signal<string | null>(null);

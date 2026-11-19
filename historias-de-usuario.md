@@ -268,14 +268,14 @@ Escenario: Demasiados intentos
 ---
 
 ### HU-08 · Manejo de sesión vencida y permisos
-**Prioridad:** Must · **Auditoría:** #11
+**Prioridad:** Must · **Auditoría:** #11 · **Estado:** Hecha
 
 > Como **cliente** quiero que la app me avise cuando mi sesión venció para no quedar en un estado roto.
 
 **Tareas**
-- [ ] FE: ante un 401, el interceptor llama a `authStore.logout()` (no solo borra el storage) y redirige a `/login?returnUrl=<ruta actual>`.
+- [x] FE: ante un 401, el interceptor llama a `authStore.logout()` (no solo borra el storage) y redirige a `/login?returnUrl=<ruta actual>`.
 - [x] FE: ante un 403, mostrar "No tenés permiso" **sin** cerrar la sesión. *(El interceptor ya no cierra sesión; el mensaje lo pone el toaster con el `detail` del backend.)*
-- [ ] FE: `authGuard` revisa `isTokenExpired` además de que exista el token.
+- [x] FE: `authGuard` revisa `isTokenExpired` además de que exista el token.
 - [x] FE: después del login, volver al `returnUrl`.
 
 **Escenarios**
