@@ -2,6 +2,7 @@ package com.Proyect.Ecommerce.service;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -16,6 +17,7 @@ import com.Proyect.Ecommerce.model.Role;
 import com.Proyect.Ecommerce.model.User;
 import com.Proyect.Ecommerce.repository.UserRepository;
 import com.Proyect.Ecommerce.security.JwtService;
+import com.Proyect.Ecommerce.security.LoginAttemptService;
 
 @Service
 public class AuthService {
@@ -25,17 +27,20 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final UserDetailsService userDetailsService;
+    private final LoginAttemptService loginAttempts;
 
     public AuthService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
                        JwtService jwtService,
                        AuthenticationManager authenticationManager,
-                       UserDetailsService userDetailsService) {
+                       UserDetailsService userDetailsService,
+                       LoginAttemptService loginAttempts) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
+        this.loginAttempts = loginAttempts;
     }
 
     public AuthResponseDTO register(RegisterRequestDTO dto) {
@@ -61,12 +66,24 @@ public class AuthService {
         return new AuthResponseDTO(token, user.getEmail(), user.getRole().name());
     }
 
-    public AuthResponseDTO login(AuthRequestDTO dto) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(dto.getEmail(), dto.getPassword()));
-                UserDetails userDetails = userDetailsService.loadUserByUsername(dto.getEmail()); 
-                User user = userRepository.findByEmail(dto.getEmail()).get();
-                String token = jwtService.generateToken(userDetails, user.getId(), user.getName());
+    /**
+     * HU-07 · Wrong email and wrong password give the same 401 (DaoAuthenticationProvider hides which one),
+     * and each failure counts towards the per-IP limit.
+     */
+    public AuthResponseDTO login(AuthRequestDTO dto, String clientIp) {
+        loginAttempts.checkAllowed(clientIp, dto.getEmail());
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(dto.getEmail(), dto.getPassword()));
+        } catch (BadCredentialsException e) {
+            loginAttempts.recordFailure(clientIp, dto.getEmail());
+            throw e;
+        }
+        loginAttempts.reset(clientIp, dto.getEmail());
+
+        UserDetails userDetails = userDetailsService.loadUserByUsername(dto.getEmail());
+        User user = userRepository.findByEmail(dto.getEmail()).orElseThrow();
+        String token = jwtService.generateToken(userDetails, user.getId(), user.getName());
         return new AuthResponseDTO(token, user.getEmail(), user.getRole().name());
     }
 }

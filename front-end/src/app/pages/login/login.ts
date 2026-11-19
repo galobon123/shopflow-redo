@@ -1,19 +1,17 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatButton } from '@angular/material/button';
-import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { AuthStore } from '../../auth-store';
 import { Toaster } from '../../core/services/toaster.service';
 import { SignInRequest } from '../../core/models/user.model';
+import { applyServerErrors, errorMessage, safeReturnUrl } from '../../core/util/error-message';
+import { SfAlert, SfButton, SfField, SfInput } from '../../ui';
 
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatButton, MatProgressSpinner, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, SfAlert, SfButton, SfField, SfInput],
   templateUrl: './login.html',
-  styleUrl: './login.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Login {
   private fb = inject(FormBuilder);
@@ -21,20 +19,33 @@ export class Login {
   private router = inject(Router);
   private toaster = inject(Toaster);
 
-  form = this.fb.group({
+  /** `?returnUrl=/checkout`: where to go after signing in (bound by withComponentInputBinding). */
+  readonly returnUrl = input<string>();
+
+  /** Wrong credentials, too many attempts (429, with the wait) or no connection. */
+  protected readonly formError = signal<string | null>(null);
+
+  form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(8)]],
+    password: ['', [Validators.required]],
   });
 
   submit() {
-    if (this.form.invalid) return;
-    const credentials: SignInRequest = this.form.getRawValue() as SignInRequest;
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+    this.formError.set(null);
+    const credentials: SignInRequest = this.form.getRawValue();
+
     this.authStore.signIn(credentials).subscribe({
       next: () => {
         this.toaster.success('¡Hola de nuevo!');
-        this.router.navigate(['/products/all']);
+        this.router.navigateByUrl(safeReturnUrl(this.returnUrl()) ?? '/products/all');
       },
-      error: (err) => this.toaster.error(err),
+      error: (err) => {
+        if (!applyServerErrors(this.form, err)) this.formError.set(errorMessage(err));
+      },
     });
   }
 }

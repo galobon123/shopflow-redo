@@ -235,15 +235,15 @@ Escenario: Contraseña corta
 ---
 
 ### HU-07 · Inicio de sesión con límite de intentos
-**Prioridad:** Must · **Auditoría:** #7, #13
+**Prioridad:** Must · **Auditoría:** #7, #13 · **Estado:** Hecha
 
 > Como **cliente** quiero iniciar sesión de forma segura para que nadie pueda adivinar mi contraseña.
 
 **Tareas**
-- [ ] BE: credenciales inválidas → 401 "Email o contraseña incorrectos", sin revelar si el email existe.
-- [ ] BE (Redis): contador `login:fail:{ip}:{email}` con `INCR` + `EXPIRE 900`; a partir de 5 fallos, responder 429 con el header `Retry-After`.
-- [ ] BE: borrar el contador cuando el login es exitoso.
-- [ ] FE: mostrar el tiempo de espera cuando llega un 429.
+- [x] BE: credenciales inválidas → 401 "Email o contraseña incorrectos", sin revelar si el email existe.
+- [x] BE (Redis): contador `login:fail:{ip}:{email}` con `INCR` + `EXPIRE 900`; a partir de 5 fallos, responder 429 con el header `Retry-After`. *(La IP real detrás del proxy sale de la `RemoteIpValve` de Tomcat, que no se puede falsificar con `X-Forwarded-For`.)*
+- [x] BE: borrar el contador cuando el login es exitoso.
+- [x] FE: mostrar el tiempo de espera cuando llega un 429.
 
 **Escenarios**
 ```gherkin
@@ -276,7 +276,7 @@ Escenario: Demasiados intentos
 - [ ] FE: ante un 401, el interceptor llama a `authStore.logout()` (no solo borra el storage) y redirige a `/login?returnUrl=<ruta actual>`.
 - [x] FE: ante un 403, mostrar "No tenés permiso" **sin** cerrar la sesión. *(El interceptor ya no cierra sesión; el mensaje lo pone el toaster con el `detail` del backend.)*
 - [ ] FE: `authGuard` revisa `isTokenExpired` además de que exista el token.
-- [ ] FE: después del login, volver al `returnUrl`.
+- [x] FE: después del login, volver al `returnUrl`.
 
 **Escenarios**
 ```gherkin

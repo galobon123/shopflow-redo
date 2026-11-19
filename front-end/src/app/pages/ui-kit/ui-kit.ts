@@ -4,7 +4,7 @@ import { Heart, LucideAngularModule, PackageSearch, ShoppingBag, Trash2 } from '
 import { ProductResponse } from '../../core/models/product.model';
 import { ProductCard } from '../../components/product-card/product-card';
 import {
-  ArsPipe, SfBadge, SfButton, SfEmptyState, SfErrorState, SfField, SfIconButton, SfInput, SfQtyStepper,
+  ArsPipe, SfAlert, SfBadge, SfButton, SfEmptyState, SfErrorState, SfField, SfIconButton, SfInput, SfQtyStepper,
   SfSkeleton, SfStockBadge,
 } from '../../ui';
 
@@ -23,7 +23,7 @@ const SAMPLE: ProductResponse = {
 @Component({
   selector: 'app-ui-kit',
   imports: [
-    ReactiveFormsModule, LucideAngularModule, ProductCard, ArsPipe, SfBadge, SfButton, SfEmptyState, SfErrorState,
+    ReactiveFormsModule, LucideAngularModule, ProductCard, ArsPipe, SfAlert, SfBadge, SfButton, SfEmptyState, SfErrorState,
     SfField, SfIconButton, SfInput, SfQtyStepper, SfSkeleton, SfStockBadge,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,

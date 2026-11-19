@@ -45,6 +45,10 @@
                 <input sfInput inputmode="numeric" autocomplete="postal-code" [formControl]="zip" />
             </sf-field>
         </div>
+        <div class="grid gap-3 max-w-md">
+            <sf-alert>Email o contraseña incorrectos.</sf-alert>
+            <sf-alert tone="info">Tu sesión venció. Volvé a ingresar para seguir.</sf-alert>
+        </div>
         <sf-qty-stepper [value]="qty()" [max]="3" (valueChange)="qty.set($event)" />
     </section>
 
