@@ -39,15 +39,16 @@ services:
     image: neo4j:5-community
     environment:
       NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:?Falta NEO4J_PASSWORD en .env}
-      NEO4J_USER: ${NEO4J_USER:-neo4j}
-      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      # Not NEO4J_*: the image treats every NEO4J_ variable as a config setting and refuses unknown ones.
+      HEALTH_USER: ${NEO4J_USER:-neo4j}
+      HEALTH_PASSWORD: ${NEO4J_PASSWORD}
     ports:
       - "127.0.0.1:7474:7474"
       - "127.0.0.1:7687:7687"
     volumes:
       - neo4j_data:/data
     healthcheck:
-      test: ["CMD-SHELL", "cypher-shell -u $${NEO4J_USER} -p $${NEO4J_PASSWORD} 'RETURN 1' > /dev/null"]
+      test: ["CMD-SHELL", "cypher-shell -u $${HEALTH_USER} -p $${HEALTH_PASSWORD} 'RETURN 1' > /dev/null"]
       interval: 10s
       timeout: 10s
       retries: 12
