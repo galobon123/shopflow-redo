@@ -1,0 +1,61 @@
+Modern Web Guidance - npx
+---- footer ------
+WhatsApp, disponibilidad, contactos, lugar de la tienda primero
+Logos de los métodos de pago con sus iconos correspondientes y políticas (devoluciones, privacidad, envios etc.) segundo
+Garantias tercero
+Quien somos: razón social, direccion, data fiscal, nombre de la empresa, qr con info mas detallada CUARTO
+por ultimo desplegables con categorías, ayuda, empresa, etc.
+
+----UX animation bases ------
+ Squash & stretch: things squish on impact and stretch in motion, which gives them weight
+- Anticipation wind-up: a small pull back before the big move, so people see it coming
+- Staging the focus: direct the eye to one thing at a time
+- Pose to pose: set the key poses and let the browser fill in the frames between
+- Follow through: parts keep moving after the main body stops, then settle
+- Slow in & slow out: speed up and slow down, never move at a constant speed
+- Moving in arcs: move along curves, not straight lines
+- Secondary action: a small flourish that backs up the main action
+- Snappy timing: duration sets the feel, so keep UI animations under 300ms
+- Exaggerated feedback: push it past real so the moment lands
+- Solid drawing in 3D: give flat things depth and volume
+- Overall appeal: the sum of every detail, done with care
+- Fitts’s law: bigger, closer targets are faster to hit
+- Bigger hit areas: the clickable area can be bigger than it looks
+- Hick’s law: more choices mean slower decisions
+- Miller’s law: we hold about 7 things in mind at once, so chunk information
+- Doherty threshold: respond within 400ms or it feels slow
+- Postel’s law: accept messy input, give back clean output
+- Jakob’s law: people expect your app to work like the apps they already use
+- Frequency of use: the more often something is used, the less it should animate
+
+---- Anti vibe code guidelines -------
+Kill purple gradients
+Real ICOns not emojis
+Tab title + favicon
+Fewer cards, more room
+Font that isn't Inter
+One accent color
+Use a spacing scale
+One corren radius everywhere
+Rewrite the copy
+Use real photos
+Own domain
+Design empty states
+Design proper loading states
+Custon 404 pages
+Real errors messages
+Meaningful animations
+Write a design brief
+
+----- skills --------
+Chief of Staff orchestrates multi-agent teams for high-level goals, Anatomy generates interactive on-screen models, Teach creates custom persistent tutoring, Marketing Psychology bakes 50+ cognitive principles into sales copy, and Last 30 Days mines recent cross-platform social trends.
+
+Ponytail
+condom
+mattpocock/skills
+andrej-karpathy-skills
+impeccable
+
+---- GitHub guidelines --------
+
+https://github.com/SixArm/ui-ux-design-guide/tree/main

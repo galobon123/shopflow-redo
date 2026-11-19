@@ -1,3 +1,4 @@
+import { testProviders } from '../../testing/test-providers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { SummarizeOrder } from './summarize-order';
@@ -8,7 +9,8 @@ describe('SummarizeOrder', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [SummarizeOrder]
+      imports: [SummarizeOrder],
+      providers: testProviders()
     })
     .compileComponents();
 

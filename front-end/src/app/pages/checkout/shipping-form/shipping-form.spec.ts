@@ -1,3 +1,4 @@
+import { testProviders } from '../../../testing/test-providers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ShippingForm } from './shipping-form';
@@ -8,7 +9,8 @@ describe('ShippingForm', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [ShippingForm]
+      imports: [ShippingForm],
+      providers: testProviders()
     })
     .compileComponents();
 

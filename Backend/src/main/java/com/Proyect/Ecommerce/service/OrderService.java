@@ -18,6 +18,7 @@ import com.Proyect.Ecommerce.dto.order.OrderItemDTO;
 import com.Proyect.Ecommerce.dto.order.OrderRequestDTO;
 import com.Proyect.Ecommerce.dto.order.OrderResponseDTO;
 import com.Proyect.Ecommerce.exception.BadRequestException;
+import com.Proyect.Ecommerce.exception.ConflictException;
 import com.Proyect.Ecommerce.exception.NotFoundException;
 import com.Proyect.Ecommerce.model.Address;
 import com.Proyect.Ecommerce.model.Order;
@@ -82,8 +83,9 @@ public class OrderService {
         Address address = addressRepository.findById(dto.getAddressId())
                 .orElseThrow(() -> new NotFoundException("Dirección no encontrada: " + dto.getAddressId()));
 
+        // Someone else's address answers like a missing one, so address ids don't leak (as in AddressService).
         if (!address.getCreatedBy().getId().equals(userId)) {
-            throw new BadRequestException("La dirección no pertenece al usuario");
+            throw new NotFoundException("Dirección no encontrada: " + dto.getAddressId());
         }
 
         Order order = new Order();
@@ -110,10 +112,10 @@ public class OrderService {
                 continue;
             }
 
-            if (quantity > product.getStock()) {
-                throw new BadRequestException(
-                        "No hay stock suficiente para: " + product.getName()
-                        + " (disponible: " + product.getStock() + ")");
+            // Check and decrement in one UPDATE: two buyers can't both take the last unit.
+            // Throwing rolls back the decrements already made for earlier items.
+            if (productRepository.decrementStock(productId, quantity) == 0) {
+                throw new ConflictException("Sin stock de " + product.getName() + ".");
             }
 
             OrderItem item = new OrderItem();
@@ -124,9 +126,6 @@ public class OrderService {
             order.getItems().add(item);
 
             total = total.add(product.getPrice().multiply(BigDecimal.valueOf(quantity)));
-
-            product.setStock(product.getStock() - quantity);
-            productRepository.save(product);
         }
 
         if (order.getItems().isEmpty()) {

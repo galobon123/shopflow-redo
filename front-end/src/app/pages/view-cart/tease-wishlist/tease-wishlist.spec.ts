@@ -1,3 +1,4 @@
+import { testProviders } from '../../../testing/test-providers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { TeaseWishlist } from './tease-wishlist';
@@ -8,7 +9,8 @@ describe('TeaseWishlist', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [TeaseWishlist]
+      imports: [TeaseWishlist],
+      providers: testProviders()
     })
     .compileComponents();
 

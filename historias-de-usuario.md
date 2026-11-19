@@ -619,12 +619,12 @@ Escenario: Dirección de otro cliente
 > Como **cliente** quiero confirmar mi compra con un total claro y la seguridad de que el producto está reservado para mí.
 
 **Tareas**
-- [ ] BE: descontar stock de forma atómica: `UPDATE products SET stock = stock - :q WHERE id = :id AND stock >= :q`; si afecta 0 filas → 409 "Sin stock de X". Todo en una transacción.
+- [x] BE: descontar stock de forma atómica: `UPDATE products SET stock = stock - :q WHERE id = :id AND stock >= :q`; si afecta 0 filas → 409 "Sin stock de X". Todo en una transacción. *(Adelantado en la HU-27.)*
 - [ ] BE: la orden nace en estado `PENDIENTE_PAGO` con `expires_at = now + 30 min`.
 - [ ] BE: el total lo calcula **solo** el backend; los precios ya incluyen IVA.
 - [ ] BE: `OrderService` lee el carrito vía `CartService` y lo borra en `afterCommit`.
 - [ ] FE: quitar el cálculo del 21% del resumen y mostrar "IVA incluido".
-- [ ] QA: test de concurrencia: 2 hilos compran la última unidad → 1 orden y 1 rechazo.
+- [x] QA: test de concurrencia: 2 hilos compran la última unidad → 1 orden y 1 rechazo. *(Adelantado en la HU-27.)*
 
 **Escenarios**
 ```gherkin
@@ -933,15 +933,15 @@ Escenario: Dato sin configurar
 ## Épica 8 — Calidad y crecimiento
 
 ### HU-27 · Suite de tests en verde y tests del dinero
-**Prioridad:** Must · **Auditoría:** #15
+**Prioridad:** Must · **Auditoría:** #15 · **Estado:** Hecha (salvo los tests del webhook, que llegan con la HU-18)
 
 > Como **desarrollador** quiero tests que fallen cuando se rompe una regla de negocio para cambiar código sin miedo.
 
 **Tareas**
-- [ ] QA: Testcontainers (Postgres, Redis, Neo4j) para los tests de integración.
-- [ ] QA: tests de `createOrder` (stock justo, sin stock, concurrencia, dirección ajena, carrito vacío), del webhook (aprobado, duplicado, firma inválida) y de los permisos de `/api/admin/**`.
-- [ ] QA: arreglar o borrar los specs generados del front (hoy fallan 14 de 23) y testear el `ecommerce-store` y el interceptor.
-- [ ] OPS: cobertura informativa en la CI (sin umbral obligatorio).
+- [x] QA: Testcontainers (Postgres, Redis, Neo4j) para los tests de integración.
+- [x] QA: tests de `createOrder` (stock justo, sin stock, concurrencia, dirección ajena, carrito vacío) y de los permisos de los endpoints de admin. *(El webhook todavía no existe: sus tests van en la HU-18.)*
+- [x] QA: arreglar o borrar los specs generados del front (hoy fallan 14 de 23) y testear el `ecommerce-store` y el interceptor.
+- [x] OPS: cobertura informativa en la CI (sin umbral obligatorio).
 
 **Escenarios**
 ```gherkin

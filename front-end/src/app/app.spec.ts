@@ -1,23 +1,18 @@
 import { TestBed } from '@angular/core/testing';
 import { App } from './app';
+import { testProviders } from './testing/test-providers';
 
 describe('App', () => {
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [App],
-    }).compileComponents();
+  beforeEach(() => {
+    TestBed.configureTestingModule({ imports: [App], providers: testProviders() });
   });
 
-  it('should create the app', () => {
-    const fixture = TestBed.createComponent(App);
-    const app = fixture.componentInstance;
-    expect(app).toBeTruthy();
-  });
-
-  it('should render title', async () => {
+  it('renders the header with the brand and the router outlet', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, shopflow-ui');
+    const el = fixture.nativeElement as HTMLElement;
+
+    expect(el.textContent).toContain('ShopFlow');
+    expect(el.querySelector('router-outlet')).not.toBeNull();
   });
 });
