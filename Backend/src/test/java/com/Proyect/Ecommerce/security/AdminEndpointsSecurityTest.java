@@ -53,7 +53,6 @@ class AdminEndpointsSecurityTest {
                 Arguments.of(HttpMethod.DELETE, "/api/categories/1"),
                 Arguments.of(HttpMethod.GET, "/api/users"),
                 Arguments.of(HttpMethod.GET, "/api/users/1"),
-                Arguments.of(HttpMethod.POST, "/api/users"),
                 Arguments.of(HttpMethod.DELETE, "/api/users/1"));
     }
 

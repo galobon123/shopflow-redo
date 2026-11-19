@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { FormGroup } from '@angular/forms';
 
 /** Error body the backend sends (RFC 9457 ProblemDetail, HU-03). */
 export interface Problem {
@@ -11,6 +12,28 @@ export interface Problem {
 
 export const OFFLINE_MESSAGE = 'No pudimos conectar con el servidor. Revisá tu conexión y probá de nuevo.';
 const FALLBACK_MESSAGE = 'Algo salió mal. Probá de nuevo.';
+
+/**
+ * Puts the backend's per-field errors (`errors.password = '…'`) on the matching form controls,
+ * so each one shows under its field. Returns false when the response had none for this form.
+ */
+export function applyServerErrors(form: FormGroup, err: unknown): boolean {
+  const errors = problemOf(err)?.errors ?? {};
+  let applied = false;
+  for (const [field, message] of Object.entries(errors)) {
+    const control = form.get(field);
+    if (!control) continue;
+    control.setErrors({ server: message });
+    control.markAsTouched();
+    applied = true;
+  }
+  return applied;
+}
+
+/** Only paths inside the app (`/cart`, not `//evil.com` or `https://…`), so a link can't send people elsewhere. */
+export function safeReturnUrl(url: string | null | undefined): string | null {
+  return url && url.startsWith('/') && !url.startsWith('//') && !url.startsWith('/\\') ? url : null;
+}
 
 export function problemOf(err: unknown): Problem | null {
   if (!(err instanceof HttpErrorResponse) || typeof err.error !== 'object' || err.error === null) return null;

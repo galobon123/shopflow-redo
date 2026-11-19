@@ -1,5 +1,6 @@
 package com.Proyect.Ecommerce.service;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -47,7 +48,13 @@ public class AuthService {
         user.setEmail(dto.getEmail());
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         user.setRole(Role.USER);
-        userRepository.save(user);
+        try {
+            // Flush now: if a parallel registration took the email in the meantime, the unique
+            // constraint fails here and becomes the same 409 as above instead of a 500.
+            userRepository.saveAndFlush(user);
+        } catch (DataIntegrityViolationException e) {
+            throw new ConflictException("Ya existe una cuenta con ese email.");
+        }
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(dto.getEmail());
         String token = jwtService.generateToken(userDetails, user.getId(), user.getName());

@@ -202,15 +202,15 @@ Escenario: Error en producción
 ## Épica 1 — Cuenta y sesión
 
 ### HU-06 · Registro de cliente
-**Prioridad:** Must
+**Prioridad:** Must · **Estado:** Hecha
 
 > Como **invitado** quiero crear una cuenta para poder comprar y guardar mi historial.
 
 **Tareas**
-- [ ] BE: normalizar el email (trim + minúsculas) antes de validar y guardar.
-- [ ] BE: si se viola la restricción única de email (dos registros a la vez), devolver 409 y no 500.
-- [ ] BE: eliminar `POST /api/users`, que duplica el registro sin validar (auditoría #19).
-- [ ] FE: mostrar los errores por campo que devuelve el backend y redirigir al `returnUrl` si existe.
+- [x] BE: normalizar el email (trim + minúsculas) antes de validar y guardar.
+- [x] BE: si se viola la restricción única de email (dos registros a la vez), devolver 409 y no 500.
+- [x] BE: eliminar `POST /api/users`, que duplica el registro sin validar (auditoría #19).
+- [x] FE: mostrar los errores por campo que devuelve el backend y redirigir al `returnUrl` si existe.
 
 **Escenarios**
 ```gherkin

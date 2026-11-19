@@ -1,19 +1,17 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatButton } from '@angular/material/button';
-import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { AuthStore } from '../../auth-store';
 import { Toaster } from '../../core/services/toaster.service';
 import { SignUpRequest } from '../../core/models/auth.model';
+import { applyServerErrors, safeReturnUrl } from '../../core/util/error-message';
+import { SfButton, SfField, SfInput } from '../../ui';
 
 @Component({
   selector: 'app-register',
-  imports: [ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatButton, MatProgressSpinner, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, SfButton, SfField, SfInput],
   templateUrl: './register.html',
-  styleUrl: './register.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Register {
   private fb = inject(FormBuilder);
@@ -21,23 +19,32 @@ export class Register {
   private router = inject(Router);
   private toaster = inject(Toaster);
 
-  form = this.fb.group({
-    name: ['', [Validators.required, Validators.minLength(2)]],
+  /** `?returnUrl=/checkout`: where to go once the account exists (bound by withComponentInputBinding). */
+  readonly returnUrl = input<string>();
+
+  form = this.fb.nonNullable.group({
+    name: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
     email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(8)]],
+    password: ['', [Validators.required, Validators.minLength(8), Validators.maxLength(72)]],
   });
 
   submit() {
-    if (this.form.invalid) return;
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
 
-    const data: SignUpRequest = this.form.getRawValue() as SignUpRequest;
+    const data: SignUpRequest = this.form.getRawValue();
 
     this.authStore.signUp(data).subscribe({
       next: () => {
         this.toaster.success('Tu cuenta está lista.');
-        this.router.navigate(['/products/all']);
+        this.router.navigateByUrl(safeReturnUrl(this.returnUrl()) ?? '/products/all');
       },
-      error: (err) => this.toaster.error(err),
+      error: (err) => {
+        // 400 with errors per field → under each field; anything else (409, offline…) → toast.
+        if (!applyServerErrors(this.form, err)) this.toaster.error(err);
+      },
     });
   }
 }

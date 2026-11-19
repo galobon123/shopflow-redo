@@ -1,22 +1,17 @@
 package com.Proyect.Ecommerce.controller;
 
-import jakarta.validation.Valid;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.Proyect.Ecommerce.dto.user.UserRequestDTO;
 import com.Proyect.Ecommerce.dto.user.UserResponseDTO;
 import com.Proyect.Ecommerce.service.UserService;
 
@@ -51,12 +46,6 @@ public class UserController {
     public ResponseEntity<List<UserResponseDTO>> betweenCreatedAt(@RequestParam String start, @RequestParam String end) {
         List<UserResponseDTO> users = userService.findByCreatedAtBetween(LocalDateTime.parse(start), LocalDateTime.parse(end));
         return ResponseEntity.ok(users);
-    }
-
-    @PostMapping
-    public ResponseEntity<UserResponseDTO> save(@Valid @RequestBody UserRequestDTO userRequest){
-        UserResponseDTO savedUser = userService.save(userRequest);
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
     }
 
     @DeleteMapping("/{id}")
