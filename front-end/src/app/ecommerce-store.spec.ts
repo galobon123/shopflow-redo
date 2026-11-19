@@ -32,7 +32,6 @@ describe('EcommerceStore', () => {
     TestBed.tick();
 
     // Requests the store makes on start.
-    backend.expectOne(`${api}/products`).flush([]);
     backend.expectOne(`${api}/categories`).flush([]);
     if (authenticated) {
       backend.expectOne(`${api}/wishlist`).flush([]);

@@ -1,62 +1,99 @@
-<mat-sidenav-container class="bg-canvas p-6 h-full">
-    <mat-sidenav mode="side" opened="true">
-        <div class="p-6">
-            <h2 class="text-body text-ink" >
-                Categories
-            </h2>
+<div class="sf-catalog">
+  <nav class="sf-catalog__nav" aria-label="Categorías">
+    <h2 class="sf-label mb-3 px-3">Categorías</h2>
+    <ul class="sf-nav">
+      <li>
+        <a routerLink="/products/all" [queryParams]="{ q: search(), sort: sort() ?? null }"
+          [attr.aria-current]="category() === null ? 'page' : null">Todos</a>
+      </li>
+      @for (cat of store.categories(); track cat.id) {
+        <li>
+          <a [routerLink]="['/products', cat.name]" [queryParams]="{ q: search(), sort: sort() ?? null }"
+            [attr.aria-current]="cat.name.toLowerCase() === category()?.toLowerCase() ? 'page' : null">{{ cat.name }}</a>
+        </li>
+      }
+    </ul>
+  </nav>
 
-            <mat-nav-list>
-                <mat-list-item class="my-2"  mat-list-item (click)="filterBy(null) " [activated]="store.selectedCategory() === null">
-                    <span matListTitle [class]="null === store.selectedCategory() ? 'text-on-ink' : null"> All</span>
-                </mat-list-item>
-                @for(cat of store.categories(); track cat.id){
-                    <mat-list-item [activated]="cat.name === store.selectedCategory()" class="my-2" mat-list-item (click)="filterBy(cat.name)">
-                        <span matListTitle class="font-medium" [class]="cat.name === store.selectedCategory() ? 'text-on-ink' : null"> {{ cat.name }}</span>
-                    </mat-list-item>
-                }
-            </mat-nav-list>
-        </div>
-    </mat-sidenav>
-    <mat-sidenav-content>
-        <h1 class="font-display text-heading text-ink mb-6 ml-6">{{ store.selectedCategory() || 'All' }}</h1>
-        <div class="responsive-grid mb-10">
-            @for(product of store.filteredProducts(); track product.id) {
-                <app-product-card [product]="product">
-                    <app-toggle-wishlist-button [product]="product"></app-toggle-wishlist-button>
-                </app-product-card>
-            }
-        </div>
-
-        
-        @if (store.recommendations().recommended.length > 0) {
-
-            <hr class="my-6 mx-6 border-line" />
-
-            <section class="mb-8 ml-6">
-                <h2 class="text-title text-ink mb-4">Quizá te interese</h2>
-                <div class="responsive-grid">
-                    @for(product of store.recommendations().recommended; track product.id) {
-                        <app-product-card [product]="product">
-                            <app-toggle-wishlist-button [product]="product"></app-toggle-wishlist-button>
-                        </app-product-card>
-                    }
-                </div>
-            </section>
-            <hr class="my-6 mx-6 border-line" />
+  <section aria-labelledby="catalog-title">
+    <div class="sf-toolbar">
+      <div>
+        <h1 id="catalog-title" class="font-display text-display-l">{{ title() }}</h1>
+        @if (results.hasValue()) {
+          <p class="text-body-s text-ink-muted mt-1" aria-live="polite">{{ count() }}</p>
         }
+      </div>
+      <sf-field label="Ordenar por">
+        <select sfInput [value]="sortValue()" (change)="changeSort($event)">
+          @for (option of sorts; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+      </sf-field>
+    </div>
 
-        @if (store.recommendations().othersBought.length > 0) {
-            <section class="mb-8 ml-6">
-                <h2 class="text-title text-ink mb-4">Otros usuarios compraron</h2>
-                <div class="responsive-grid">
-                    @for(product of store.recommendations().othersBought; track product.id) {
-                        <app-product-card [product]="product">
-                            <app-toggle-wishlist-button [product]="product"></app-toggle-wishlist-button>
-                        </app-product-card>
-                    }
-                </div>
-            </section>
-            <hr class="my-6 mx-6 border-line" />
+    @if (results.isLoading() && !results.hasValue()) {
+      <div class="responsive-grid" aria-busy="true" aria-label="Cargando productos">
+        @for (i of skeletons; track i) {
+          <div class="grid content-start gap-3">
+            <div sfSkeleton class="aspect-4/5"></div>
+            <div sfSkeleton class="h-3 w-2/5"></div>
+            <div sfSkeleton class="h-4 w-11/12"></div>
+            <div sfSkeleton class="h-5 w-1/3"></div>
+          </div>
         }
-    </mat-sidenav-content>
-</mat-sidenav-container>
+      </div>
+    } @else if (error(); as message) {
+      <sf-error-state class="py-16" [message]="message" (retry)="results.reload()" />
+    } @else if (results.value()?.items?.length === 0) {
+      @if (search(); as q) {
+        <sf-empty-state class="py-16" [icon]="icons.noResults" title="No encontramos productos para '{{ q }}'"
+          text="Probá con otra palabra o buscá en todas las categorías.">
+          <button sfButton="secondary" type="button" (click)="clearSearch()">Limpiar búsqueda</button>
+        </sf-empty-state>
+      } @else {
+        <sf-empty-state class="py-16" [icon]="icons.empty" title="Todavía no hay productos acá"
+          text="Mirá las otras categorías mientras tanto.">
+          <a sfButton="secondary" routerLink="/products/all">Ver todos los productos</a>
+        </sf-empty-state>
+      }
+    } @else if (results.value(); as page) {
+      <div class="responsive-grid" [class.opacity-60]="results.isLoading()">
+        @for (product of page.items; track product.id) {
+          <app-product-card [product]="product">
+            <app-toggle-wishlist-button [product]="product" />
+          </app-product-card>
+        }
+      </div>
+      @if (page.totalPages > 1) {
+        <sf-pagination [page]="pageNumber()" [totalPages]="page.totalPages" />
+      }
+    }
+
+    @if (store.recommendations().recommended.length > 0) {
+      <section class="mt-16" aria-labelledby="recs-title">
+        <h2 id="recs-title" class="text-title mb-4">Quizá te interese</h2>
+        <div class="responsive-grid">
+          @for (product of store.recommendations().recommended; track product.id) {
+            <app-product-card [product]="product">
+              <app-toggle-wishlist-button [product]="product" />
+            </app-product-card>
+          }
+        </div>
+      </section>
+    }
+
+    @if (store.recommendations().othersBought.length > 0) {
+      <section class="mt-16" aria-labelledby="others-title">
+        <h2 id="others-title" class="text-title mb-4">Otros también compraron</h2>
+        <div class="responsive-grid">
+          @for (product of store.recommendations().othersBought; track product.id) {
+            <app-product-card [product]="product">
+              <app-toggle-wishlist-button [product]="product" />
+            </app-product-card>
+          }
+        </div>
+      </section>
+    }
+  </section>
+</div>

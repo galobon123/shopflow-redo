@@ -307,6 +307,29 @@
   .sf-nav small { font-size: 13px; color: var(--color-ink-muted); font-variant-numeric: tabular-nums; }
   .sf-nav a[aria-current="page"] small { color: var(--color-accent); }
 
+  /* ---------- Catalog layout: categories + results ---------- */
+  .sf-catalog { box-sizing: border-box; max-width: var(--container-page); margin: 0 auto; padding: calc(var(--spacing) * 8) calc(var(--spacing) * 4) calc(var(--spacing) * 16); display: grid; gap: calc(var(--spacing) * 8); }
+  .sf-catalog__nav { align-self: start; min-width: 0; }
+  @media (min-width: 768px) {
+    .sf-catalog { grid-template-columns: 220px minmax(0, 1fr); padding-inline: calc(var(--spacing) * 6); }
+    .sf-catalog__nav { position: sticky; top: calc(var(--header-height) + var(--spacing) * 6); }
+  }
+  /* Phones: the category list becomes one scrollable row. */
+  @media (max-width: 767px) {
+    .sf-catalog__nav .sf-nav { grid-auto-flow: column; grid-auto-columns: max-content; overflow-x: auto; padding-bottom: calc(var(--spacing) * 1); }
+  }
+  .sf-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: calc(var(--spacing) * 4); margin-bottom: calc(var(--spacing) * 6); }
+  .sf-toolbar .sf-field { min-width: 200px; }
+
+  /* ---------- Pagination ---------- */
+  .sf-pagination { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: calc(var(--spacing) * 1); margin-top: calc(var(--spacing) * 10); }
+  .sf-pagination > a, .sf-pagination > span { box-sizing: border-box; min-width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: calc(var(--spacing) * 1); padding: 0 calc(var(--spacing) * 3); border-radius: var(--radius); color: var(--color-ink); font-size: 15px; text-decoration: none; font-variant-numeric: tabular-nums; }
+  .sf-pagination a:hover { background: var(--color-sunken); }
+  .sf-pagination a:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+  .sf-pagination a[aria-current="page"] { background: var(--color-ink); color: var(--color-on-ink); font-weight: 600; }
+  .sf-pagination a[aria-disabled="true"] { color: var(--color-ink-muted); opacity: 0.45; pointer-events: none; }
+  .sf-pagination > span { color: var(--color-ink-muted); }
+
   /* ---------- PromoBand ---------- */
   .sf-promo { background: linear-gradient(to bottom, var(--color-accent-soft), var(--color-canvas)); padding: calc(var(--spacing) * 12) calc(var(--spacing) * 4) calc(var(--spacing) * 8); }
   .sf-promo__inner { max-width: var(--container-page); margin: 0 auto; display: grid; gap: calc(var(--spacing) * 6); }

@@ -1,8 +1,12 @@
 <header class="sf-header">
     <div class="sf-header__inner">
         <a class="sf-brand" routerLink="/">ShopFlow</a>
-        <!-- Search box and categories button arrive with HU-10. -->
-        <span class="flex-1"></span>
+        <form class="sf-header__search sf-search" role="search" (submit)="search($event, query.value)">
+            <label class="sr-only" for="site-search">Buscar productos</label>
+            <lucide-icon [img]="searchIcon" [size]="18" />
+            <input #query id="site-search" class="sf-input sf-input--search w-full" type="search" name="q"
+                placeholder="Buscar productos" autocomplete="off" enterkeyhint="search" [value]="currentQuery()" />
+        </form>
         <app-header-actions />
     </div>
 </header>

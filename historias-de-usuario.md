@@ -336,16 +336,16 @@ Escenario: Email que no existe
 ## Épica 2 — Catálogo
 
 ### HU-10 · Listado de productos con filtros, búsqueda y paginación
-**Prioridad:** Must · **Auditoría:** #8
+**Prioridad:** Must · **Auditoría:** #8 · **Estado:** Hecha
 
 > Como **invitado** quiero explorar solo los productos disponibles, filtrar y buscar, para encontrar rápido lo que busco.
 
 **Tareas**
-- [ ] BE: `GET /api/products?page&size&category&q&sort` devuelve un `Page` solo con productos activos (`size` máximo 48).
-- [ ] BE: `GET /api/admin/products` con todos los productos, incluidos los inactivos (para la HU-21).
-- [ ] BE: búsqueda por nombre y descripción sin distinguir mayúsculas (`ILIKE`, o `pg_trgm` si crece).
-- [ ] BE: eliminar los endpoints sin uso `priceRange`, `timeRange` y `name` (auditoría #19).
-- [ ] FE: filtros sincronizados con la URL (`?q=&category=&page=`) para poder compartir el link.
+- [x] BE: `GET /api/products?page&size&category&q&sort` devuelve un `Page` solo con productos activos (`size` máximo 48).
+- [x] BE: `GET /api/admin/products` con todos los productos, incluidos los inactivos (para la HU-21).
+- [x] BE: búsqueda por nombre y descripción sin distinguir mayúsculas (`ILIKE`, o `pg_trgm` si crece).
+- [x] BE: eliminar los endpoints sin uso `priceRange`, `timeRange` y `name` (auditoría #19).
+- [x] FE: filtros sincronizados con la URL (`?q=&category=&page=`) para poder compartir el link. *(La categoría va en la ruta: `/products/Remeras?q=lino&sort=price_asc&page=2`. Incluye orden, paginación y búsqueda en el header.)*
 
 **Escenarios**
 ```gherkin

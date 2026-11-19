@@ -1,8 +1,20 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ProductRequest, ProductResponse } from '../models/product.model';
+import { Page } from '../models/page.model';
+
+export type ProductSort = 'newest' | 'price_asc' | 'price_desc' | 'name';
+
+/** HU-10 · Catalog query. `page` starts at 0, like the API. */
+export interface CatalogQuery {
+  category?: string | null;
+  q?: string | null;
+  sort?: ProductSort;
+  page?: number;
+  size?: number;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -13,8 +25,13 @@ export class ProductService {
 
   constructor(private http: HttpClient) {}
 
-  getAll(): Observable<ProductResponse[]> {
-    return this.http.get<ProductResponse[]>(this.url);
+  /** Active products only, one page at a time. Empty filters are left out of the URL. */
+  search(query: CatalogQuery): Observable<Page<ProductResponse>> {
+    let params = new HttpParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== null && value !== undefined && value !== '') params = params.set(key, String(value));
+    }
+    return this.http.get<Page<ProductResponse>>(this.url, { params });
   }
 
   getById(id: number): Observable<ProductResponse> {

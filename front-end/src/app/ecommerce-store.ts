@@ -3,7 +3,6 @@ import { signalStore, withState, withMethods, withComputed, patchState, withHook
 import { computed, inject, untracked, effect } from '@angular/core';
 import { ProductResponse } from './core/models/product.model';
 import { CategoryResponse } from './core/models/category.model';
-import { ProductService } from './core/services/product.service';
 import { CategoryService } from './core/services/category.service';
 import { WishListService } from './core/services/wishlist.service';
 import { AuthStore } from './auth-store';
@@ -22,23 +21,19 @@ import { map, catchError, switchMap } from 'rxjs/operators';
 import { Router } from '@angular/router';
 
 type EcommerceState = {
-  products: ProductResponse[];
   categories: CategoryResponse[];
   wishListItems: WishListResponse[];
   cartItems: CartItem[];
   recommendations: RecommendationsResponse;
-  selectedCategory: string | null;
   loading: boolean;
   error: string | null;
 };
 
 const initialState: EcommerceState = {
-  products: [],
   categories: [],
   wishListItems: [],
   cartItems: [],
   recommendations: { recommended: [], othersBought: [] },
-  selectedCategory: null,
   loading: false,
   error: null,
 };
@@ -48,11 +43,6 @@ export const EcommerceStore = signalStore(
   withState(initialState),
 
   withComputed((store) => ({
-  filteredProducts: computed(() => {
-    const category = store.selectedCategory();
-    if (!category) return store.products();
-    return store.products().filter((p) => p.categoryName === category);
-  }),
   wishListCount: computed(() => store.wishListItems().length),
   cartCount: computed(() => store.cartItems().reduce((sum, item) => sum + item.quantity, 0)),
   cartTotal: computed(() => store.cartItems().reduce((sum, item) => 
@@ -60,7 +50,6 @@ export const EcommerceStore = signalStore(
 })),
 
   withMethods((store,
-    productService = inject(ProductService), 
     categoryService = inject(CategoryService), 
     wishListService = inject(WishListService),
     authStore = inject(AuthStore),
@@ -70,15 +59,11 @@ export const EcommerceStore = signalStore(
     addressService = inject(AddressService),
     router = inject(Router),
     toaster = inject(Toaster)) => ({
-  loadAll(): void {
-    patchState(store, { loading: true, error: null });
-    productService.getAll().subscribe({
-      next: (products) => patchState(store, { products, loading: false }),
-      error: (err) => patchState(store, { error: errorMessage(err), loading: false }),
-    });
-
+  /** The catalog itself is paged by the server (HU-10, products-grid); only categories live here. */
+  loadCategories(): void {
     categoryService.getAll().subscribe({
       next: (categories) => patchState(store, { categories }),
+      error: () => { /* the catalog still works without the category list */ },
     });
   },
   loadRecommendations(): void {
@@ -94,9 +79,6 @@ export const EcommerceStore = signalStore(
       next: (items) => patchState(store, { wishListItems: items }),
       error: () => { /* silencioso, no bloquea la app */ },
     });
-  },
-  filterBy(categoryName: string | null): void {
-    patchState(store, { selectedCategory: categoryName });
   },
   addToWishList : (product: ProductResponse) => { 
     if (!authStore.isAuthenticated()) {
@@ -348,7 +330,7 @@ export const EcommerceStore = signalStore(
     onInit(store) {
       const authStore = inject(AuthStore);
 
-      store.loadAll();
+      store.loadCategories();
 
       effect(() => {
         if (authStore.isAuthenticated()) {

@@ -1,18 +1,25 @@
 package com.Proyect.Ecommerce.service;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
+import com.Proyect.Ecommerce.dto.PageResponse;
 import com.Proyect.Ecommerce.dto.product.ProductRequestDTO;
 import com.Proyect.Ecommerce.dto.product.ProductResponseDTO;
 import com.Proyect.Ecommerce.model.Category;
 import com.Proyect.Ecommerce.model.Product;
+import com.Proyect.Ecommerce.exception.BadRequestException;
 import com.Proyect.Ecommerce.exception.NotFoundException;
 import com.Proyect.Ecommerce.repository.CategoryRepository;
 import com.Proyect.Ecommerce.repository.ProductRepository;
+import com.Proyect.Ecommerce.repository.ProductSpecs;
 
 @Service
 public class ProductService {
@@ -26,43 +33,63 @@ public class ProductService {
         this.categoryRepository = categoryRepository;
     }
 
-    public List<ProductResponseDTO> findAll() {
-        return productRepository.findAll()
-                .stream()
-                .map(this::toResponseDTO)
-                .toList();
+    /** HU-10 · The ways the catalog can be sorted; anything else is a 400. */
+    public enum SortOrder {
+        NEWEST(Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))),
+        PRICE_ASC(Sort.by(Sort.Order.asc("price"), Sort.Order.asc("id"))),
+        PRICE_DESC(Sort.by(Sort.Order.desc("price"), Sort.Order.asc("id"))),
+        NAME(Sort.by(Sort.Order.asc("name"), Sort.Order.asc("id")));
+
+        private final Sort sort;
+
+        SortOrder(Sort sort) {
+            this.sort = sort;
+        }
+
+        static SortOrder parse(String value) {
+            if (value == null || value.isBlank()) {
+                return NEWEST;
+            }
+            try {
+                return valueOf(value.trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException e) {
+                throw new BadRequestException("Orden no válido: " + value + ". Usá newest, price_asc, price_desc o name.");
+            }
+        }
     }
 
-    public List<ProductResponseDTO> findActive() {
-        return productRepository.findByActiveTrue()
-                .stream()
-                .map(this::toResponseDTO)
-                .toList();
+    public static final int DEFAULT_PAGE_SIZE = 12;
+    public static final int MAX_PAGE_SIZE = 48;
+
+    /**
+     * HU-10 · Catalog search. Customers only see active products ({@code includeInactive} is for the admin).
+     * {@code category} and {@code text} are optional; {@code page} starts at 0 and {@code size} is capped at 48.
+     */
+    public PageResponse<ProductResponseDTO> search(String category, String text, String sort,
+                                                   int page, int size, boolean includeInactive) {
+        if (page < 0) {
+            throw new BadRequestException("La página no puede ser negativa.");
+        }
+        if (size < 1) {
+            throw new BadRequestException("El tamaño de página tiene que ser al menos 1.");
+        }
+        List<Specification<Product>> filters = new ArrayList<>();
+        if (!includeInactive) {
+            filters.add(ProductSpecs.active());
+        }
+        if (category != null && !category.isBlank()) {
+            filters.add(ProductSpecs.inCategory(category.trim()));
+        }
+        if (text != null && !text.isBlank()) {
+            filters.add(ProductSpecs.matching(text));
+        }
+        Pageable pageable = PageRequest.of(page, Math.min(size, MAX_PAGE_SIZE), SortOrder.parse(sort).sort);
+        return PageResponse.of(productRepository.findAll(Specification.allOf(filters), pageable), this::toResponseDTO);
     }
 
     public ProductResponseDTO findById(Long id) {
         return toResponseDTO(productRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Producto no encontrado: " + id)));
-    }
-
-    public ProductResponseDTO findByName(String name) {
-        return toResponseDTO(productRepository.findByName(name)
-                .orElseThrow(() -> new NotFoundException("Producto no encontrado: " + name)));
-    }
-
-    public List<ProductResponseDTO> findByCategoryId(Long categoryId) {
-        return productRepository.findByCategoryId(categoryId)
-                .stream().map(this::toResponseDTO).toList();
-    }
-
-    public List<ProductResponseDTO> findByPriceBetween(BigDecimal min, BigDecimal max) {
-        return productRepository.findByPriceBetween(min, max)
-                .stream().map(this::toResponseDTO).toList();
-    }
-
-    public List<ProductResponseDTO> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end) {
-        return productRepository.findByCreatedAtBetween(start, end)
-                .stream().map(this::toResponseDTO).toList();
     }
 
     public ProductResponseDTO save(ProductRequestDTO dto) {

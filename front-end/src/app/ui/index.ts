@@ -2,6 +2,7 @@
 export * from './button';
 export * from './field';
 export * from './alert';
+export * from './pagination';
 export * from './qty-stepper';
 export * from './badge';
 export * from './states';

@@ -20,6 +20,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
+import com.Proyect.Ecommerce.controller.AdminProductController;
 import com.Proyect.Ecommerce.controller.CategoryController;
 import com.Proyect.Ecommerce.controller.ProductController;
 import com.Proyect.Ecommerce.controller.UserController;
@@ -32,7 +33,7 @@ import com.Proyect.Ecommerce.service.UserService;
  * HU-27 · Admin-only endpoints: a guest gets 401, a customer 403, an admin gets through.
  * Moves to /api/admin/** with HU-21; this list is the contract to keep.
  */
-@WebMvcTest({ProductController.class, CategoryController.class, UserController.class})
+@WebMvcTest({ProductController.class, AdminProductController.class, CategoryController.class, UserController.class})
 @Import({SecurityConfig.class, CorsConfig.class, RestAuthenticationHandlers.class, GlobalExceptionHandler.class})
 @TestPropertySource(properties = "app.cors.allowed-origins=http://localhost:4200")
 class AdminEndpointsSecurityTest {
@@ -47,6 +48,7 @@ class AdminEndpointsSecurityTest {
 
     static Stream<Arguments> adminEndpoints() {
         return Stream.of(
+                Arguments.of(HttpMethod.GET, "/api/admin/products"),
                 Arguments.of(HttpMethod.POST, "/api/products"),
                 Arguments.of(HttpMethod.PUT, "/api/products/1/deactivate"),
                 Arguments.of(HttpMethod.POST, "/api/categories"),
