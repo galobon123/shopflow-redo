@@ -11,9 +11,6 @@
     </div>
 
     <div class="sf-card__body">
-        @if (product().categoryName) {
-            <span class="sf-label">{{ product().categoryName }}</span>
-        }
         <h3 class="sf-card__name">{{ product().name }}</h3>
         <div class="sf-price-row">
             <span class="sf-price">{{ product().price | ars }}</span>
