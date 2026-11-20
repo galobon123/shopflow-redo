@@ -12,11 +12,11 @@ describe('ProductCard', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  it('shows name, category, price in pesos and low stock', () => {
+  it('shows name, price in pesos and low stock, without the category', () => {
     const el = render(aProduct({ stock: 3 }));
 
     expect(el.textContent).toContain('Remera lino');
-    expect(el.textContent).toContain('Remeras');
+    expect(el.textContent).not.toContain('Remeras');
     expect(el.textContent).toMatch(/\$\s?48\.900/);
     expect(el.textContent).toContain('Quedan 3');
   });
