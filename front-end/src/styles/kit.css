@@ -136,12 +136,16 @@
   .sf-input[aria-invalid="true"]:focus { box-shadow: 0 0 0 1px var(--color-danger); }
   .sf-input--search { padding-left: 40px; }
   /* Alert: one message about the whole form or page (field errors go under the field). */
-  .sf-alert { display: flex; gap: calc(var(--spacing) * 2); align-items: flex-start; padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4); border-radius: var(--radius); border-left: 3px solid; font-size: 14px; line-height: 20px; }
-  .sf-alert > lucide-icon { margin-top: 2px; }
-  .sf-alert > span { flex: 1; min-width: 0; }
-  .sf-alert--danger { background: var(--color-danger-soft); border-color: var(--color-danger); color: var(--color-ink); }
+  .sf-alert { display: flex; gap: calc(var(--spacing) * 3); align-items: center; padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4); border-radius: var(--radius); border-left: 3px solid; color: var(--color-ink); font-size: 14px; line-height: 20px; }
+  .sf-alert > lucide-icon { flex-shrink: 0; }
+  .sf-alert__body { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: calc(var(--spacing) * 2) calc(var(--spacing) * 4); }
+  .sf-alert__text { flex: 1 1 240px; min-width: 0; }
+  .sf-alert__action { flex-shrink: 0; }
+  .sf-alert--danger { background: var(--color-danger-soft); border-color: var(--color-danger); }
   .sf-alert--danger > lucide-icon { color: var(--color-danger); }
-  .sf-alert--info { background: var(--color-accent-soft); border-color: var(--color-accent); color: var(--color-ink); }
+  .sf-alert--warning { background: var(--color-warning-soft); border-color: var(--color-warning); }
+  .sf-alert--warning > lucide-icon { color: var(--color-warning); }
+  .sf-alert--info { background: var(--color-accent-soft); border-color: var(--color-accent); }
   .sf-alert--info > lucide-icon { color: var(--color-accent); }
   .sf-search { position: relative; }
   .sf-search > lucide-icon { position: absolute; left: calc(var(--spacing) * 3); top: 50%; transform: translateY(-50%); color: var(--color-ink-muted); pointer-events: none; }
@@ -372,7 +376,6 @@
   .sf-empty h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 32px; line-height: 38px; letter-spacing: -0.01em; text-wrap: balance; }
   .sf-empty p { margin: calc(var(--spacing) * -3) 0 0; color: var(--color-ink-muted); text-wrap: pretty; }
   .sf-error { display: grid; gap: calc(var(--spacing) * 3); justify-items: start; max-width: 440px; }
-  .sf-error__msg { display: flex; gap: calc(var(--spacing) * 2); align-items: flex-start; padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4); border-radius: var(--radius); background: var(--color-danger-soft); color: var(--color-danger); font-size: 14px; line-height: 20px; }
 
   /* ---------- Skeleton ---------- */
   .sf-skel {

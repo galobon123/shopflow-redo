@@ -24,7 +24,7 @@
 
                 <ng-container actionButtons>
                     @if (!authStore.emailVerified()) {
-                        <sf-alert tone="info" class="mt-6">Confirmá tu email para comprar. El enlace está en tu bandeja de entrada.</sf-alert>
+                        <sf-alert tone="warning" class="mt-6">Confirmá tu email para comprar. El enlace está en tu bandeja de entrada.</sf-alert>
                     }
                     <button
                         matButton="filled"

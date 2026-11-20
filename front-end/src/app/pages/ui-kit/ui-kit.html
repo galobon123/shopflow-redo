@@ -47,7 +47,12 @@
         </div>
         <div class="grid gap-3 max-w-md">
             <sf-alert>Email o contraseña incorrectos.</sf-alert>
+            <sf-alert tone="warning">Confirmá tu email para poder comprar.</sf-alert>
             <sf-alert tone="info">Tu sesión venció. Volvé a ingresar para seguir.</sf-alert>
+            <sf-alert tone="warning">
+                Te mandamos un enlace a lucia.ferreyra&#64;gmail.com.
+                <button sfAlertAction sfButton="ghost" size="sm" type="button">Reenviar email</button>
+            </sf-alert>
         </div>
         <sf-qty-stepper [value]="qty()" [max]="3" (valueChange)="qty.set($event)" />
     </section>

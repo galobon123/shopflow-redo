@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { AuthStore } from '../../auth-store';
 import { Toaster } from '../../core/services/toaster.service';
-import { SfAlert, SfButton } from '../../ui';
+import { SfAlert, SfAlertAction, SfButton } from '../../ui';
 
 /**
  * HU-31 · Under the header while the signed-in person hasn't confirmed their email:
@@ -9,18 +9,16 @@ import { SfAlert, SfButton } from '../../ui';
  */
 @Component({
   selector: 'app-verify-email-banner',
-  imports: [SfAlert, SfButton],
+  imports: [SfAlert, SfAlertAction, SfButton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (authStore.isAuthenticated() && !authStore.emailVerified()) {
       <div class="mx-auto max-w-page px-4 pt-4">
-        <sf-alert tone="info" class="items-center [&>lucide-icon]:mt-0">
-          <span class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-            <span>Confirmá tu email para poder comprar: te mandamos un enlace a {{ authStore.userEmail() }}.</span>
-            <button sfButton="ghost" size="sm" type="button" [loading]="sending()" (click)="resend()">
-              Reenviar email
-            </button>
-          </span>
+        <sf-alert tone="warning">
+          Confirmá tu email para poder comprar: te mandamos un enlace a {{ authStore.userEmail() }}.
+          <button sfAlertAction sfButton="ghost" size="sm" type="button" [loading]="sending()" (click)="resend()">
+            Reenviar email
+          </button>
         </sf-alert>
       </div>
     }
