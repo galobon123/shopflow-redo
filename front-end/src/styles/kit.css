@@ -96,6 +96,14 @@
   .sf-icon-btn--float:hover { background: var(--color-surface); color: var(--color-accent); }
   .sf-icon-btn[aria-pressed="true"] { color: var(--color-accent); }
   .sf-icon-btn[aria-pressed="true"] svg { fill: currentColor; }
+  /* Favourite heart: red when saved, grows on hover, pulses while the server saves it (and can't be tapped). */
+  .sf-fav, .sf-fav:hover { color: var(--color-ink); }
+  .sf-fav svg { transition: transform 160ms var(--ease-out), fill 160ms var(--ease-out), color 160ms var(--ease-out); }
+  .sf-fav:hover svg { transform: scale(1.2); }
+  .sf-fav[aria-pressed="true"] { color: var(--color-heart); }
+  .sf-fav:disabled { cursor: progress; }
+  .sf-fav[aria-busy="true"] svg { animation: sf-fav-saving 700ms ease-in-out infinite; }
+  @keyframes sf-fav-saving { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.25); opacity: 0.55; } }
   .sf-icon-btn--danger { color: var(--color-danger); }
   .sf-icon-btn--danger:hover { background: var(--color-danger-soft); }
   .sf-count {

@@ -22,7 +22,11 @@ export class ToggleWishlistButton {
     this.store.wishListItems().some(item => item.productId === this.product().id)
   );
 
+  /** Waiting for the server: the heart pulses and ignores taps until it answers. */
+  readonly saving = computed(() => this.store.wishListSaving().includes(this.product().id));
+
   toggleWishlist() {
+    if (this.saving()) return;
     const product = this.product();
     if (this.isInWishlist()) {
       this.store.removeFromWishList(product.id);

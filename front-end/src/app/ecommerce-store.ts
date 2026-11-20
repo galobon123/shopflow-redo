@@ -17,12 +17,14 @@ import { AddressService } from './core/services/address.service';
 import { AddressRequest } from './core/models/address.model';
 import { OrderResponse } from './core/models/order.model';
 import { forkJoin, of } from 'rxjs';
-import { map, catchError, switchMap } from 'rxjs/operators';
+import { map, catchError, switchMap, finalize } from 'rxjs/operators';
 import { Router } from '@angular/router';
 
 type EcommerceState = {
   categories: CategoryResponse[];
   wishListItems: WishListResponse[];
+  /** Products whose favourite is being saved or removed right now (the heart waits for the server). */
+  wishListSaving: number[];
   cartItems: CartItem[];
   recommendations: RecommendationsResponse;
   loading: boolean;
@@ -32,6 +34,7 @@ type EcommerceState = {
 const initialState: EcommerceState = {
   categories: [],
   wishListItems: [],
+  wishListSaving: [],
   cartItems: [],
   recommendations: { recommended: [], othersBought: [] },
   loading: false,
@@ -85,7 +88,11 @@ export const EcommerceStore = signalStore(
     toaster.info('Iniciá sesión para guardar favoritos.');
     return;
   }
-  wishListService.add(product.id).subscribe({
+  if (store.wishListSaving().includes(product.id)) return;
+  patchState(store, { wishListSaving: [...store.wishListSaving(), product.id] });
+  wishListService.add(product.id).pipe(
+    finalize(() => patchState(store, { wishListSaving: store.wishListSaving().filter(id => id !== product.id) })),
+  ).subscribe({
       next: () => {
         const item: WishListResponse = {
           id: 0,
@@ -103,7 +110,11 @@ export const EcommerceStore = signalStore(
     });
   },
   removeFromWishList : (productId: number) => {
-      wishListService.remove(productId).subscribe({
+      if (store.wishListSaving().includes(productId)) return;
+      patchState(store, { wishListSaving: [...store.wishListSaving(), productId] });
+      wishListService.remove(productId).pipe(
+        finalize(() => patchState(store, { wishListSaving: store.wishListSaving().filter(id => id !== productId) })),
+      ).subscribe({
       next: () => {
         patchState(store, { 
           wishListItems: store.wishListItems().filter(p => p.productId !== productId) 
