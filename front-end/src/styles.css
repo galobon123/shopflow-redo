@@ -103,6 +103,19 @@ body {
   height: 100%;
 }
 
+/* No visible scrollbars anywhere (page, category chips, menus); scrolling still works with wheel, touch and keys. */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+/* A block, so the sticky header is held by the whole page and not by an inline box. */
+app-root {
+  display: block;
+}
+
 body {
   margin: 0;
   background: var(--color-canvas);

@@ -246,6 +246,7 @@
       padding-bottom: calc(var(--spacing) * 3);
     }
     .sf-header__search { grid-row: 2; grid-column: 1 / -1; max-width: none; margin: 0; }
+    .sf-brand { font-size: 22px; }
   }
   .sf-profile-btn {
     display: inline-flex;

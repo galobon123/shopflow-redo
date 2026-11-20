@@ -36,6 +36,7 @@
         </ng-template>
     } @else {
         <a sfButton="ghost" size="sm" routerLink="/login">Ingresar</a>
-        <a sfButton size="sm" routerLink="/register">Crear cuenta</a>
+        <!-- Small phones: no room for both; "Crear cuenta" is one tap away on the login page -->
+        <a sfButton size="sm" routerLink="/register" class="max-sm:hidden">Crear cuenta</a>
     }
 </div>
