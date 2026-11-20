@@ -138,6 +138,7 @@
   /* Alert: one message about the whole form or page (field errors go under the field). */
   .sf-alert { display: flex; gap: calc(var(--spacing) * 2); align-items: flex-start; padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4); border-radius: var(--radius); border-left: 3px solid; font-size: 14px; line-height: 20px; }
   .sf-alert > lucide-icon { margin-top: 2px; }
+  .sf-alert > span { flex: 1; min-width: 0; }
   .sf-alert--danger { background: var(--color-danger-soft); border-color: var(--color-danger); color: var(--color-ink); }
   .sf-alert--danger > lucide-icon { color: var(--color-danger); }
   .sf-alert--info { background: var(--color-accent-soft); border-color: var(--color-accent); color: var(--color-ink); }

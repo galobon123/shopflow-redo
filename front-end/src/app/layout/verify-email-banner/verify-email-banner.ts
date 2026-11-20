@@ -14,8 +14,8 @@ import { SfAlert, SfButton } from '../../ui';
   template: `
     @if (authStore.isAuthenticated() && !authStore.emailVerified()) {
       <div class="mx-auto max-w-page px-4 pt-4">
-        <sf-alert tone="info">
-          <span class="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <sf-alert tone="info" class="items-center [&>lucide-icon]:mt-0">
+          <span class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <span>Confirmá tu email para poder comprar: te mandamos un enlace a {{ authStore.userEmail() }}.</span>
             <button sfButton="ghost" size="sm" type="button" [loading]="sending()" (click)="resend()">
               Reenviar email
