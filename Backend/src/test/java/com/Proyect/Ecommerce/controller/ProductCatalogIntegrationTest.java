@@ -23,6 +23,7 @@ import com.Proyect.Ecommerce.model.Category;
 import com.Proyect.Ecommerce.model.Product;
 import com.Proyect.Ecommerce.repository.CategoryRepository;
 import com.Proyect.Ecommerce.repository.ProductRepository;
+import com.Proyect.Ecommerce.search.ProductSearchIndex;
 
 /** HU-10 · Listado de productos con filtros, búsqueda y paginación, against real Postgres. */
 @IntegrationTest
@@ -40,6 +41,7 @@ class ProductCatalogIntegrationTest {
     @BeforeEach
     void catalog() {
         jdbc.execute("TRUNCATE order_items, orders, wishlist, products, categories RESTART IDENTITY CASCADE");
+        ProductSearchIndex.productsChanged();
         remeras = category("Remeras");
         gorras = category("Gorras");
     }
@@ -105,6 +107,42 @@ class ProductCatalogIntegrationTest {
         mvc.perform(get("/api/admin/products").param("sort", "name").with(user("admin@shopflow.local").roles("ADMIN")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[*].name", contains("Gorra roja", "Remera lino")));
+    }
+
+    @Test
+    void theSearchForgivesAccentsAndTypos() throws Exception {
+        product("Sartén de hierro", "1000", remeras, true);
+        product("Olla de acero", "900", remeras, true);
+
+        for (String typed : new String[] {"sarten", "SARTÉN", "sarteb"}) {
+            mvc.perform(get("/api/products").param("q", typed))
+                    .andExpect(jsonPath("$.items[*].name", contains("Sartén de hierro")));
+        }
+    }
+
+    @Test
+    void suggestsUpToFiveActiveProductsFromTheThirdLetter() throws Exception {
+        for (int i = 1; i <= 7; i++) {
+            product("Remera " + i, "1000", remeras, true);
+        }
+        product("Remera oculta", "1000", remeras, false);
+        Product gorra = product("Gorra térmica", "800", gorras, true);
+        gorra.setImageUrl("https://cdn.example/gorra.jpg");
+        products.save(gorra);
+
+        mvc.perform(get("/api/products/suggestions").param("q", "rem"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(5)))
+                .andExpect(jsonPath("$[*].name", not(hasItem("Remera oculta"))));
+
+        mvc.perform(get("/api/products/suggestions").param("q", "termica"))
+                .andExpect(jsonPath("$[0].name").value("Gorra térmica"))
+                .andExpect(jsonPath("$[0].price").value(800))
+                .andExpect(jsonPath("$[0].imageUrl").value("https://cdn.example/gorra.jpg"));
+
+        mvc.perform(get("/api/products/suggestions").param("q", "re"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
     }
 
     @Test

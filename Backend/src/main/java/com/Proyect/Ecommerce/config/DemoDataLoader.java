@@ -12,6 +12,7 @@ import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.stereotype.Component;
 
 import com.Proyect.Ecommerce.repository.ProductRepository;
+import com.Proyect.Ecommerce.search.ProductSearchIndex;
 
 /**
  * Local development only (app.demo-data.enabled, on in the dev profile): loads the sample
@@ -39,6 +40,7 @@ public class DemoDataLoader implements ApplicationRunner {
             return;
         }
         new ResourceDatabasePopulator(new ClassPathResource("db/demo/productos.sql")).execute(dataSource);
+        ProductSearchIndex.productsChanged();
         log.info("Catálogo vacío: se cargaron {} productos de demo.", productRepository.count());
     }
 }

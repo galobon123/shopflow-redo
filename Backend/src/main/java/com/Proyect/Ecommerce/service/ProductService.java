@@ -20,17 +20,21 @@ import com.Proyect.Ecommerce.exception.NotFoundException;
 import com.Proyect.Ecommerce.repository.CategoryRepository;
 import com.Proyect.Ecommerce.repository.ProductRepository;
 import com.Proyect.Ecommerce.repository.ProductSpecs;
+import com.Proyect.Ecommerce.search.ProductSearchIndex;
 
 @Service
 public class ProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
+    private final ProductSearchIndex searchIndex;
 
     public ProductService(ProductRepository productRepository,
-                          CategoryRepository categoryRepository) {
+                          CategoryRepository categoryRepository,
+                          ProductSearchIndex searchIndex) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
+        this.searchIndex = searchIndex;
     }
 
     /** HU-10 · The ways the catalog can be sorted; anything else is a 400. */
@@ -60,6 +64,7 @@ public class ProductService {
 
     public static final int DEFAULT_PAGE_SIZE = 12;
     public static final int MAX_PAGE_SIZE = 48;
+    public static final int SUGGESTIONS = 5;
 
     /**
      * HU-10 · Catalog search. Customers only see active products ({@code includeInactive} is for the admin).
@@ -81,10 +86,16 @@ public class ProductService {
             filters.add(ProductSpecs.inCategory(category.trim()));
         }
         if (text != null && !text.isBlank()) {
-            filters.add(ProductSpecs.matching(text));
+            // The exact text anywhere in the name or description, or a name the suggestions would offer
+            // ("sarten", "sarteb" -> "Sartén de hierro").
+            filters.add(ProductSpecs.matching(text).or(ProductSpecs.withIdIn(searchIndex.matchingIds(text))));
         }
         Pageable pageable = PageRequest.of(page, Math.min(size, MAX_PAGE_SIZE), SortOrder.parse(sort).sort);
         return PageResponse.of(productRepository.findAll(Specification.allOf(filters), pageable), this::toResponseDTO);
+    }
+
+    public List<ProductSearchIndex.Suggestion> suggest(String query) {
+        return searchIndex.suggest(query, SUGGESTIONS);
     }
 
     public ProductResponseDTO findById(Long id) {

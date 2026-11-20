@@ -1,5 +1,6 @@
 package com.Proyect.Ecommerce.repository;
 
+import java.util.Collection;
 import java.util.Locale;
 
 import org.springframework.data.jpa.domain.Specification;
@@ -29,6 +30,11 @@ public final class ProductSpecs {
         return (root, query, cb) -> cb.or(
                 cb.like(cb.lower(root.get("name")), pattern, ESCAPE),
                 cb.like(cb.lower(root.get("description")), pattern, ESCAPE));
+    }
+
+    /** One of these products; none when the collection is empty. */
+    public static Specification<Product> withIdIn(Collection<Long> ids) {
+        return (root, query, cb) -> ids.isEmpty() ? cb.disjunction() : root.get("id").in(ids);
     }
 
     static String escapeLike(String text) {

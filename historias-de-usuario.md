@@ -447,9 +447,17 @@ Escenario: Navegador conocido
 - [x] BE: búsqueda por nombre y descripción sin distinguir mayúsculas (`ILIKE`, o `pg_trgm` si crece).
 - [x] BE: eliminar los endpoints sin uso `priceRange`, `timeRange` y `name` (auditoría #19).
 - [x] FE: filtros sincronizados con la URL (`?q=&category=&page=`) para poder compartir el link. *(La categoría va en la ruta: `/products/Remeras?q=lino&sort=price_asc&page=2`. Incluye orden, paginación y búsqueda en el header.)*
+- [x] BE: `GET /api/products/suggestions?q=` con los 5 productos activos más parecidos. Índice en memoria con un trie de las palabras de los nombres: sin acentos ni mayúsculas, y tolera 1 error en palabras de 4 a 7 letras y 2 desde 8. La búsqueda del catálogo también encuentra esos productos.
+- [x] FE: sugerencias mientras escribís, desde la 3ª letra y 250 ms después de la última tecla, con foto chica, nombre y precio; se recorren con flechas, Enter y Escape.
 
 **Escenarios**
 ```gherkin
+Escenario: Sugerencias mientras escribo
+  Dado que existe el producto "Sartén de hierro fundido 26 cm"
+  Cuando escribo "sarteb" en el buscador
+  Entonces debajo del buscador veo "Sartén de hierro fundido 26 cm" con su foto y su precio
+  Y veo como mucho 5 sugerencias
+
 Escenario: Explorar por categoría
   Dado que hay 30 productos activos en "Remeras"
   Cuando entro a la categoría "Remeras"

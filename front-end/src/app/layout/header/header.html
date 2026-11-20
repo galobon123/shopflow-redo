@@ -1,12 +1,7 @@
 <header class="sf-header">
     <div class="sf-header__inner">
         <a class="sf-brand" routerLink="/">ShopFlow</a>
-        <form class="sf-header__search sf-search" role="search" (submit)="search($event, query.value)">
-            <label class="sr-only" for="site-search">Buscar productos</label>
-            <lucide-icon [img]="searchIcon" [size]="18" />
-            <input #query id="site-search" class="sf-input sf-input--search w-full" type="search" name="q"
-                placeholder="Buscar productos" autocomplete="off" enterkeyhint="search" [value]="currentQuery()" />
-        </form>
+        <app-search-box />
         <app-header-actions />
     </div>
 </header>

@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ProductRequest, ProductResponse } from '../models/product.model';
+import { ProductRequest, ProductResponse, ProductSuggestion } from '../models/product.model';
 import { Page } from '../models/page.model';
 
 export type ProductSort = 'newest' | 'price_asc' | 'price_desc' | 'name';
@@ -32,6 +32,11 @@ export class ProductService {
       if (value !== null && value !== undefined && value !== '') params = params.set(key, String(value));
     }
     return this.http.get<Page<ProductResponse>>(this.url, { params });
+  }
+
+  /** The closest active products to what is being typed (accents and small typos don't matter). */
+  suggest(q: string): Observable<ProductSuggestion[]> {
+    return this.http.get<ProductSuggestion[]>(`${this.url}/suggestions`, { params: { q } });
   }
 
   getById(id: number): Observable<ProductResponse> {
