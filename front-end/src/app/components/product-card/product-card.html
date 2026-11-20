@@ -20,7 +20,7 @@
     <div class="sf-card__foot">
         <sf-stock-badge [stock]="product().stock" />
         <button sfButton="secondary" size="sm" type="button" [disabled]="product().stock <= 0" (click)="store.addToCart(product())">
-            <lucide-icon [img]="bagIcon" [size]="16" />Agregar
+            Agregar
         </button>
     </div>
 </article>
