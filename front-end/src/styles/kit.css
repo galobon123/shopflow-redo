@@ -157,7 +157,8 @@
   .sf-suggest__thumb img { width: 100%; height: 100%; object-fit: cover; }
   .sf-suggest__name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .sf-suggest__price { flex-shrink: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .sf-suggest__empty { padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4); color: var(--color-ink-muted); font-size: 14px; line-height: 20px; }
+  .sf-suggest__empty { display: flex; padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4); color: var(--color-ink-muted); font-size: 14px; line-height: 20px; white-space: nowrap; }
+  .sf-suggest__query { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
   /* ---------- QtyStepper ---------- */
   .sf-stepper {

@@ -26,7 +26,7 @@
                 </li>
             }
             @if (nothingFound()) {
-                <li class="sf-suggest__empty" role="presentation">No encontramos productos para «{{ typed().trim() }}».</li>
+                <li class="sf-suggest__empty" role="presentation">No encontramos productos para «<span class="sf-suggest__query">{{ typed().trim() }}</span>».</li>
             }
         </ul>
     }
