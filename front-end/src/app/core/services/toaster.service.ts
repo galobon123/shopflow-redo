@@ -10,7 +10,9 @@ const CLICK_TO_TOAST_MS = 10_000;
 /**
  * Toasts, plus one rule: the button whose click made a toast ignores further clicks until that toast
  * closes, so pressing "Agregar" again and again doesn't repeat the action or pile up toasts.
- * Other buttons keep working. Created at startup (app.config) so it sees the very first click.
+ * Other buttons keep working. Buttons with their own saving state (`data-no-toast-lock`, like the favourite
+ * heart) are left alone: they answer again as soon as they show they're done.
+ * Created at startup (app.config) so it sees the very first click.
  */
 @Injectable({
   providedIn: 'root',
@@ -46,7 +48,7 @@ export class Toaster {
 
   private onClick(event: Event) {
     const element = (event.target as Element | null)?.closest?.(CLICKABLE);
-    if (!element) return;
+    if (!element || element.hasAttribute('data-no-toast-lock')) return;
     if (this.locked.has(element)) {
       event.preventDefault();
       event.stopImmediatePropagation();

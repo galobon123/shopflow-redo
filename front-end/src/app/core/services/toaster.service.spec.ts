@@ -8,6 +8,7 @@ import { Toaster } from './toaster.service';
   template: `
     <button id="add" type="button" (click)="add()">Agregar</button>
     <button id="other" type="button" (click)="other()">Otro</button>
+    <button id="own" type="button" data-no-toast-lock (click)="add()">Favorito</button>
   `,
 })
 class TwoButtons {
@@ -63,5 +64,14 @@ describe('Toaster', () => {
     click('other');
 
     expect(component.others).toBe(1);
+  });
+
+  it('leaves alone buttons that show their own saving state', () => {
+    const { component, click } = render();
+
+    click('own');
+    click('own');
+
+    expect(component.adds).toBe(2);
   });
 });

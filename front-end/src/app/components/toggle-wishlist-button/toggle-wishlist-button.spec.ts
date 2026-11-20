@@ -36,6 +36,10 @@ describe('ToggleWishlistButton', () => {
     expect(button.getAttribute('aria-busy')).toBe('false');
     expect(button.getAttribute('aria-pressed')).toBe('true');
     expect(button.getAttribute('aria-label')).toBe('Quitar de favoritos');
+
+    // Answers right away: the "Agregado a favoritos" toast doesn't hold it.
+    button.click();
+    backend.expectOne((req) => req.method === 'DELETE' && req.url === `${environment.apiUrl}/wishlist/15`);
   });
 
   it('can be tapped again when saving fails', () => {
