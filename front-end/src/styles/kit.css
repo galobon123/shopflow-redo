@@ -365,10 +365,11 @@
   .sf-summary__note { margin: 0; font-size: 12px; line-height: 16px; color: var(--color-ink-muted); }
 
   /* ---------- EmptyState ---------- */
-  .sf-empty { display: grid; gap: calc(var(--spacing) * 4); justify-items: start; max-width: 440px; padding: calc(var(--spacing) * 12) 0; }
-  .sf-empty__icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: var(--radius); background: var(--color-sunken); color: var(--color-ink-muted); }
-  .sf-empty h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 28px; line-height: 34px; letter-spacing: -0.01em; }
-  .sf-empty p { margin: 0; color: var(--color-ink-muted); }
+  .sf-empty { display: grid; gap: calc(var(--spacing) * 6); justify-items: center; text-align: center; max-width: 480px; margin-inline: auto; padding: calc(var(--spacing) * 16) 0; }
+  .sf-empty__icon { display: grid; place-items: center; width: 72px; height: 72px; border-radius: 50%; background: var(--color-sunken); color: var(--color-ink-muted); }
+  .sf-empty__icon svg { width: 32px; height: 32px; }
+  .sf-empty h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 32px; line-height: 38px; letter-spacing: -0.01em; text-wrap: balance; }
+  .sf-empty p { margin: calc(var(--spacing) * -3) 0 0; color: var(--color-ink-muted); text-wrap: pretty; }
   .sf-error { display: grid; gap: calc(var(--spacing) * 3); justify-items: start; max-width: 440px; }
   .sf-error__msg { display: flex; gap: calc(var(--spacing) * 2); align-items: flex-start; padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4); border-radius: var(--radius); background: var(--color-danger-soft); color: var(--color-danger); font-size: 14px; line-height: 20px; }
 
