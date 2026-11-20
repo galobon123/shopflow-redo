@@ -10,7 +10,7 @@ import { ArsPipe, SfButton, SfStockBadge } from '../../ui';
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './product-card.html',
   styleUrl: './product-card.css',
-  host: { class: 'block' },
+  host: { class: 'block h-full' },
 })
 export class ProductCard {
   readonly store = inject(EcommerceStore);

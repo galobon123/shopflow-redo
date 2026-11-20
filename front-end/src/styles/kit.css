@@ -194,7 +194,7 @@
   .sf-badge--new { background: var(--color-surface); color: var(--color-ink); box-shadow: inset 0 0 0 1px var(--color-ink); }
 
   /* ---------- ProductCard ---------- */
-  .sf-card { display: flex; flex-direction: column; width: 100%; overflow: hidden; border-radius: var(--radius-card); background: var(--color-surface); box-shadow: var(--shadow-card); color: var(--color-ink); text-decoration: none; transition: box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out); }
+  .sf-card { display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; border-radius: var(--radius-card); background: var(--color-surface); box-shadow: var(--shadow-card); color: var(--color-ink); text-decoration: none; transition: box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out); }
   .sf-card:hover { box-shadow: var(--shadow-card-hover); transform: translateY(-2px); }
   .sf-card__media { position: relative; aspect-ratio: 1 / 1; background: var(--color-sunken); overflow: hidden; }
   .sf-card__media img, .sf-card__photo { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 280ms var(--ease-out); }
@@ -202,7 +202,8 @@
   .sf-card__fav { position: absolute; top: calc(var(--spacing) * 2); right: calc(var(--spacing) * 2); }
   .sf-card__flag { position: absolute; top: calc(var(--spacing) * 3); left: calc(var(--spacing) * 3); }
   .sf-card__body { display: grid; gap: calc(var(--spacing) * 1); padding: calc(var(--spacing) * 4) calc(var(--spacing) * 4) 0; }
-  .sf-card__name { margin: 0; font-size: 15px; line-height: 20px; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  /* Always two lines tall, so every card is the same size; longer names end in "…". */
+  .sf-card__name { margin: 0; min-height: 40px; font-size: 15px; line-height: 20px; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .sf-card:hover .sf-card__name { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
   .sf-price-row { display: flex; align-items: baseline; gap: calc(var(--spacing) * 2); flex-wrap: wrap; }
   .sf-price { font-size: 20px; line-height: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
