@@ -37,7 +37,7 @@ describe('ToggleWishlistButton', () => {
     expect(button.getAttribute('aria-pressed')).toBe('true');
     expect(button.getAttribute('aria-label')).toBe('Quitar de favoritos');
 
-    // Answers right away: the "Agregado a favoritos" toast doesn't hold it.
+    // Answers right away, with the "Agregado a favoritos" toast still on screen.
     button.click();
     backend.expectOne((req) => req.method === 'DELETE' && req.url === `${environment.apiUrl}/wishlist/15`);
   });

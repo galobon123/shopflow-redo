@@ -1,77 +1,43 @@
-import { Component, inject } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { HotToastService } from '@ngxpert/hot-toast';
 import { Subject } from 'rxjs';
 import { Toaster } from './toaster.service';
 
-@Component({
-  template: `
-    <button id="add" type="button" (click)="add()">Agregar</button>
-    <button id="other" type="button" (click)="other()">Otro</button>
-    <button id="own" type="button" data-no-toast-lock (click)="add()">Favorito</button>
-  `,
-})
-class TwoButtons {
-  private readonly toaster = inject(Toaster);
-  adds = 0;
-  others = 0;
-  add() {
-    this.adds++;
-    this.toaster.success('Agregado al carrito');
-  }
-  other() {
-    this.others++;
-  }
-}
-
 describe('Toaster', () => {
   function render() {
+    const shown: string[] = [];
     const closings: Subject<void>[] = [];
-    const toast = () => {
+    const toast = (message: string) => {
+      shown.push(message);
       const afterClosed = new Subject<void>();
       closings.push(afterClosed);
       return { afterClosed };
     };
     TestBed.configureTestingModule({
-      imports: [TwoButtons],
       providers: [{ provide: HotToastService, useValue: { success: toast, error: toast, info: toast } }],
     });
-    TestBed.inject(Toaster);
-    const fixture = TestBed.createComponent(TwoButtons);
-    fixture.detectChanges();
-    const el = fixture.nativeElement as HTMLElement;
-    const click = (id: string) => el.querySelector<HTMLButtonElement>(`#${id}`)!.click();
-    return { component: fixture.componentInstance, click, closings };
+    return { toaster: TestBed.inject(Toaster), shown, closings };
   }
 
-  it('ignores the button that made a toast until that toast closes', () => {
-    const { component, click, closings } = render();
+  it('shows a message once while it is on screen, without queueing repeats', () => {
+    const { toaster, shown, closings } = render();
 
-    click('add');
-    click('add');
-    click('add');
-    expect(component.adds).toBe(1);
+    toaster.success('Agregado al carrito.');
+    toaster.success('Agregado al carrito.');
+    toaster.success('Agregado al carrito.');
+    expect(shown).toEqual(['Agregado al carrito.']);
 
     closings[0].next();
-    click('add');
-    expect(component.adds).toBe(2);
+    toaster.success('Agregado al carrito.');
+    expect(shown).toEqual(['Agregado al carrito.', 'Agregado al carrito.']);
   });
 
-  it('keeps the other buttons working meanwhile', () => {
-    const { component, click } = render();
+  it('still shows a different message meanwhile', () => {
+    const { toaster, shown } = render();
 
-    click('add');
-    click('other');
+    toaster.success('Agregado a favoritos.');
+    toaster.error('No pudimos guardar el favorito.');
 
-    expect(component.others).toBe(1);
-  });
-
-  it('leaves alone buttons that show their own saving state', () => {
-    const { component, click } = render();
-
-    click('own');
-    click('own');
-
-    expect(component.adds).toBe(2);
+    expect(shown).toEqual(['Agregado a favoritos.', 'No pudimos guardar el favorito.']);
   });
 });
