@@ -25,7 +25,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
         "app.admin.password=",
         // Links in emails and the Google client id don't depend on the developer's .env either.
         "app.public-url=http://localhost:4200",
-        "app.google.client-id="
+        "app.google.client-id=",
+        // No sample catalog: each test creates the products it needs.
+        "app.demo-data.enabled=false"
 })
 @Import(TestcontainersConfiguration.class)
 @Testcontainers(disabledWithoutDocker = true)
