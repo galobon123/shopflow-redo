@@ -733,7 +733,11 @@ Escenario: Dirección de otro cliente
 - [ ] BE: el total lo calcula **solo** el backend; los precios ya incluyen IVA.
 - [ ] BE: `OrderService` lee el carrito vía `CartService` y lo borra en `afterCommit`.
 - [ ] FE: quitar el cálculo del 21% del resumen y mostrar "IVA incluido".
+- [ ] BE (Redis): compra idempotente. `POST /api/orders` exige el header `Idempotency-Key`. `SET order:idem:{userId}:{key} NX EX 86400`: la primera vez crea la orden y guarda su id; si la clave ya existe, devuelve la misma orden (200) sin descontar stock de nuevo, o 409 "Tu compra se está procesando" si la primera todavía no terminó.
+- [ ] BE (Redis): un solo checkout a la vez por cliente: lock `order:lock:{userId}` (`SET NX EX 30`) mientras se crea la orden, para que dos pestañas no compren el mismo carrito.
+- [ ] FE: el checkout genera una `Idempotency-Key` (UUID) al entrar y la reusa en cada reintento de esa compra; el botón queda deshabilitado mientras espera. La dirección se guarda una sola vez aunque se reintente.
 - [x] QA: test de concurrencia: 2 hilos compran la última unidad → 1 orden y 1 rechazo. *(Adelantado en la HU-27.)*
+- [ ] QA: la misma compra enviada 2 veces (seguidas y en paralelo) con la misma clave → 1 orden, el stock baja una sola vez y las dos respuestas traen la misma orden.
 
 **Escenarios**
 ```gherkin
@@ -758,6 +762,13 @@ Escenario: Falla al guardar la orden
   Cuando confirmo la compra
   Entonces el stock no cambia
   Y mi carrito sigue intacto
+
+Escenario: Confirmo dos veces la misma compra
+  Dado que tengo 1 "Taza" en el carrito
+  Cuando confirmo la compra con doble clic, o se corta la conexión y el navegador reintenta
+  Entonces se crea una sola orden
+  Y el stock de "Taza" baja una sola vez
+  Y las dos respuestas me muestran la misma orden
 ```
 
 ---
@@ -1133,6 +1144,7 @@ Escenario: Compartir un producto
 | Redis | Tokens de un solo uso con TTL (`GETDEL`): verificación de email y recuperación de contraseña | HU-09, HU-31 |
 | Redis | Códigos de ingreso con intentos contados (hash + `HINCRBY`) y dispositivos de confianza con TTL renovable | HU-33 |
 | Redis | Idempotencia de webhooks (`SET NX EX`) | HU-18 |
+| Redis | Compra idempotente (`order:idem:{userId}:{key}`) y un checkout a la vez por cliente (`order:lock:{userId}`) | HU-17 |
 | Redis | Colas de emails y de sincronización con Neo4j (lista o Stream) | HU-14, HU-20 |
 | Redis | Caché de recomendaciones | HU-15 |
 | Redis | Carritos abandonados (sorted set por actividad) | HU-24 |
