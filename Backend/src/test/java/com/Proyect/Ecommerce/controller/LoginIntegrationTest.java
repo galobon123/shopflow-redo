@@ -19,8 +19,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import com.Proyect.Ecommerce.IntegrationTest;
+import com.jayway.jsonpath.JsonPath;
 
-/** HU-07 · Inicio de sesión con límite de intentos, against real Postgres and Redis. */
+/**
+ * HU-07 · Inicio de sesión con límite de intentos, against real Postgres and Redis.
+ * Signs in from the browser Ana registered with, which is trusted: the new-device code (HU-33)
+ * has its own tests in NewDeviceLoginIntegrationTest.
+ */
 @IntegrationTest
 @AutoConfigureMockMvc
 class LoginIntegrationTest {
@@ -32,6 +37,8 @@ class LoginIntegrationTest {
     @Autowired private JdbcTemplate jdbc;
     @Autowired private StringRedisTemplate redis;
 
+    private String anasBrowser;
+
     @BeforeEach
     void anaHasAnAccount() throws Exception {
         jdbc.execute("TRUNCATE order_items, orders, address, wishlist, users RESTART IDENTITY CASCADE");
@@ -39,9 +46,11 @@ class LoginIntegrationTest {
         if (counters != null && !counters.isEmpty()) {
             redis.delete(counters);
         }
-        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+        String registered = mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"Ana\", \"email\": \"ana@mail.com\", \"password\": \"secreta123\"}"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        anasBrowser = JsonPath.read(registered, "$.deviceToken");
     }
 
     private ResultActions login(String email, String password, String ip) throws Exception {
@@ -51,7 +60,8 @@ class LoginIntegrationTest {
                     return request;
                 })
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"email\": \"%s\", \"password\": \"%s\"}".formatted(email, password)));
+                .content("{\"email\": \"%s\", \"password\": \"%s\", \"deviceToken\": \"%s\"}"
+                        .formatted(email, password, anasBrowser)));
     }
 
     private int failures() {

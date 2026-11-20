@@ -26,6 +26,7 @@ import com.Proyect.Ecommerce.dto.order.OrderRequestDTO;
 import com.Proyect.Ecommerce.dto.order.OrderResponseDTO;
 import com.Proyect.Ecommerce.exception.BadRequestException;
 import com.Proyect.Ecommerce.exception.ConflictException;
+import com.Proyect.Ecommerce.exception.ForbiddenException;
 import com.Proyect.Ecommerce.exception.NotFoundException;
 import com.Proyect.Ecommerce.model.Address;
 import com.Proyect.Ecommerce.model.Category;
@@ -89,6 +90,23 @@ class OrderServiceIntegrationTest {
 
         assertEquals("Sin stock de Taza.", error.getMessage());
         assertEquals(1, stockOf(taza));
+        assertTrue(redis.hasKey(cartKey(lucia)));
+    }
+
+    /** HU-31 · Escenario: Todavía no confirmé mi email. */
+    @Test
+    void anUnverifiedEmailCannotBuyAndKeepsCartAndStock() {
+        User lucia = user("lucia");
+        lucia.setEmailVerified(false);
+        users.save(lucia);
+        Product taza = product("Taza", "1000.00", 2);
+        putInCart(lucia, taza, 1);
+
+        ForbiddenException error = assertThrows(ForbiddenException.class,
+                () -> orders.createOrder(lucia.getId(), orderTo(address(lucia))));
+
+        assertEquals("Confirmá tu email para comprar. Te mandamos un enlace al registrarte.", error.getMessage());
+        assertEquals(2, stockOf(taza));
         assertTrue(redis.hasKey(cartKey(lucia)));
     }
 
@@ -182,6 +200,7 @@ class OrderServiceIntegrationTest {
         user.setEmail(name + "@example.com");
         user.setPassword("not-used");
         user.setRole(Role.USER);
+        user.setEmailVerified(true);
         return users.save(user);
     }
 

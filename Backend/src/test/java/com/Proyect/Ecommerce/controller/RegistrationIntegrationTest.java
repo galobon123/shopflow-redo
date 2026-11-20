@@ -82,8 +82,9 @@ class RegistrationIntegrationTest {
 
         mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\": \" Ana@Mail.COM\", \"password\": \"diez-chars\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").isString());
+                // Right credentials; from a browser that isn't trusted yet, so a code goes by email (HU-33).
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.challengeId").isString());
     }
 
     /** Two registrations at once with the same email: one account, one 409, never a 500. */

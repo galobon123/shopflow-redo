@@ -4,9 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
@@ -55,14 +57,23 @@ class MigrationsTest {
     @Autowired
     private CityRepository cities;
 
+    /** Highest V{n}__ file in db/migration, so the test doesn't need editing with each migration. */
+    private static String newestMigration() throws Exception {
+        return Arrays.stream(new PathMatchingResourcePatternResolver().getResources("classpath:db/migration/V*__*.sql"))
+                .map(r -> Integer.parseInt(r.getFilename().substring(1, r.getFilename().indexOf("__"))))
+                .max(Integer::compare)
+                .orElseThrow()
+                .toString();
+    }
+
     @Test
-    void appliesMigrationsInOrder() {
+    void appliesMigrationsInOrder() throws Exception {
         Integer pending = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE NOT success", Integer.class);
         String last = jdbc.queryForObject(
                 "SELECT version FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 1", String.class);
         assertEquals(0, pending);
-        assertEquals("2", last);
+        assertEquals(newestMigration(), last);
     }
 
     @Test

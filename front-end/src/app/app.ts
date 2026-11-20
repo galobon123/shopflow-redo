@@ -2,10 +2,11 @@ import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { LucideIconConfig } from 'lucide-angular';
 import { Header } from './layout/header/header';
+import { VerifyEmailBanner } from './layout/verify-email-banner/verify-email-banner';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, Header],
+  imports: [RouterOutlet, Header, VerifyEmailBanner],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })

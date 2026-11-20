@@ -3,6 +3,8 @@ export interface JwtPayload {
   role: string;
   userId?: number;
   name?: string;
+  /** HU-31 · False until the email is confirmed; only drives the UI, the backend checks the database. */
+  emailVerified?: boolean;
   iat?: number;
   exp?: number;
 }

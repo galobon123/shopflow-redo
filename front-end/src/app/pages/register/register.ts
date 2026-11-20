@@ -5,11 +5,12 @@ import { AuthStore } from '../../auth-store';
 import { Toaster } from '../../core/services/toaster.service';
 import { SignUpRequest } from '../../core/models/auth.model';
 import { applyServerErrors, safeReturnUrl } from '../../core/util/error-message';
+import { GoogleSignIn } from '../../components/google-sign-in/google-sign-in';
 import { SfButton, SfField, SfInput } from '../../ui';
 
 @Component({
   selector: 'app-register',
-  imports: [ReactiveFormsModule, RouterLink, SfButton, SfField, SfInput],
+  imports: [ReactiveFormsModule, RouterLink, GoogleSignIn, SfButton, SfField, SfInput],
   templateUrl: './register.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -38,13 +39,19 @@ export class Register {
 
     this.authStore.signUp(data).subscribe({
       next: () => {
-        this.toaster.success('Tu cuenta está lista.');
-        this.router.navigateByUrl(safeReturnUrl(this.returnUrl()) ?? '/products/all');
+        // HU-31 · Usable right away; buying waits for the link in the email.
+        this.toaster.success('Tu cuenta está lista. Te mandamos un email para confirmarla.');
+        this.goBack();
       },
       error: (err) => {
         // 400 with errors per field → under each field; anything else (409, offline…) → toast.
         if (!applyServerErrors(this.form, err)) this.toaster.error(err);
       },
     });
+  }
+
+  /** Back where the person came from: after the form, or after Google (HU-32). */
+  goBack() {
+    this.router.navigateByUrl(safeReturnUrl(this.returnUrl()) ?? '/products/all');
   }
 }

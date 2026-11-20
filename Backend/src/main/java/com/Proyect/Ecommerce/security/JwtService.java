@@ -48,11 +48,13 @@ public class JwtService {
         return signingKey;
     }
 
-    public String generateToken(UserDetails userDetails, Long userId, String name) {
+    /** `emailVerified` only drives the UI (the "verify your email" banner); purchases check the database. */
+    public String generateToken(UserDetails userDetails, Long userId, String name, boolean emailVerified) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", userDetails.getAuthorities().iterator().next().getAuthority());
         claims.put("userId", userId);
         claims.put("name", name);
+        claims.put("emailVerified", emailVerified);
 
         return Jwts.builder()
                 .claims(claims)

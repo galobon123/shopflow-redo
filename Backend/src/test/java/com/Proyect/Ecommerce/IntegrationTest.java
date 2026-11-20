@@ -22,7 +22,10 @@ import org.testcontainers.junit.jupiter.Testcontainers;
         "NEO4J_URI=bolt://replaced-by-testcontainers:7687", "NEO4J_USER=neo4j", "NEO4J_PASSWORD=unused",
         // Keep the test database free of the developer's .env admin.
         "app.admin.email=",
-        "app.admin.password="
+        "app.admin.password=",
+        // Links in emails and the Google client id don't depend on the developer's .env either.
+        "app.public-url=http://localhost:4200",
+        "app.google.client-id="
 })
 @Import(TestcontainersConfiguration.class)
 @Testcontainers(disabledWithoutDocker = true)

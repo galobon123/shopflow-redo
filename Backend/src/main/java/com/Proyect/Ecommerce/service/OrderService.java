@@ -19,6 +19,7 @@ import com.Proyect.Ecommerce.dto.order.OrderRequestDTO;
 import com.Proyect.Ecommerce.dto.order.OrderResponseDTO;
 import com.Proyect.Ecommerce.exception.BadRequestException;
 import com.Proyect.Ecommerce.exception.ConflictException;
+import com.Proyect.Ecommerce.exception.ForbiddenException;
 import com.Proyect.Ecommerce.exception.NotFoundException;
 import com.Proyect.Ecommerce.model.Address;
 import com.Proyect.Ecommerce.model.Order;
@@ -79,6 +80,10 @@ public class OrderService {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("Usuario no encontrado: " + userId));
+        // HU-31 · Checked here, against the database: the JWT's claim can be older than the click on the link.
+        if (!user.isEmailVerified()) {
+            throw new ForbiddenException("Confirmá tu email para comprar. Te mandamos un enlace al registrarte.");
+        }
 
         Address address = addressRepository.findById(dto.getAddressId())
                 .orElseThrow(() -> new NotFoundException("Dirección no encontrada: " + dto.getAddressId()));

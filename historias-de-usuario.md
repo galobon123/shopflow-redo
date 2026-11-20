@@ -25,7 +25,7 @@ Una historia está terminada cuando:
 | Sprint | Foco | Historias |
 |---|---|---|
 | 1 | Base para producción | HU-01, HU-02, HU-03, HU-04, HU-27 |
-| 2 | Cuenta y catálogo | HU-06, HU-07, HU-08, HU-10, HU-11 |
+| 2 | Cuenta y catálogo | HU-06, HU-07, HU-08, HU-31, HU-32, HU-33, HU-10, HU-11 |
 | 3 | Carrito y checkout | HU-12, HU-13, HU-16, HU-17 |
 | 4 | Pagos y pedidos | HU-18, HU-19, HU-20, HU-30 |
 | 5 | Panel de admin | HU-21, HU-22, HU-23, HU-24 |
@@ -333,6 +333,107 @@ Escenario: Email que no existe
 
 ---
 
+### HU-31 · Verificación del email
+**Prioridad:** Must · **Estado:** Hecha
+
+> Como **dueño del comercio** quiero que cada cuenta confirme su email para no aceptar pedidos de direcciones falsas o ajenas.
+
+**Tareas**
+- [x] DB (`V3`): `users.email_verified`; las cuentas que ya existían quedan verificadas.
+- [x] BE (Redis): al registrarse, token aleatorio guardado como `verify:email:{hash}` → `userId` con TTL de 24 horas, de un solo uso (`GETDEL`).
+- [x] BE: email con el enlace (Spring Mail; en desarrollo llega a Mailpit, `http://localhost:8025`). Si el SMTP está caído, el registro funciona igual.
+- [x] BE: `POST /api/auth/verify-email` confirma, inicia sesión y recuerda el dispositivo; `POST /api/auth/verify-email/resend` (con sesión) manda otro, como mucho uno por minuto.
+- [x] BE: `createOrder` responde 403 "Confirmá tu email para comprar" si la cuenta no está verificada (se mira la base, no el JWT).
+- [x] FE: aviso bajo el header con "Reenviar email", página `/verify-email` y checkout bloqueado hasta confirmar.
+
+**Escenarios**
+```gherkin
+Escenario: Confirmo con el enlace
+  Dado que me registré con "ana@mail.com"
+  Cuando abro el enlace del email dentro de las 24 horas
+  Entonces veo "Tu email está confirmado"
+  Y puedo comprar
+
+Escenario: Todavía no confirmé mi email
+  Dado que me registré y no abrí el enlace
+  Cuando intento confirmar la compra
+  Entonces veo "Confirmá tu email para comprar"
+  Y mi carrito y el stock quedan como estaban
+
+Escenario: Enlace usado o vencido
+  Cuando abro un enlace que ya usé
+  Entonces veo "El enlace venció o ya se usó"
+```
+
+---
+
+### HU-32 · Ingreso con Google
+**Prioridad:** Should · **Estado:** Hecha
+
+> Como **cliente** quiero entrar con mi cuenta de Google para no crear ni recordar otra contraseña.
+
+**Tareas**
+- [x] DB (`V3`): `users.google_sub` (único) y `password` opcional, con un CHECK para que toda cuenta tenga alguna forma de entrar.
+- [x] BE: `POST /api/auth/google` valida el ID token de Google: firma con sus claves públicas, emisor, `aud` = nuestro client id, vencimiento y `email_verified`.
+- [x] BE: busca por `google_sub`; si no, une la cuenta con el mismo email (conserva contraseña, pedidos y nombre); si no, crea una cuenta verificada sin contraseña.
+- [x] BE: `GET /api/auth/config` devuelve el client id; sin `GOOGLE_CLIENT_ID` el botón no aparece.
+- [x] FE: botón oficial de Google (Google Identity Services, popup) en ingreso y registro; el script se carga solo si hace falta.
+
+**Escenarios**
+```gherkin
+Escenario: Primera vez con Google
+  Dado que no tengo cuenta en ShopFlow
+  Cuando elijo "Continuar con Google"
+  Entonces se crea mi cuenta con el email ya confirmado
+  Y quedo con la sesión iniciada
+
+Escenario: Ya tenía cuenta con contraseña
+  Dado que tengo cuenta con "ana@gmail.com" y contraseña
+  Cuando entro con Google con ese mismo email
+  Entonces entro a la misma cuenta, con mis pedidos
+  Y mi contraseña sigue funcionando
+
+Escenario: Token emitido para otro sitio
+  Cuando alguien envía un token de Google emitido para otra aplicación
+  Entonces la API lo rechaza
+```
+
+---
+
+### HU-33 · Verificación de dispositivo nuevo
+**Prioridad:** Should · **Estado:** Hecha
+
+> Como **cliente** quiero que me pidan un código por email cuando alguien entra con mi contraseña desde un dispositivo nuevo, para que no alcance con robarme la contraseña.
+
+**Tareas**
+- [x] BE (Redis): dispositivos de confianza `device:{hash}` → `userId`, 90 días que se renuevan con cada uso. El navegador guarda el token aunque cierre sesión.
+- [x] BE: contraseña correcta desde un navegador desconocido → 202 con `challengeId`; código de 6 números por email, válido 10 minutos.
+- [x] BE: 5 códigos equivocados anulan el intento; otro código como mucho una vez por minuto y 5 envíos cada 15 minutos por cuenta; si el SMTP está caído, 503 con un mensaje claro.
+- [x] BE: registrarse, confirmar el email o entrar con Google ya prueban el email: ese navegador queda de confianza sin código.
+- [x] FE: segundo paso del ingreso con el código (`autocomplete="one-time-code"`), "Mandame otro código" y "Usar otra cuenta".
+
+**Escenarios**
+```gherkin
+Escenario: Entro desde un dispositivo nuevo
+  Dado que tengo cuenta y nunca entré desde este navegador
+  Cuando ingreso email y contraseña correctos
+  Entonces me piden el código que llegó a "a***@mail.com"
+  Y con el código correcto entro y el navegador queda recordado
+
+Escenario: Alguien tiene mi contraseña pero no mi email
+  Dado que alguien conoce mi contraseña
+  Cuando prueba 5 códigos equivocados
+  Entonces el intento se anula y tiene que empezar de nuevo
+  Y el email del código ya me dijo que cambie la contraseña si no fui yo
+
+Escenario: Navegador conocido
+  Dado que ya confirmé un código en este navegador
+  Cuando vuelvo a ingresar con mi contraseña
+  Entonces entro sin código
+```
+
+---
+
 ## Épica 2 — Catálogo
 
 ### HU-10 · Listado de productos con filtros, búsqueda y paginación
@@ -375,7 +476,7 @@ Escenario: Producto desactivado
 
 **Tareas**
 - [ ] BE: `GET /api/products/{id}` devuelve 404 si el producto está inactivo (salvo para admin).
-- [ ] DB: tabla `product_images(product_id, url, position)`; la de `position = 0` es la portada que usa la card del listado.
+- [ ] DB (`V4`): tabla `product_images(product_id, url, position)`; la de `position = 0` es la portada que usa la card del listado.
 - [ ] BE: el detalle devuelve `images[]` ordenadas por `position`, y el promedio y la cantidad de reseñas (HU-30).
 - [ ] FE: ruta `/product/:id` con galería, descripción, precio con IVA incluido, stock, selector de cantidad, agregar al carrito y wishlist.
 - [ ] FE: galería con foto principal, flechas, miniaturas y swipe en mobile. Sin autoplay (norma del kit y WCAG 2.2.2).
@@ -1021,7 +1122,8 @@ Escenario: Compartir un producto
 |---|---|---|
 | Redis | Carrito de cliente e invitado con TTL (hash) | HU-12, HU-13 |
 | Redis | Rate limiting de login (`INCR` + `EXPIRE`) | HU-07 |
-| Redis | Tokens de un solo uso con TTL | HU-09 |
+| Redis | Tokens de un solo uso con TTL (`GETDEL`): verificación de email y recuperación de contraseña | HU-09, HU-31 |
+| Redis | Códigos de ingreso con intentos contados (hash + `HINCRBY`) y dispositivos de confianza con TTL renovable | HU-33 |
 | Redis | Idempotencia de webhooks (`SET NX EX`) | HU-18 |
 | Redis | Colas de emails y de sincronización con Neo4j (lista o Stream) | HU-14, HU-20 |
 | Redis | Caché de recomendaciones | HU-15 |

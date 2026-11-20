@@ -62,6 +62,7 @@ public class AdminBootstrap implements ApplicationRunner {
         admin.setName(name);
         admin.setPassword(passwordEncoder.encode(password));
         admin.setRole(Role.ADMIN);
+        admin.setEmailVerified(true);
         userRepository.save(admin);
         log.info("Admin inicial creado: {}", email);
     }

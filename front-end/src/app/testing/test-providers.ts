@@ -35,3 +35,12 @@ export function aCartItem(overrides: Partial<CartItem> = {}): CartItem {
     ...overrides,
   };
 }
+
+/** A session token like the backend's (the front only decodes it, never checks the signature). */
+export function aToken(claims: Record<string, unknown> = {}): string {
+  const encode = (value: object) =>
+    btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(value))))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const payload = { sub: 'ana@mail.com', role: 'ROLE_USER', name: 'Ana', userId: 1, emailVerified: true, exp: 4102444800, ...claims };
+  return `${encode({ alg: 'HS256' })}.${encode(payload)}.x`;
+}

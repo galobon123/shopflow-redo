@@ -2,17 +2,16 @@ import { TestBed } from '@angular/core/testing';
 import { HttpTestingController } from '@angular/common/http/testing';
 import { Router } from '@angular/router';
 import { Login } from './login';
-import { testProviders } from '../../testing/test-providers';
+import { aToken, testProviders } from '../../testing/test-providers';
 import { environment } from '../../../environments/environment';
 
 const api = environment.apiUrl;
-// header.payload.signature (sub, role, name, far exp): the front only decodes it, never verifies it.
-const TOKEN =
-  'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhbmFAbWFpbC5jb20iLCJyb2xlIjoiUk9MRV9VU0VSIiwibmFtZSI6IkFuYSIsInVzZXJJZCI6MSwiZXhwIjo0MTAyNDQ0ODAwfQ.x';
+const TOKEN = aToken();
 
-describe('Login (HU-07)', () => {
-  function render(returnUrl?: string) {
+describe('Login (HU-07, HU-33)', () => {
+  function render(returnUrl?: string, deviceToken?: string) {
     localStorage.clear();
+    if (deviceToken) localStorage.setItem('device_token', deviceToken);
     TestBed.configureTestingModule({ imports: [Login], providers: testProviders() });
     const fixture = TestBed.createComponent(Login);
     if (returnUrl) fixture.componentRef.setInput('returnUrl', returnUrl);
@@ -34,7 +33,14 @@ describe('Login (HU-07)', () => {
       fixture.detectChanges();
       return el.querySelector('[role="alert"]')?.textContent?.trim();
     };
-    return { backend, navigate, signIn, alert };
+    const typeCode = (code: string) => {
+      fixture.detectChanges();
+      const input = el.querySelector<HTMLInputElement>('input[formControlName="code"]')!;
+      input.value = code;
+      input.dispatchEvent(new Event('input'));
+      el.querySelector('form')!.dispatchEvent(new Event('submit'));
+    };
+    return { fixture, el, backend, navigate, signIn, typeCode, alert };
   }
 
   it('says the credentials are wrong without telling which one', () => {
@@ -89,5 +95,57 @@ describe('Login (HU-07)', () => {
 
     expect(alert()).toBeUndefined();
     expect(navigate).toHaveBeenCalledWith('/checkout');
+  });
+
+  it('sends the token of this browser, if it has one', () => {
+    const { backend, signIn } = render(undefined, 'device-123');
+    signIn();
+
+    expect(backend.expectOne(`${api}/auth/login`).request.body).toEqual({
+      email: 'ana@mail.com', password: 'secreta123', deviceToken: 'device-123',
+    });
+  });
+
+  it('asks for the emailed code on a new browser, then signs in and remembers the browser', () => {
+    const { fixture, el, backend, navigate, signIn, typeCode } = render('/checkout');
+    signIn();
+
+    backend.expectOne(`${api}/auth/login`).flush({ challengeId: 'ch-1', sentTo: 'a***@mail.com' }, { status: 202, statusText: 'Accepted' });
+    fixture.detectChanges();
+    expect(el.querySelector('h1')?.textContent).toBe('Revisá tu email');
+    expect(el.textContent).toContain('a***@mail.com');
+    expect(navigate).not.toHaveBeenCalled();
+
+    typeCode('042195');
+    const confirm = backend.expectOne(`${api}/auth/login/code`);
+    expect(confirm.request.body).toEqual({ challengeId: 'ch-1', code: '042195' });
+    confirm.flush({ token: TOKEN, email: 'ana@mail.com', role: 'USER', emailVerified: true, deviceToken: 'device-new' });
+
+    expect(localStorage.getItem('device_token')).toBe('device-new');
+    expect(navigate).toHaveBeenCalledWith('/checkout');
+  });
+
+  it('shows how many tries are left after a wrong code', () => {
+    const { backend, signIn, typeCode, alert } = render();
+    signIn();
+    backend.expectOne(`${api}/auth/login`).flush({ challengeId: 'ch-1', sentTo: 'a***@mail.com' });
+
+    typeCode('111111');
+    backend.expectOne(`${api}/auth/login/code`).flush(
+      { status: 400, detail: 'El código no es correcto. Te quedan 4 intentos.' },
+      { status: 400, statusText: 'Bad Request' },
+    );
+
+    expect(alert()).toBe('El código no es correcto. Te quedan 4 intentos.');
+  });
+
+  it('does not send a code that is not 6 digits', () => {
+    const { backend, signIn, typeCode } = render();
+    signIn();
+    backend.expectOne(`${api}/auth/login`).flush({ challengeId: 'ch-1', sentTo: 'a***@mail.com' });
+
+    typeCode('12ab');
+
+    backend.expectNone(`${api}/auth/login/code`);
   });
 });

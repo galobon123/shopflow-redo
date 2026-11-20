@@ -22,6 +22,8 @@
       <button sfButton="primary" size="lg" block type="submit" [loading]="authStore.loading()">Crear cuenta</button>
     </form>
 
+    <app-google-sign-in (signedIn)="goBack()" />
+
     <p class="text-body-s text-ink-muted mt-6 text-center">
       ¿Ya tenés cuenta?
       <a class="sf-link" routerLink="/login" queryParamsHandling="preserve">Ingresar</a>

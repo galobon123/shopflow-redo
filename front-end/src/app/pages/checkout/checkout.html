@@ -23,10 +23,13 @@
                 </ng-container>
 
                 <ng-container actionButtons>
+                    @if (!authStore.emailVerified()) {
+                        <sf-alert tone="info" class="mt-6">Confirmá tu email para comprar. El enlace está en tu bandeja de entrada.</sf-alert>
+                    }
                     <button
                         matButton="filled"
                         class="w-full mt-6 py-3"
-                        [disabled]="store.loading()"
+                        [disabled]="store.loading() || !authStore.emailVerified()"
                         (click)="placeOrder()"
                     >
                         {{ store.loading() ? 'Processing...' : 'Place Order'}}

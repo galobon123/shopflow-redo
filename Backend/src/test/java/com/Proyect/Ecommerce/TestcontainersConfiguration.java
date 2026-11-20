@@ -34,4 +34,10 @@ public class TestcontainersConfiguration {
     Neo4jContainer neo4j() {
         return new Neo4jContainer(DockerImageName.parse("neo4j:5-community")).withoutAuthentication();
     }
+
+    /** Replaces the SMTP sender (Spring's mail auto-configuration backs off when one exists). */
+    @Bean
+    RecordingMailSender mailSender() {
+        return new RecordingMailSender();
+    }
 }
