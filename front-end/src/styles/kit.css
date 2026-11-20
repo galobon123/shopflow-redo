@@ -225,6 +225,18 @@
   .sf-brand { font-family: var(--font-display); font-size: 26px; line-height: 1; letter-spacing: -0.02em; color: var(--color-ink); text-decoration: none; }
   .sf-header__search { flex: 1; max-width: 520px; margin-inline: auto; }
   .sf-header__actions { display: flex; align-items: center; gap: calc(var(--spacing) * 1); }
+  /* Small phones: the search drops to its own full-width row under the brand and the actions. */
+  @media (max-width: 639px) {
+    .sf-header__inner {
+      height: auto;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-template-rows: var(--header-row-height) auto;
+      row-gap: 0;
+      padding-bottom: calc(var(--spacing) * 3);
+    }
+    .sf-header__search { grid-row: 2; grid-column: 1 / -1; max-width: none; margin: 0; }
+  }
   .sf-profile-btn {
     display: inline-flex;
     align-items: center;

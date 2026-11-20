@@ -84,10 +84,18 @@
 }
 
 :root {
-  --header-height: 64px;
+  --header-row-height: 64px;
+  --header-height: var(--header-row-height);
   --sidebar-width: 280px;
   --control-height: 44px;
   --card-min: 160px;
+}
+
+/* Small phones: the header grows a second row for the search (see .sf-header__inner). */
+@media (max-width: 639px) {
+  :root {
+    --header-height: calc(var(--header-row-height) + var(--control-height) + var(--spacing) * 3);
+  }
 }
 
 html,
