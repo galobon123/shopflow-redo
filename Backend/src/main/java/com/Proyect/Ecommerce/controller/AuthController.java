@@ -40,7 +40,7 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody AuthRequestDTO dto, HttpServletRequest request) {
-        AuthService.LoginResult result = authService.login(dto, request.getRemoteAddr());
+        AuthService.LoginResult result = authService.login(dto, request.getRemoteAddr(), request.getHeader("User-Agent"));
         return result.session() != null
                 ? ResponseEntity.ok(result.session())
                 : ResponseEntity.status(HttpStatus.ACCEPTED).body(result.challenge());

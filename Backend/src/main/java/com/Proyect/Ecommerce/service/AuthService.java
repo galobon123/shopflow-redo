@@ -1,5 +1,7 @@
 package com.Proyect.Ecommerce.service;
 
+import java.time.Instant;
+
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -18,6 +20,7 @@ import com.Proyect.Ecommerce.exception.NotFoundException;
 import com.Proyect.Ecommerce.model.Role;
 import com.Proyect.Ecommerce.model.User;
 import com.Proyect.Ecommerce.repository.UserRepository;
+import com.Proyect.Ecommerce.security.DeviceName;
 import com.Proyect.Ecommerce.security.EmailVerificationService;
 import com.Proyect.Ecommerce.security.GoogleTokenVerifier;
 import com.Proyect.Ecommerce.security.GoogleTokenVerifier.GoogleIdentity;
@@ -109,16 +112,19 @@ public class AuthService {
 
     /**
      * HU-07 · Wrong email and wrong password give the same 401 (DaoAuthenticationProvider hides which one),
-     * and each failure counts towards the per-IP limit.
+     * and each failure counts towards the per-IP limit; the one that locks the login warns the owner by email.
      * HU-33 · The right password from a browser that isn't trusted yet gets a code by email instead of a session.
      */
-    public LoginResult login(AuthRequestDTO dto, String clientIp) {
+    public LoginResult login(AuthRequestDTO dto, String clientIp, String userAgent) {
         loginAttempts.checkAllowed(clientIp, dto.getEmail());
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(dto.getEmail(), dto.getPassword()));
         } catch (BadCredentialsException e) {
-            loginAttempts.recordFailure(clientIp, dto.getEmail());
+            if (loginAttempts.recordFailure(clientIp, dto.getEmail())) {
+                userRepository.findByEmail(dto.getEmail()).ifPresent(user -> mail.sendLoginLockedAlert(
+                        user.getEmail(), user.getName(), Instant.now(), DeviceName.of(userAgent)));
+            }
             throw e;
         }
         loginAttempts.reset(clientIp, dto.getEmail());

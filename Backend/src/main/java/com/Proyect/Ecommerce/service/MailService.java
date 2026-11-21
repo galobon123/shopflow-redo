@@ -1,5 +1,10 @@
 package com.Proyect.Ecommerce.service;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,13 +17,17 @@ import org.springframework.stereotype.Service;
 import com.Proyect.Ecommerce.exception.ServiceUnavailableException;
 
 /**
- * Account emails (HU-09, HU-31, HU-33). Plain text for now; HU-20 adds templates and a retry queue.
+ * Account emails (HU-07, HU-09, HU-31, HU-33). Plain text for now; HU-20 adds templates and a retry queue.
  * In development they land in Mailpit (http://localhost:8025) instead of a real inbox.
  */
 @Service
 public class MailService {
 
     private static final Logger log = LoggerFactory.getLogger(MailService.class);
+    /** "el sábado 21 de noviembre a las 17:51": the shop sells in Argentina. */
+    private static final DateTimeFormatter WHEN = DateTimeFormatter
+            .ofPattern("'el' EEEE d 'de' MMMM 'a las' HH:mm", Locale.forLanguageTag("es-AR"))
+            .withZone(ZoneId.of("America/Argentina/Buenos_Aires"));
 
     private final JavaMailSender mailSender;
     private final String from;
@@ -88,6 +97,33 @@ public class MailService {
         } catch (MailException e) {
             log.error("Sign-in code email to {} not sent", to, e);
             throw new ServiceUnavailableException("No pudimos enviarte el código. Probá de nuevo en unos minutos.");
+        }
+    }
+
+    /**
+     * HU-07 · After the login locks for 15 minutes. Off the request thread and never fails the caller:
+     * the answer must look the same whether the email has an account or not.
+     */
+    @Async
+    public void sendLoginLockedAlert(String to, String name, Instant when, String device) {
+        try {
+            send(to, "¿Fuiste vos? Bloqueamos el ingreso a tu cuenta de ShopFlow", """
+                    Hola %s,
+
+                    Alguien escribió mal la contraseña de tu cuenta muchas veces seguidas,
+                    %s (hora de Argentina), desde %s.
+
+                    ¿Fuiste vos?
+
+                    Si fuiste vos, no tenés que hacer nada: en 15 minutos vas a poder volver a intentarlo.
+                    Si te olvidaste la contraseña, podés elegir una nueva acá:
+                    %s
+
+                    Si no fuiste vos, tu cuenta sigue protegida: por las dudas, cambiá tu contraseña
+                    con el mismo enlace.
+                    """.formatted(name, WHEN.format(when), device, publicUrl + "/forgot-password"));
+        } catch (MailException e) {
+            log.warn("Login locked alert to {} not sent: {}", to, e.getMessage());
         }
     }
 
