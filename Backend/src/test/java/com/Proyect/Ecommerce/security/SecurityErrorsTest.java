@@ -34,6 +34,8 @@ class SecurityErrorsTest {
     private JwtService jwtService;
     @MockitoBean
     private UserDetailsServiceImpl userDetailsService;
+    @MockitoBean
+    private SessionService sessionService;
 
     @Test
     void anonymousGets401ProblemDetail() throws Exception {

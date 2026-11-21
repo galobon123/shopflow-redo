@@ -121,8 +121,9 @@ class EmailVerificationIntegrationTest {
 
     @Test
     void askingAgainWhenAlreadyVerifiedSendsNothingAndRefreshesTheSession() throws Exception {
-        String jwt = JsonPath.read(register().andReturn().getResponse().getContentAsString(), "$.token");
-        openLink(linkToken());
+        register();
+        // The link signs in where it was opened, which closes the session that registered.
+        String jwt = JsonPath.read(openLink(linkToken()).andReturn().getResponse().getContentAsString(), "$.token");
         mail.clear();
 
         resend(jwt).andExpect(status().isOk()).andExpect(jsonPath("$.emailVerified").value(true));

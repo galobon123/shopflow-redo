@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import com.Proyect.Ecommerce.security.SessionReplacedException;
+
 import jakarta.validation.ConstraintViolationException;
 
 /**
@@ -61,6 +63,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(BadCredentialsException.class)
     public ProblemDetail handleBadCredentials(BadCredentialsException ex) {
         return problem(HttpStatus.UNAUTHORIZED, "No autenticado", "Email o contraseña incorrectos.");
+    }
+
+    /** `reason` lets the browser explain why it was signed out. */
+    @ExceptionHandler(SessionReplacedException.class)
+    public ProblemDetail handleSessionReplaced(SessionReplacedException ex) {
+        ProblemDetail problem = problem(HttpStatus.UNAUTHORIZED, "Sesión cerrada", ex.getMessage());
+        problem.setProperty("reason", "session-replaced");
+        return problem;
     }
 
     @ExceptionHandler(AuthenticationException.class)

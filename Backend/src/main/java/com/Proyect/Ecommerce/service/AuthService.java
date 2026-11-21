@@ -25,6 +25,7 @@ import com.Proyect.Ecommerce.security.JwtService;
 import com.Proyect.Ecommerce.security.LoginAttemptService;
 import com.Proyect.Ecommerce.security.LoginChallengeService;
 import com.Proyect.Ecommerce.security.LoginChallengeService.Challenge;
+import com.Proyect.Ecommerce.security.SessionService;
 import com.Proyect.Ecommerce.security.TrustedDeviceService;
 
 @Service
@@ -47,6 +48,7 @@ public class AuthService {
     private final EmailVerificationService verifications;
     private final GoogleTokenVerifier google;
     private final MailService mail;
+    private final SessionService sessions;
 
     public AuthService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
@@ -58,7 +60,8 @@ public class AuthService {
                        TrustedDeviceService trustedDevices,
                        EmailVerificationService verifications,
                        GoogleTokenVerifier google,
-                       MailService mail) {
+                       MailService mail,
+                       SessionService sessions) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
@@ -70,6 +73,7 @@ public class AuthService {
         this.verifications = verifications;
         this.google = google;
         this.mail = mail;
+        this.sessions = sessions;
     }
 
     /**
@@ -149,15 +153,15 @@ public class AuthService {
     }
 
     /**
-     * HU-31 · Another link, for the banner's "Reenviar". Answers with a fresh session either way, so a
-     * browser whose token still says "unverified" (the link was opened on the phone) catches up.
+     * HU-31 · Another link, for the banner's "Reenviar". Answers with a fresh token either way, so one
+     * that still says "unverified" catches up. It's the same session: the browser stays the open one.
      */
     public AuthResponseDTO resendVerification(Long userId) {
         User user = user(userId);
         if (!user.isEmailVerified()) {
             mail.sendVerificationLink(user.getEmail(), user.getName(), verifications.anotherLink(userId));
         }
-        return session(user, null);
+        return session(user, null, sessions.current(userId));
     }
 
     /**
@@ -205,9 +209,15 @@ public class AuthService {
         return userRepository.findById(id).orElseThrow(() -> new NotFoundException("La cuenta ya no existe."));
     }
 
+    /** A new session, which closes the one open in any other browser. */
     private AuthResponseDTO session(User user, String deviceToken) {
+        return session(user, deviceToken, sessions.start(user.getId()));
+    }
+
+    private AuthResponseDTO session(User user, String deviceToken, String sessionId) {
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
-        String token = jwtService.generateToken(userDetails, user.getId(), user.getName(), user.isEmailVerified());
+        String token = jwtService.generateToken(
+                userDetails, user.getId(), user.getName(), user.isEmailVerified(), sessionId);
         return new AuthResponseDTO(token, user.getEmail(), user.getRole().name(), user.isEmailVerified(), deviceToken);
     }
 

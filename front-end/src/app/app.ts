@@ -3,6 +3,7 @@ import { RouterOutlet } from '@angular/router';
 import { LucideIconConfig } from 'lucide-angular';
 import { Header } from './layout/header/header';
 import { VerifyEmailBanner } from './layout/verify-email-banner/verify-email-banner';
+import { SessionWatcher } from './core/services/session-watcher.service';
 
 @Component({
   selector: 'app-root',
@@ -16,5 +17,8 @@ export class App {
     const icons = inject(LucideIconConfig);
     icons.size = 20;
     icons.strokeWidth = 1.5;
+
+    // Signs out here when the account is opened in another browser.
+    inject(SessionWatcher);
   }
 }

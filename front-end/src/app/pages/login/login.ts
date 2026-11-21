@@ -25,6 +25,8 @@ export class Login {
   readonly returnUrl = input<string>();
   /** `?expired=true`: sent here because the session ran out (HU-08). */
   readonly expired = input<string>();
+  /** `?replaced=true`: the account was opened in another browser, which closed this session. */
+  readonly replaced = input<string>();
 
   /** Wrong credentials, too many attempts (429, with the wait) or no connection. */
   protected readonly formError = signal<string | null>(null);

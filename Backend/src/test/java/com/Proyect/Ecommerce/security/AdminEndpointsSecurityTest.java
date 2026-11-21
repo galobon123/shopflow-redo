@@ -45,6 +45,7 @@ class AdminEndpointsSecurityTest {
     @MockitoBean private UserService userService;
     @MockitoBean private JwtService jwtService;
     @MockitoBean private UserDetailsServiceImpl userDetailsService;
+    @MockitoBean private SessionService sessionService;
 
     static Stream<Arguments> adminEndpoints() {
         return Stream.of(
