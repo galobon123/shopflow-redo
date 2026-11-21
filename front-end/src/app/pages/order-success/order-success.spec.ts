@@ -1,3 +1,4 @@
+import { testProviders } from '../../testing/test-providers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { OrderSuccess } from './order-success';
@@ -8,7 +9,8 @@ describe('OrderSuccess', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [OrderSuccess]
+      imports: [OrderSuccess],
+      providers: testProviders()
     })
     .compileComponents();
 

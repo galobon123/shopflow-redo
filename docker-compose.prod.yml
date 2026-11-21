@@ -30,6 +30,10 @@ services:
   neo4j:
     ports: !reset []
 
+  # Real emails need MAIL_HOST & co. in .env; the local inbox doesn't start in production.
+  mailpit:
+    profiles: ["local-mail"]
+
   # Daily pg_dump, keeps the last 7 days in ./backups.
   backup:
     image: postgres:16-bookworm

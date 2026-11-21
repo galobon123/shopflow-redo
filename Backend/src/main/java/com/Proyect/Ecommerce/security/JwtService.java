@@ -48,11 +48,18 @@ public class JwtService {
         return signingKey;
     }
 
-    public String generateToken(UserDetails userDetails, Long userId, String name) {
+    /**
+     * `emailVerified` only drives the UI (the "verify your email" banner); purchases check the database.
+     * `sessionId` ties the token to the account's only open session (SessionService).
+     */
+    public String generateToken(UserDetails userDetails, Long userId, String name, boolean emailVerified,
+                                String sessionId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", userDetails.getAuthorities().iterator().next().getAuthority());
         claims.put("userId", userId);
         claims.put("name", name);
+        claims.put("emailVerified", emailVerified);
+        claims.put("sid", sessionId);
 
         return Jwts.builder()
                 .claims(claims)
@@ -86,5 +93,9 @@ public class JwtService {
     
     public Long extractUserId(String token) {
         return extractAllClaims(token).get("userId", Long.class);
+    }
+
+    public String extractSessionId(String token) {
+        return extractAllClaims(token).get("sid", String.class);
     }
 }

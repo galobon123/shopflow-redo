@@ -26,6 +26,13 @@ export const routes: Routes = [
       .then(m => m.Register)
   },
   {
+    // HU-31 · The link in the email. Not guest-only: it may be opened while signed in.
+    path: 'verify-email',
+    title: 'Confirmar email · ShopFlow',
+    loadComponent: () => import('./pages/verify-email/verify-email')
+      .then(m => m.VerifyEmail)
+  },
+  {
     path: 'products/:categoryName',
     loadComponent: () => import('./pages/products-grid/products-grid')
     .then(m => m.ProductsGrid)

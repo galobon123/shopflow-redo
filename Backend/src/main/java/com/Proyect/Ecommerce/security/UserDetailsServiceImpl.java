@@ -24,9 +24,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         com.Proyect.Ecommerce.model.User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + email));
 
+        // A Google-only account has no password: "" never matches a BCrypt hash, so password sign-in fails.
         return new User(
                 user.getEmail(),
-                user.getPassword(),
+                user.getPassword() == null ? "" : user.getPassword(),
                 List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
         );
     }

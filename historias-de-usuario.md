@@ -25,7 +25,7 @@ Una historia está terminada cuando:
 | Sprint | Foco | Historias |
 |---|---|---|
 | 1 | Base para producción | HU-01, HU-02, HU-03, HU-04, HU-27 |
-| 2 | Cuenta y catálogo | HU-06, HU-07, HU-08, HU-10, HU-11 |
+| 2 | Cuenta y catálogo | HU-06, HU-07, HU-08, HU-31, HU-32, HU-33, HU-10, HU-11 |
 | 3 | Carrito y checkout | HU-12, HU-13, HU-16, HU-17 |
 | 4 | Pagos y pedidos | HU-18, HU-19, HU-20, HU-30 |
 | 5 | Panel de admin | HU-21, HU-22, HU-23, HU-24 |
@@ -202,15 +202,15 @@ Escenario: Error en producción
 ## Épica 1 — Cuenta y sesión
 
 ### HU-06 · Registro de cliente
-**Prioridad:** Must
+**Prioridad:** Must · **Estado:** Hecha
 
 > Como **invitado** quiero crear una cuenta para poder comprar y guardar mi historial.
 
 **Tareas**
-- [ ] BE: normalizar el email (trim + minúsculas) antes de validar y guardar.
-- [ ] BE: si se viola la restricción única de email (dos registros a la vez), devolver 409 y no 500.
-- [ ] BE: eliminar `POST /api/users`, que duplica el registro sin validar (auditoría #19).
-- [ ] FE: mostrar los errores por campo que devuelve el backend y redirigir al `returnUrl` si existe.
+- [x] BE: normalizar el email (trim + minúsculas) antes de validar y guardar.
+- [x] BE: si se viola la restricción única de email (dos registros a la vez), devolver 409 y no 500.
+- [x] BE: eliminar `POST /api/users`, que duplica el registro sin validar (auditoría #19).
+- [x] FE: mostrar los errores por campo que devuelve el backend y redirigir al `returnUrl` si existe.
 
 **Escenarios**
 ```gherkin
@@ -235,15 +235,15 @@ Escenario: Contraseña corta
 ---
 
 ### HU-07 · Inicio de sesión con límite de intentos
-**Prioridad:** Must · **Auditoría:** #7, #13
+**Prioridad:** Must · **Auditoría:** #7, #13 · **Estado:** Hecha
 
 > Como **cliente** quiero iniciar sesión de forma segura para que nadie pueda adivinar mi contraseña.
 
 **Tareas**
-- [ ] BE: credenciales inválidas → 401 "Email o contraseña incorrectos", sin revelar si el email existe.
-- [ ] BE (Redis): contador `login:fail:{ip}:{email}` con `INCR` + `EXPIRE 900`; a partir de 5 fallos, responder 429 con el header `Retry-After`.
-- [ ] BE: borrar el contador cuando el login es exitoso.
-- [ ] FE: mostrar el tiempo de espera cuando llega un 429.
+- [x] BE: credenciales inválidas → 401 "Email o contraseña incorrectos", sin revelar si el email existe.
+- [x] BE (Redis): contador `login:fail:{ip}:{email}` con `INCR` + `EXPIRE 900`; a partir de 5 fallos, responder 429 con el header `Retry-After`. *(La IP real detrás del proxy sale de la `RemoteIpValve` de Tomcat, que no se puede falsificar con `X-Forwarded-For`.)*
+- [x] BE: borrar el contador cuando el login es exitoso.
+- [x] FE: mostrar el tiempo de espera cuando llega un 429.
 
 **Escenarios**
 ```gherkin
@@ -268,15 +268,15 @@ Escenario: Demasiados intentos
 ---
 
 ### HU-08 · Manejo de sesión vencida y permisos
-**Prioridad:** Must · **Auditoría:** #11
+**Prioridad:** Must · **Auditoría:** #11 · **Estado:** Hecha
 
 > Como **cliente** quiero que la app me avise cuando mi sesión venció para no quedar en un estado roto.
 
 **Tareas**
-- [ ] FE: ante un 401, el interceptor llama a `authStore.logout()` (no solo borra el storage) y redirige a `/login?returnUrl=<ruta actual>`.
+- [x] FE: ante un 401, el interceptor llama a `authStore.logout()` (no solo borra el storage) y redirige a `/login?returnUrl=<ruta actual>`.
 - [x] FE: ante un 403, mostrar "No tenés permiso" **sin** cerrar la sesión. *(El interceptor ya no cierra sesión; el mensaje lo pone el toaster con el `detail` del backend.)*
-- [ ] FE: `authGuard` revisa `isTokenExpired` además de que exista el token.
-- [ ] FE: después del login, volver al `returnUrl`.
+- [x] FE: `authGuard` revisa `isTokenExpired` además de que exista el token.
+- [x] FE: después del login, volver al `returnUrl`.
 
 **Escenarios**
 ```gherkin
@@ -333,22 +333,131 @@ Escenario: Email que no existe
 
 ---
 
+### HU-31 · Verificación del email
+**Prioridad:** Must · **Estado:** Hecha
+
+> Como **dueño del comercio** quiero que cada cuenta confirme su email para no aceptar pedidos de direcciones falsas o ajenas.
+
+**Tareas**
+- [x] DB (`V3`): `users.email_verified`; las cuentas que ya existían quedan verificadas.
+- [x] BE (Redis): al registrarse, token aleatorio guardado como `verify:email:{hash}` → `userId` con TTL de 24 horas, de un solo uso (`GETDEL`).
+- [x] BE: email con el enlace (Spring Mail; en desarrollo llega a Mailpit, `http://localhost:8025`). Si el SMTP está caído, el registro funciona igual.
+- [x] BE: `POST /api/auth/verify-email` confirma, inicia sesión y recuerda el dispositivo; `POST /api/auth/verify-email/resend` (con sesión) manda otro, como mucho uno por minuto.
+- [x] BE: `createOrder` responde 403 "Confirmá tu email para comprar" si la cuenta no está verificada (se mira la base, no el JWT).
+- [x] FE: aviso bajo el header con "Reenviar email", página `/verify-email` y checkout bloqueado hasta confirmar.
+
+**Escenarios**
+```gherkin
+Escenario: Confirmo con el enlace
+  Dado que me registré con "ana@mail.com"
+  Cuando abro el enlace del email dentro de las 24 horas
+  Entonces veo "Tu email está confirmado"
+  Y puedo comprar
+
+Escenario: Todavía no confirmé mi email
+  Dado que me registré y no abrí el enlace
+  Cuando intento confirmar la compra
+  Entonces veo "Confirmá tu email para comprar"
+  Y mi carrito y el stock quedan como estaban
+
+Escenario: Enlace usado o vencido
+  Cuando abro un enlace que ya usé
+  Entonces veo "El enlace venció o ya se usó"
+```
+
+---
+
+### HU-32 · Ingreso con Google
+**Prioridad:** Should · **Estado:** Hecha
+
+> Como **cliente** quiero entrar con mi cuenta de Google para no crear ni recordar otra contraseña.
+
+**Tareas**
+- [x] DB (`V3`): `users.google_sub` (único) y `password` opcional, con un CHECK para que toda cuenta tenga alguna forma de entrar.
+- [x] BE: `POST /api/auth/google` valida el ID token de Google: firma con sus claves públicas, emisor, `aud` = nuestro client id, vencimiento y `email_verified`.
+- [x] BE: busca por `google_sub`; si no, une la cuenta con el mismo email (conserva contraseña, pedidos y nombre); si no, crea una cuenta verificada sin contraseña.
+- [x] BE: `GET /api/auth/config` devuelve el client id; sin `GOOGLE_CLIENT_ID` el botón no aparece.
+- [x] FE: botón oficial de Google (Google Identity Services, popup) en ingreso y registro; el script se carga solo si hace falta.
+
+**Escenarios**
+```gherkin
+Escenario: Primera vez con Google
+  Dado que no tengo cuenta en ShopFlow
+  Cuando elijo "Continuar con Google"
+  Entonces se crea mi cuenta con el email ya confirmado
+  Y quedo con la sesión iniciada
+
+Escenario: Ya tenía cuenta con contraseña
+  Dado que tengo cuenta con "ana@gmail.com" y contraseña
+  Cuando entro con Google con ese mismo email
+  Entonces entro a la misma cuenta, con mis pedidos
+  Y mi contraseña sigue funcionando
+
+Escenario: Token emitido para otro sitio
+  Cuando alguien envía un token de Google emitido para otra aplicación
+  Entonces la API lo rechaza
+```
+
+---
+
+### HU-33 · Verificación de dispositivo nuevo
+**Prioridad:** Should · **Estado:** Hecha
+
+> Como **cliente** quiero que me pidan un código por email cuando alguien entra con mi contraseña desde un dispositivo nuevo, para que no alcance con robarme la contraseña.
+
+**Tareas**
+- [x] BE (Redis): dispositivos de confianza `device:{hash}` → `userId`, 90 días que se renuevan con cada uso. El navegador guarda el token aunque cierre sesión.
+- [x] BE: contraseña correcta desde un navegador desconocido → 202 con `challengeId`; código de 6 números por email, válido 10 minutos.
+- [x] BE: 5 códigos equivocados anulan el intento; otro código como mucho una vez por minuto y 5 envíos cada 15 minutos por cuenta; si el SMTP está caído, 503 con un mensaje claro.
+- [x] BE: registrarse, confirmar el email o entrar con Google ya prueban el email: ese navegador queda de confianza sin código.
+- [x] FE: segundo paso del ingreso con el código (`autocomplete="one-time-code"`), "Mandame otro código" y "Usar otra cuenta".
+
+**Escenarios**
+```gherkin
+Escenario: Entro desde un dispositivo nuevo
+  Dado que tengo cuenta y nunca entré desde este navegador
+  Cuando ingreso email y contraseña correctos
+  Entonces me piden el código que llegó a "a***@mail.com"
+  Y con el código correcto entro y el navegador queda recordado
+
+Escenario: Alguien tiene mi contraseña pero no mi email
+  Dado que alguien conoce mi contraseña
+  Cuando prueba 5 códigos equivocados
+  Entonces el intento se anula y tiene que empezar de nuevo
+  Y el email del código ya me dijo que cambie la contraseña si no fui yo
+
+Escenario: Navegador conocido
+  Dado que ya confirmé un código en este navegador
+  Cuando vuelvo a ingresar con mi contraseña
+  Entonces entro sin código
+```
+
+---
+
 ## Épica 2 — Catálogo
 
 ### HU-10 · Listado de productos con filtros, búsqueda y paginación
-**Prioridad:** Must · **Auditoría:** #8
+**Prioridad:** Must · **Auditoría:** #8 · **Estado:** Hecha
 
 > Como **invitado** quiero explorar solo los productos disponibles, filtrar y buscar, para encontrar rápido lo que busco.
 
 **Tareas**
-- [ ] BE: `GET /api/products?page&size&category&q&sort` devuelve un `Page` solo con productos activos (`size` máximo 48).
-- [ ] BE: `GET /api/admin/products` con todos los productos, incluidos los inactivos (para la HU-21).
-- [ ] BE: búsqueda por nombre y descripción sin distinguir mayúsculas (`ILIKE`, o `pg_trgm` si crece).
-- [ ] BE: eliminar los endpoints sin uso `priceRange`, `timeRange` y `name` (auditoría #19).
-- [ ] FE: filtros sincronizados con la URL (`?q=&category=&page=`) para poder compartir el link.
+- [x] BE: `GET /api/products?page&size&category&q&sort` devuelve un `Page` solo con productos activos (`size` máximo 48).
+- [x] BE: `GET /api/admin/products` con todos los productos, incluidos los inactivos (para la HU-21).
+- [x] BE: búsqueda por nombre y descripción sin distinguir mayúsculas (`ILIKE`, o `pg_trgm` si crece).
+- [x] BE: eliminar los endpoints sin uso `priceRange`, `timeRange` y `name` (auditoría #19).
+- [x] FE: filtros sincronizados con la URL (`?q=&category=&page=`) para poder compartir el link. *(La categoría va en la ruta: `/products/Remeras?q=lino&sort=price_asc&page=2`. Incluye orden, paginación y búsqueda en el header.)*
+- [x] BE: `GET /api/products/suggestions?q=` con los 5 productos activos más parecidos. Índice en memoria con un trie de las palabras de los nombres: sin acentos ni mayúsculas, y tolera 1 error en palabras de 4 a 7 letras y 2 desde 8. La búsqueda del catálogo también encuentra esos productos.
+- [x] FE: sugerencias mientras escribís, desde la 3ª letra y 250 ms después de la última tecla, con foto chica, nombre y precio; se recorren con flechas, Enter y Escape.
 
 **Escenarios**
 ```gherkin
+Escenario: Sugerencias mientras escribo
+  Dado que existe el producto "Sartén de hierro fundido 26 cm"
+  Cuando escribo "sarteb" en el buscador
+  Entonces debajo del buscador veo "Sartén de hierro fundido 26 cm" con su foto y su precio
+  Y veo como mucho 5 sugerencias
+
 Escenario: Explorar por categoría
   Dado que hay 30 productos activos en "Remeras"
   Cuando entro a la categoría "Remeras"
@@ -375,7 +484,7 @@ Escenario: Producto desactivado
 
 **Tareas**
 - [ ] BE: `GET /api/products/{id}` devuelve 404 si el producto está inactivo (salvo para admin).
-- [ ] DB: tabla `product_images(product_id, url, position)`; la de `position = 0` es la portada que usa la card del listado.
+- [ ] DB (`V4`): tabla `product_images(product_id, url, position)`; la de `position = 0` es la portada que usa la card del listado.
 - [ ] BE: el detalle devuelve `images[]` ordenadas por `position`, y el promedio y la cantidad de reseñas (HU-30).
 - [ ] FE: ruta `/product/:id` con galería, descripción, precio con IVA incluido, stock, selector de cantidad, agregar al carrito y wishlist.
 - [ ] FE: galería con foto principal, flechas, miniaturas y swipe en mobile. Sin autoplay (norma del kit y WCAG 2.2.2).
@@ -619,12 +728,16 @@ Escenario: Dirección de otro cliente
 > Como **cliente** quiero confirmar mi compra con un total claro y la seguridad de que el producto está reservado para mí.
 
 **Tareas**
-- [ ] BE: descontar stock de forma atómica: `UPDATE products SET stock = stock - :q WHERE id = :id AND stock >= :q`; si afecta 0 filas → 409 "Sin stock de X". Todo en una transacción.
+- [x] BE: descontar stock de forma atómica: `UPDATE products SET stock = stock - :q WHERE id = :id AND stock >= :q`; si afecta 0 filas → 409 "Sin stock de X". Todo en una transacción. *(Adelantado en la HU-27.)*
 - [ ] BE: la orden nace en estado `PENDIENTE_PAGO` con `expires_at = now + 30 min`.
 - [ ] BE: el total lo calcula **solo** el backend; los precios ya incluyen IVA.
 - [ ] BE: `OrderService` lee el carrito vía `CartService` y lo borra en `afterCommit`.
 - [ ] FE: quitar el cálculo del 21% del resumen y mostrar "IVA incluido".
-- [ ] QA: test de concurrencia: 2 hilos compran la última unidad → 1 orden y 1 rechazo.
+- [ ] BE (Redis): compra idempotente. `POST /api/orders` exige el header `Idempotency-Key`. `SET order:idem:{userId}:{key} NX EX 86400`: la primera vez crea la orden y guarda su id; si la clave ya existe, devuelve la misma orden (200) sin descontar stock de nuevo, o 409 "Tu compra se está procesando" si la primera todavía no terminó.
+- [ ] BE (Redis): un solo checkout a la vez por cliente: lock `order:lock:{userId}` (`SET NX EX 30`) mientras se crea la orden, para que dos pestañas no compren el mismo carrito.
+- [ ] FE: el checkout genera una `Idempotency-Key` (UUID) al entrar y la reusa en cada reintento de esa compra; el botón queda deshabilitado mientras espera. La dirección se guarda una sola vez aunque se reintente.
+- [x] QA: test de concurrencia: 2 hilos compran la última unidad → 1 orden y 1 rechazo. *(Adelantado en la HU-27.)*
+- [ ] QA: la misma compra enviada 2 veces (seguidas y en paralelo) con la misma clave → 1 orden, el stock baja una sola vez y las dos respuestas traen la misma orden.
 
 **Escenarios**
 ```gherkin
@@ -649,6 +762,13 @@ Escenario: Falla al guardar la orden
   Cuando confirmo la compra
   Entonces el stock no cambia
   Y mi carrito sigue intacto
+
+Escenario: Confirmo dos veces la misma compra
+  Dado que tengo 1 "Taza" en el carrito
+  Cuando confirmo la compra con doble clic, o se corta la conexión y el navegador reintenta
+  Entonces se crea una sola orden
+  Y el stock de "Taza" baja una sola vez
+  Y las dos respuestas me muestran la misma orden
 ```
 
 ---
@@ -933,15 +1053,15 @@ Escenario: Dato sin configurar
 ## Épica 8 — Calidad y crecimiento
 
 ### HU-27 · Suite de tests en verde y tests del dinero
-**Prioridad:** Must · **Auditoría:** #15
+**Prioridad:** Must · **Auditoría:** #15 · **Estado:** Hecha (salvo los tests del webhook, que llegan con la HU-18)
 
 > Como **desarrollador** quiero tests que fallen cuando se rompe una regla de negocio para cambiar código sin miedo.
 
 **Tareas**
-- [ ] QA: Testcontainers (Postgres, Redis, Neo4j) para los tests de integración.
-- [ ] QA: tests de `createOrder` (stock justo, sin stock, concurrencia, dirección ajena, carrito vacío), del webhook (aprobado, duplicado, firma inválida) y de los permisos de `/api/admin/**`.
-- [ ] QA: arreglar o borrar los specs generados del front (hoy fallan 14 de 23) y testear el `ecommerce-store` y el interceptor.
-- [ ] OPS: cobertura informativa en la CI (sin umbral obligatorio).
+- [x] QA: Testcontainers (Postgres, Redis, Neo4j) para los tests de integración.
+- [x] QA: tests de `createOrder` (stock justo, sin stock, concurrencia, dirección ajena, carrito vacío) y de los permisos de los endpoints de admin. *(El webhook todavía no existe: sus tests van en la HU-18.)*
+- [x] QA: arreglar o borrar los specs generados del front (hoy fallan 14 de 23) y testear el `ecommerce-store` y el interceptor.
+- [x] OPS: cobertura informativa en la CI (sin umbral obligatorio).
 
 **Escenarios**
 ```gherkin
@@ -1021,8 +1141,10 @@ Escenario: Compartir un producto
 |---|---|---|
 | Redis | Carrito de cliente e invitado con TTL (hash) | HU-12, HU-13 |
 | Redis | Rate limiting de login (`INCR` + `EXPIRE`) | HU-07 |
-| Redis | Tokens de un solo uso con TTL | HU-09 |
+| Redis | Tokens de un solo uso con TTL (`GETDEL`): verificación de email y recuperación de contraseña | HU-09, HU-31 |
+| Redis | Códigos de ingreso con intentos contados (hash + `HINCRBY`) y dispositivos de confianza con TTL renovable | HU-33 |
 | Redis | Idempotencia de webhooks (`SET NX EX`) | HU-18 |
+| Redis | Compra idempotente (`order:idem:{userId}:{key}`) y un checkout a la vez por cliente (`order:lock:{userId}`) | HU-17 |
 | Redis | Colas de emails y de sincronización con Neo4j (lista o Stream) | HU-14, HU-20 |
 | Redis | Caché de recomendaciones | HU-15 |
 | Redis | Carritos abandonados (sorted set por actividad) | HU-24 |

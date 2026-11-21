@@ -34,11 +34,31 @@ describe('authInterceptor', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it('logs out and goes to login on 401', () => {
+  it('logs out and goes to login, remembering the page, on 401 (HU-08)', () => {
+    vi.spyOn(TestBed.inject(Router), 'url', 'get').mockReturnValue('/products/all');
     http.get('/api/cart').subscribe({ error: () => {} });
     backend.expectOne('/api/cart').flush(null, { status: 401, statusText: 'Unauthorized' });
 
     expect(logout).toHaveBeenCalled();
-    expect(navigate).toHaveBeenCalledWith(['/login'], { queryParams: { expired: 'true' } });
+    expect(navigate).toHaveBeenCalledWith(['/login'], { queryParams: { returnUrl: '/products/all', expired: 'true' } });
+  });
+
+  it('says why when the account was opened in another browser', () => {
+    vi.spyOn(TestBed.inject(Router), 'url', 'get').mockReturnValue('/cart');
+    http.get('/api/cart').subscribe({ error: () => {} });
+    backend
+      .expectOne('/api/cart')
+      .flush({ reason: 'session-replaced' }, { status: 401, statusText: 'Unauthorized' });
+
+    expect(logout).toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith(['/login'], { queryParams: { returnUrl: '/cart', replaced: 'true' } });
+  });
+
+  it('leaves a failed login alone: the login page shows that 401 itself', () => {
+    http.post('/api/auth/login', {}).subscribe({ error: () => {} });
+    backend.expectOne('/api/auth/login').flush(null, { status: 401, statusText: 'Unauthorized' });
+
+    expect(logout).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
   });
 });

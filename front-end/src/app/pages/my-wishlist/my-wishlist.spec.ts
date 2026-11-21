@@ -1,3 +1,4 @@
+import { testProviders } from '../../testing/test-providers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BackButton } from "../../components/back-button/back-button";
 import { MyWishlist } from './my-wishlist';
@@ -8,7 +9,8 @@ describe('MyWishlist', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [MyWishlist, BackButton]
+      imports: [MyWishlist, BackButton],
+      providers: testProviders()
     })
     .compileComponents();
 

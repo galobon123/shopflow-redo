@@ -8,6 +8,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import com.Proyect.Ecommerce.model.Emails;
 import com.Proyect.Ecommerce.model.Role;
 import com.Proyect.Ecommerce.model.User;
 import com.Proyect.Ecommerce.repository.UserRepository;
@@ -37,7 +38,7 @@ public class AdminBootstrap implements ApplicationRunner {
                           @Value("${app.admin.name:Admin}") String name) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
-        this.email = email.trim();
+        this.email = Emails.normalize(email);
         this.password = password;
         this.name = name;
     }
@@ -61,6 +62,7 @@ public class AdminBootstrap implements ApplicationRunner {
         admin.setName(name);
         admin.setPassword(passwordEncoder.encode(password));
         admin.setRole(Role.ADMIN);
+        admin.setEmailVerified(true);
         userRepository.save(admin);
         log.info("Admin inicial creado: {}", email);
     }

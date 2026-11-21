@@ -1,3 +1,4 @@
+import { testProviders } from '../../testing/test-providers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ViewCart } from './view-cart';
@@ -8,7 +9,8 @@ describe('ViewCart', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [ViewCart]
+      imports: [ViewCart],
+      providers: testProviders()
     })
     .compileComponents();
 

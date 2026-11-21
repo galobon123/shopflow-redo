@@ -1,0 +1,33 @@
+<form class="sf-search" role="search" (submit)="submit($event, query.value)" (focusout)="close()">
+    <label class="sr-only" for="site-search">Buscar productos</label>
+    <lucide-icon [img]="searchIcon" [size]="18" />
+    <input #query id="site-search" class="sf-input sf-input--search w-full" type="search" name="q"
+        placeholder="Buscar productos" autocomplete="off" enterkeyhint="search" [value]="currentQuery()"
+        role="combobox" aria-autocomplete="list" aria-controls="search-suggestions"
+        [attr.aria-expanded]="expanded()"
+        [attr.aria-activedescendant]="active() >= 0 && expanded() ? optionId(active()) : null"
+        (input)="onInput(query.value)" (keydown)="onKeydown($event)" (focus)="open.set(true)" />
+
+    @if (expanded()) {
+        <ul class="sf-suggest" id="search-suggestions" role="listbox" aria-label="Productos sugeridos">
+            @for (item of items(); track item.id; let i = $index) {
+                <!-- mousedown keeps the focus in the box, so the list is still there when the click lands -->
+                <li class="sf-suggest__option" role="option" [id]="optionId(i)" [attr.aria-selected]="i === active()"
+                    (mousedown)="$event.preventDefault()" (click)="choose(item)" (mouseenter)="active.set(i)">
+                    <span class="sf-suggest__thumb">
+                        @if (item.imageUrl) {
+                            <img [src]="item.imageUrl" alt="" loading="lazy" />
+                        } @else {
+                            <lucide-icon [img]="noImageIcon" [size]="16" />
+                        }
+                    </span>
+                    <span class="sf-suggest__name">{{ item.name }}</span>
+                    <span class="sf-suggest__price">{{ item.price | ars }}</span>
+                </li>
+            }
+            @if (nothingFound()) {
+                <li class="sf-suggest__empty" role="presentation">No encontramos productos para «<span class="sf-suggest__query">{{ typed().trim() }}</span>».</li>
+            }
+        </ul>
+    }
+</form>

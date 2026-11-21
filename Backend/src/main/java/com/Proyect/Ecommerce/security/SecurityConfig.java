@@ -17,6 +17,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
 
+import jakarta.servlet.DispatcherType;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -48,8 +50,12 @@ public class SecurityConfig {
                 .authenticationEntryPoint(restAuthenticationHandlers)
                 .accessDeniedHandler(restAuthenticationHandlers))
             .authorizeHttpRequests(auth -> auth
+                // The session stream (SseEmitter) is checked when it opens; its later async dispatches carry no token.
+                .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                 .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                .requestMatchers("/api/auth/verify-email/resend").authenticated()
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/products/**").hasRole("ADMIN")

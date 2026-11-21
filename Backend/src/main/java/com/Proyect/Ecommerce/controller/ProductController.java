@@ -1,16 +1,17 @@
 package com.Proyect.Ecommerce.controller;
 
 import jakarta.validation.Valid;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.Proyect.Ecommerce.dto.PageResponse;
 import com.Proyect.Ecommerce.dto.product.ProductRequestDTO;
 import com.Proyect.Ecommerce.dto.product.ProductResponseDTO;
+import com.Proyect.Ecommerce.search.ProductSearchIndex;
 import com.Proyect.Ecommerce.service.ProductService;
 
 @RestController
@@ -22,11 +23,27 @@ public class ProductController {
         this.productService = productService;
     }
 
+    /**
+     * HU-10 · Catalog: only active products, paged.
+     * e.g. /api/products?category=Remeras&q=lino&sort=price_asc&page=0&size=12
+     */
     @GetMapping
-    public ResponseEntity<List<ProductResponseDTO>> findAll() {
-        List<ProductResponseDTO> products = productService.findAll();
-        return ResponseEntity.ok(products);
+    public ResponseEntity<PageResponse<ProductResponseDTO>> search(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "" + ProductService.DEFAULT_PAGE_SIZE) int size) {
+        return ResponseEntity.ok(productService.search(category, q, sort, page, size, false));
+    }
 
+    /**
+     * Search as you type: the 5 active products closest to {@code q}, ignoring accents and small typos.
+     * Empty until {@code q} has 3 letters. e.g. /api/products/suggestions?q=sarten
+     */
+    @GetMapping("/suggestions")
+    public ResponseEntity<List<ProductSearchIndex.Suggestion>> suggestions(@RequestParam(defaultValue = "") String q) {
+        return ResponseEntity.ok(productService.suggest(q));
     }
 
     @GetMapping("/{id}")
@@ -35,38 +52,6 @@ public class ProductController {
         return ResponseEntity.ok(product);
     }
 
-    @GetMapping("/category/{categoryId}")
-    public ResponseEntity<List<ProductResponseDTO>> findByCategoryId(@PathVariable Long categoryId) {
-        List<ProductResponseDTO> products = productService.findByCategoryId(categoryId);
-        return ResponseEntity.ok(products);
-
-    }
-
-    @GetMapping("/priceRange/{min}/{max}")
-    public ResponseEntity<List<ProductResponseDTO>> findByPriceRange(@PathVariable BigDecimal min, @PathVariable BigDecimal max) {
-        List<ProductResponseDTO> products = productService.findByPriceBetween(min, max);
-        return ResponseEntity.ok(products);
-
-    }
-
-    @GetMapping("/timeRange/{min}/{max}")
-    public ResponseEntity<List<ProductResponseDTO>> findByCreatedBetween(@PathVariable LocalDateTime min, @PathVariable LocalDateTime max) {
-        List<ProductResponseDTO> products = productService.findByCreatedAtBetween(min, max);
-        return ResponseEntity.ok(products);
-    }
-
-    @GetMapping("/active")
-    public ResponseEntity<List<ProductResponseDTO>> findActive() {
-        List<ProductResponseDTO> products = productService.findActive();
-        return ResponseEntity.ok(products);
-    }
-
-    @GetMapping("/name/{name}")
-    public ResponseEntity<ProductResponseDTO> findByName(@PathVariable String name) {
-        ProductResponseDTO product = productService.findByName(name);
-        return ResponseEntity.ok(product);
-    }
-    
     @PutMapping("/{id}/deactivate")
     public ResponseEntity<Void> deactivateById(@PathVariable Long id) {
         productService.deactivateById(id);

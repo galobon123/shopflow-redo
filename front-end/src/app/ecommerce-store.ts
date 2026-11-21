@@ -3,7 +3,6 @@ import { signalStore, withState, withMethods, withComputed, patchState, withHook
 import { computed, inject, untracked, effect } from '@angular/core';
 import { ProductResponse } from './core/models/product.model';
 import { CategoryResponse } from './core/models/category.model';
-import { ProductService } from './core/services/product.service';
 import { CategoryService } from './core/services/category.service';
 import { WishListService } from './core/services/wishlist.service';
 import { AuthStore } from './auth-store';
@@ -18,27 +17,26 @@ import { AddressService } from './core/services/address.service';
 import { AddressRequest } from './core/models/address.model';
 import { OrderResponse } from './core/models/order.model';
 import { forkJoin, of } from 'rxjs';
-import { map, catchError, switchMap } from 'rxjs/operators';
+import { map, catchError, switchMap, finalize } from 'rxjs/operators';
 import { Router } from '@angular/router';
 
 type EcommerceState = {
-  products: ProductResponse[];
   categories: CategoryResponse[];
   wishListItems: WishListResponse[];
+  /** Products whose favourite is being saved or removed right now (the heart waits for the server). */
+  wishListSaving: number[];
   cartItems: CartItem[];
   recommendations: RecommendationsResponse;
-  selectedCategory: string | null;
   loading: boolean;
   error: string | null;
 };
 
 const initialState: EcommerceState = {
-  products: [],
   categories: [],
   wishListItems: [],
+  wishListSaving: [],
   cartItems: [],
   recommendations: { recommended: [], othersBought: [] },
-  selectedCategory: null,
   loading: false,
   error: null,
 };
@@ -48,11 +46,6 @@ export const EcommerceStore = signalStore(
   withState(initialState),
 
   withComputed((store) => ({
-  filteredProducts: computed(() => {
-    const category = store.selectedCategory();
-    if (!category) return store.products();
-    return store.products().filter((p) => p.categoryName === category);
-  }),
   wishListCount: computed(() => store.wishListItems().length),
   cartCount: computed(() => store.cartItems().reduce((sum, item) => sum + item.quantity, 0)),
   cartTotal: computed(() => store.cartItems().reduce((sum, item) => 
@@ -60,7 +53,6 @@ export const EcommerceStore = signalStore(
 })),
 
   withMethods((store,
-    productService = inject(ProductService), 
     categoryService = inject(CategoryService), 
     wishListService = inject(WishListService),
     authStore = inject(AuthStore),
@@ -70,15 +62,11 @@ export const EcommerceStore = signalStore(
     addressService = inject(AddressService),
     router = inject(Router),
     toaster = inject(Toaster)) => ({
-  loadAll(): void {
-    patchState(store, { loading: true, error: null });
-    productService.getAll().subscribe({
-      next: (products) => patchState(store, { products, loading: false }),
-      error: (err) => patchState(store, { error: errorMessage(err), loading: false }),
-    });
-
+  /** The catalog itself is paged by the server (HU-10, products-grid); only categories live here. */
+  loadCategories(): void {
     categoryService.getAll().subscribe({
       next: (categories) => patchState(store, { categories }),
+      error: () => { /* the catalog still works without the category list */ },
     });
   },
   loadRecommendations(): void {
@@ -95,15 +83,16 @@ export const EcommerceStore = signalStore(
       error: () => { /* silencioso, no bloquea la app */ },
     });
   },
-  filterBy(categoryName: string | null): void {
-    patchState(store, { selectedCategory: categoryName });
-  },
   addToWishList : (product: ProductResponse) => { 
     if (!authStore.isAuthenticated()) {
     toaster.info('Iniciá sesión para guardar favoritos.');
     return;
   }
-  wishListService.add(product.id).subscribe({
+  if (store.wishListSaving().includes(product.id)) return;
+  patchState(store, { wishListSaving: [...store.wishListSaving(), product.id] });
+  wishListService.add(product.id).pipe(
+    finalize(() => patchState(store, { wishListSaving: store.wishListSaving().filter(id => id !== product.id) })),
+  ).subscribe({
       next: () => {
         const item: WishListResponse = {
           id: 0,
@@ -121,7 +110,11 @@ export const EcommerceStore = signalStore(
     });
   },
   removeFromWishList : (productId: number) => {
-      wishListService.remove(productId).subscribe({
+      if (store.wishListSaving().includes(productId)) return;
+      patchState(store, { wishListSaving: [...store.wishListSaving(), productId] });
+      wishListService.remove(productId).pipe(
+        finalize(() => patchState(store, { wishListSaving: store.wishListSaving().filter(id => id !== productId) })),
+      ).subscribe({
       next: () => {
         patchState(store, { 
           wishListItems: store.wishListItems().filter(p => p.productId !== productId) 
@@ -348,7 +341,7 @@ export const EcommerceStore = signalStore(
     onInit(store) {
       const authStore = inject(AuthStore);
 
-      store.loadAll();
+      store.loadCategories();
 
       effect(() => {
         if (authStore.isAuthenticated()) {

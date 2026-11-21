@@ -5,13 +5,15 @@ import { Observable, tap, map, catchError, throwError } from 'rxjs';
 import { UserService } from './core/services/user.service';
 import { TokenStorageService } from './core/services/token-storage.service';
 import { decodeJwt, isTokenExpired } from './core/util/jwt.util';
-import { SignInRequest, SignUpRequest, AuthResponse, Role } from './core/models/auth.model';
+import { SignInRequest, SignUpRequest, AuthResponse, LoginChallenge, Role } from './core/models/auth.model';
 
 type AuthState = {
   token: string | null;
   userName: string | null;
   userEmail: string | null;
   role: Role | null;
+  /** HU-31 · Without it the person can browse but not buy. */
+  emailVerified: boolean;
   loading: boolean;
   error: string | null;
 };
@@ -21,6 +23,7 @@ const initialState: AuthState = {
   userName: null,
   userEmail: null,
   role: null,
+  emailVerified: true,
   loading: false,
   error: null,
 };
@@ -56,47 +59,81 @@ export const AuthStore = signalStore(
         userEmail: payload.sub,
         userName: payload.name ?? null,
         role: payload.role as Role,
+        // Tokens from before HU-31 have no claim: don't nag those accounts (they were marked verified).
+        emailVerified: payload.emailVerified ?? true,
         loading: false,
         error: null,
       });
     };
 
-    return {
-      signIn(credentials: SignInRequest): Observable<void> {
-        patchState(store, { loading: true, error: null });
+    /** Keeps the session and, when the server just trusted this browser, its device token (HU-33). */
+    const startSession = (res: AuthResponse) => {
+      tokenStorage.saveToken(res.token);
+      if (res.deviceToken) tokenStorage.saveDeviceToken(res.deviceToken);
+      setSessionFromToken(res.token);
+    };
 
-        return userService.signIn(credentials).pipe(
-          tap((res: AuthResponse) => {
-            tokenStorage.saveToken(res.token);
-            setSessionFromToken(res.token);
-          }),
-          map(() => undefined),
-          catchError((err) => {
-            patchState(store, { loading: false, error: errorMessage(err) });
-            return throwError(() => err);
+    /** Runs a call with `loading` on, and leaves the error message in the state if it fails. */
+    const withLoading = <T>(call: Observable<T>): Observable<T> => {
+      patchState(store, { loading: true, error: null });
+      return call.pipe(
+        tap(() => patchState(store, { loading: false })),
+        catchError((err) => {
+          patchState(store, { loading: false, error: errorMessage(err) });
+          return throwError(() => err);
+        }),
+      );
+    };
+
+    const toSession = (call: Observable<AuthResponse>): Observable<void> =>
+      withLoading(call).pipe(tap(startSession), map(() => undefined));
+
+    return {
+      /**
+       * Emits null when the session started, or the challenge when this browser must confirm
+       * a code sent by email first (HU-33).
+       */
+      signIn(credentials: SignInRequest): Observable<LoginChallenge | null> {
+        const request = { ...credentials, deviceToken: tokenStorage.getDeviceToken() };
+        return withLoading(userService.signIn(request)).pipe(
+          map((res) => {
+            if ('challengeId' in res) return res;
+            startSession(res);
+            return null;
           }),
         );
       },
 
-      signUp(data: SignUpRequest): Observable<void> {
-        patchState(store, { loading: true, error: null });
+      confirmCode(challengeId: string, code: string): Observable<void> {
+        return toSession(userService.confirmCode(challengeId, code));
+      },
 
-        return userService.signUp(data).pipe(
-          tap((res: AuthResponse) => {
-            tokenStorage.saveToken(res.token);
-            setSessionFromToken(res.token);
-          }),
-          map(() => undefined),
-          catchError((err) => {
-            patchState(store, { loading: false, error: errorMessage(err) });
-            return throwError(() => err);
-          }),
-        );
+      resendCode(challengeId: string): Observable<LoginChallenge> {
+        return userService.resendCode(challengeId);
+      },
+
+      signUp(data: SignUpRequest): Observable<void> {
+        return toSession(userService.signUp(data));
+      },
+
+      /** HU-32 · `credential` is the ID token Google gave the browser. */
+      signInWithGoogle(credential: string): Observable<void> {
+        return toSession(userService.signInWithGoogle(credential));
+      },
+
+      /** HU-31 · The link from the email: confirms it and signs in on this browser. */
+      verifyEmail(token: string): Observable<void> {
+        return toSession(userService.verifyEmail(token));
+      },
+
+      /** HU-31 · Another link. Also refreshes the session: maybe it was confirmed on another device. */
+      resendVerification(): Observable<void> {
+        return userService.resendVerification().pipe(tap(startSession), map(() => undefined));
       },
 
       logout(): void {
         tokenStorage.clear();
-        patchState(store, { token: null, userEmail: null, userName: null, role: null, error: null, loading: false });
+        patchState(store, { token: null, userEmail: null, userName: null, role: null, emailVerified: true, error: null, loading: false });
       },
 
       initFromStorage(): void {

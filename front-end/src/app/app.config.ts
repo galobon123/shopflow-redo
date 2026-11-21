@@ -9,6 +9,6 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideRouter(routes, withComponentInputBinding()),
     provideHttpClient(withInterceptors([authInterceptor])), 
-    provideHotToastConfig({ style: {marginTop: '70px'}, stacking: 'depth', duration: 1000})
+    provideHotToastConfig({ style: {marginTop: '70px'}, stacking: 'depth', duration: 3000}),
   ]
 };

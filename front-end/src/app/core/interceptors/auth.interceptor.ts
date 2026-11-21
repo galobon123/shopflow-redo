@@ -20,8 +20,12 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       // Only a 401 means the session is gone. A 403 is "logged in but not allowed": the caller
       // shows the backend's "No tenés permiso…" and the session stays open.
       if (err.status === 401 && !req.url.includes('/api/auth/')) {
+        // HU-08 · Log out everywhere (header included) and come back to this page after signing in.
+        // `replaced`: the account was opened in another browser, which closes this session.
+        const returnUrl = router.url.startsWith('/login') ? undefined : router.url;
+        const why = err.error?.reason === 'session-replaced' ? { replaced: 'true' } : { expired: 'true' };
         authStore.logout();
-        router.navigate(['/login'], { queryParams: { expired: 'true' } });
+        router.navigate(['/login'], { queryParams: { returnUrl, ...why } });
       }
       return throwError(() => err);
     })

@@ -11,7 +11,10 @@
         <div class="responsive-grid">
             @for (item of store.wishListItems(); track item.productId) {
                 <app-product-card [product]="mapToProduct(item)">
-                    <button sfIconButton="float" type="button" aria-label="Quitar de favoritos"
+                    <button sfIconButton="float" type="button" class="sf-fav"
+                        aria-label="Quitar de favoritos"
+                        [disabled]="store.wishListSaving().includes(item.productId)"
+                        [attr.aria-busy]="store.wishListSaving().includes(item.productId)"
                         (click)="store.removeFromWishList(item.productId)">
                         <lucide-icon [img]="trashIcon" />
                     </button>
