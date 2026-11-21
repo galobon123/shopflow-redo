@@ -148,4 +148,10 @@ describe('Login (HU-07, HU-33)', () => {
 
     backend.expectNone(`${api}/auth/login/code`);
   });
+
+  it('links to recovering the password (HU-09)', () => {
+    const { el } = render();
+
+    expect(el.querySelector('a[href="/forgot-password"]')?.textContent).toContain('¿Olvidaste tu contraseña?');
+  });
 });

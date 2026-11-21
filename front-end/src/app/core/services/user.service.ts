@@ -38,6 +38,15 @@ export class UserService {
     return this.http.post<AuthResponse>(`${this.apiUrl}/verify-email/resend`, {});
   }
 
+  /** HU-09 · 204 whether the email has an account or not. */
+  forgotPassword(email: string): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/forgot`, { email });
+  }
+
+  resetPassword(token: string, password: string): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.apiUrl}/reset`, { token, password });
+  }
+
   config(): Observable<AuthConfig> {
     return this.http.get<AuthConfig>(`${this.apiUrl}/config`);
   }

@@ -26,6 +26,20 @@ export const routes: Routes = [
       .then(m => m.Register)
   },
   {
+    path: 'forgot-password',
+    title: 'Recuperar contraseña · ShopFlow',
+    canActivate: [guestGuard],
+    loadComponent: () => import('./pages/forgot-password/forgot-password')
+      .then(m => m.ForgotPassword)
+  },
+  {
+    // HU-09 · The link in the email. Not guest-only, like /verify-email: it may be opened while signed in.
+    path: 'reset-password',
+    title: 'Nueva contraseña · ShopFlow',
+    loadComponent: () => import('./pages/reset-password/reset-password')
+      .then(m => m.ResetPassword)
+  },
+  {
     // HU-31 · The link in the email. Not guest-only: it may be opened while signed in.
     path: 'verify-email',
     title: 'Confirmar email · ShopFlow',

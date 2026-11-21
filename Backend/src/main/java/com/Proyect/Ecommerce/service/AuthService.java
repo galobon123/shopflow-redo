@@ -25,6 +25,7 @@ import com.Proyect.Ecommerce.security.JwtService;
 import com.Proyect.Ecommerce.security.LoginAttemptService;
 import com.Proyect.Ecommerce.security.LoginChallengeService;
 import com.Proyect.Ecommerce.security.LoginChallengeService.Challenge;
+import com.Proyect.Ecommerce.security.PasswordResetService;
 import com.Proyect.Ecommerce.security.SessionService;
 import com.Proyect.Ecommerce.security.TrustedDeviceService;
 
@@ -49,6 +50,7 @@ public class AuthService {
     private final GoogleTokenVerifier google;
     private final MailService mail;
     private final SessionService sessions;
+    private final PasswordResetService passwordResets;
 
     public AuthService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
@@ -61,7 +63,8 @@ public class AuthService {
                        EmailVerificationService verifications,
                        GoogleTokenVerifier google,
                        MailService mail,
-                       SessionService sessions) {
+                       SessionService sessions,
+                       PasswordResetService passwordResets) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
@@ -74,6 +77,7 @@ public class AuthService {
         this.google = google;
         this.mail = mail;
         this.sessions = sessions;
+        this.passwordResets = passwordResets;
     }
 
     /**
@@ -162,6 +166,30 @@ public class AuthService {
             mail.sendVerificationLink(user.getEmail(), user.getName(), verifications.anotherLink(userId));
         }
         return session(user, null, sessions.current(userId));
+    }
+
+    /**
+     * HU-09 · Emails a link to choose a new password. Answers the same whether the account exists or not,
+     * so nobody learns who has one. Accounts created with Google (no password) can use it to set one.
+     */
+    public void forgotPassword(String email) {
+        userRepository.findByEmail(email).ifPresent(user -> passwordResets.newLink(user.getId())
+                .ifPresent(token -> mail.sendPasswordResetLink(user.getEmail(), user.getName(), token)));
+    }
+
+    /**
+     * HU-09 · The link sets the new password and signs in on the browser that opened it, which becomes
+     * trusted and the email verified: whoever opens the link controls the inbox. The new session closes
+     * every other one, so whoever knew the old password is out at once.
+     */
+    public AuthResponseDTO resetPassword(String token, String password) {
+        // Hash first: if it failed after confirm, the single-use link would be gone.
+        String hash = passwordEncoder.encode(password);
+        User user = user(passwordResets.confirm(token));
+        user.setPassword(hash);
+        user.setEmailVerified(true);
+        userRepository.save(user);
+        return session(user, trustedDevices.trust(user.getId()));
     }
 
     /**

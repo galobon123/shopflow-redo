@@ -1,5 +1,6 @@
 package com.Proyect.Ecommerce;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Matcher;
@@ -14,11 +15,17 @@ public class RecordingMailSender extends JavaMailSenderImpl {
 
     private final List<SimpleMailMessage> sent = new CopyOnWriteArrayList<>();
     private volatile boolean down;
+    private volatile Duration delay = Duration.ZERO;
 
     @Override
     public void send(SimpleMailMessage... messages) {
         if (down) {
             throw new MailSendException("SMTP down (test)");
+        }
+        try {
+            Thread.sleep(delay);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
         sent.addAll(List.of(messages));
     }
@@ -26,6 +33,12 @@ public class RecordingMailSender extends JavaMailSenderImpl {
     public void clear() {
         sent.clear();
         down = false;
+        delay = Duration.ZERO;
+    }
+
+    /** Makes every send take this long, like a slow SMTP server. */
+    public void slowDown(Duration delay) {
+        this.delay = delay;
     }
 
     /** Makes every send fail, like an SMTP server that doesn't answer. */
@@ -37,8 +50,19 @@ public class RecordingMailSender extends JavaMailSenderImpl {
         return sent.stream().filter(m -> m.getTo() != null && List.of(m.getTo()).contains(address)).toList();
     }
 
+    /** Waits up to 10 seconds for one: some emails are sent off the request thread (HU-09). */
     public SimpleMailMessage lastTo(String address) {
+        long deadline = System.currentTimeMillis() + 10_000;
         List<SimpleMailMessage> messages = to(address);
+        while (messages.isEmpty() && System.currentTimeMillis() < deadline) {
+            try {
+                Thread.sleep(20);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+            messages = to(address);
+        }
         if (messages.isEmpty()) {
             throw new AssertionError("No email to " + address);
         }

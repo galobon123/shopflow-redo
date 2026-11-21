@@ -131,6 +131,16 @@ export const AuthStore = signalStore(
         return userService.resendVerification().pipe(tap(startSession), map(() => undefined));
       },
 
+      /** HU-09 · Emails a link to choose a new password, if the email has an account. */
+      forgotPassword(email: string): Observable<void> {
+        return withLoading(userService.forgotPassword(email));
+      },
+
+      /** HU-09 · The link from the email: sets the new password and signs in on this browser. */
+      resetPassword(token: string, password: string): Observable<void> {
+        return toSession(userService.resetPassword(token, password));
+      },
+
       logout(): void {
         tokenStorage.clear();
         patchState(store, { token: null, userEmail: null, userName: null, role: null, emailVerified: true, error: null, loading: false });

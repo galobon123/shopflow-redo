@@ -4,10 +4,12 @@ import com.Proyect.Ecommerce.dto.auth.AuthConfigDTO;
 import com.Proyect.Ecommerce.dto.auth.AuthRequestDTO;
 import com.Proyect.Ecommerce.dto.auth.AuthResponseDTO;
 import com.Proyect.Ecommerce.dto.auth.ChallengeRequestDTO;
+import com.Proyect.Ecommerce.dto.auth.ForgotPasswordRequestDTO;
 import com.Proyect.Ecommerce.dto.auth.GoogleLoginRequestDTO;
 import com.Proyect.Ecommerce.dto.auth.LoginChallengeDTO;
 import com.Proyect.Ecommerce.dto.auth.LoginCodeRequestDTO;
 import com.Proyect.Ecommerce.dto.auth.RegisterRequestDTO;
+import com.Proyect.Ecommerce.dto.auth.ResetPasswordRequestDTO;
 import com.Proyect.Ecommerce.dto.auth.VerifyEmailRequestDTO;
 import com.Proyect.Ecommerce.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -68,6 +70,18 @@ public class AuthController {
     @PostMapping("/verify-email/resend")
     public ResponseEntity<AuthResponseDTO> resendVerification(Authentication auth) {
         return ResponseEntity.ok(authService.resendVerification((Long) auth.getCredentials()));
+    }
+
+    /** HU-09 · 204 whether the email has an account or not: the answer doesn't tell. */
+    @PostMapping("/forgot")
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequestDTO dto) {
+        authService.forgotPassword(dto.getEmail());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/reset")
+    public ResponseEntity<AuthResponseDTO> resetPassword(@Valid @RequestBody ResetPasswordRequestDTO dto) {
+        return ResponseEntity.ok(authService.resetPassword(dto.token(), dto.password()));
     }
 
     @GetMapping("/config")

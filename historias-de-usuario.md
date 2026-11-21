@@ -302,15 +302,15 @@ Escenario: Un cliente entra a una ruta de admin
 ---
 
 ### HU-09 · Recuperar contraseña
-**Prioridad:** Should
+**Prioridad:** Should · **Estado:** Hecha
 
 > Como **cliente** quiero restablecer mi contraseña si la olvidé para no perder mi cuenta.
 
 **Tareas**
-- [ ] BE (Redis): `POST /api/auth/forgot` genera un token aleatorio seguro y lo guarda como `pwreset:{hash}` → `userId` con TTL de 30 minutos.
-- [ ] BE: `POST /api/auth/reset` valida el token, cambia la contraseña y borra la clave (uso único).
-- [ ] BE: enviar el email con el link (depende de HU-20).
-- [ ] FE: pantallas "Olvidé mi contraseña" y "Nueva contraseña".
+- [x] BE (Redis): `POST /api/auth/forgot` genera un token aleatorio seguro y lo guarda como `pwreset:{hash}` → `userId` con TTL de 30 minutos.
+- [x] BE: `POST /api/auth/reset` valida el token, cambia la contraseña y borra la clave (uso único).
+- [x] BE: enviar el email con el link (depende de HU-20).
+- [x] FE: pantallas "Olvidé mi contraseña" y "Nueva contraseña".
 
 **Escenarios**
 ```gherkin

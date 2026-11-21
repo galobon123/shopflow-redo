@@ -6,12 +6,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.Proyect.Ecommerce.exception.ServiceUnavailableException;
 
 /**
- * Account emails (HU-31, HU-33). Plain text for now; HU-20 adds templates and a retry queue.
+ * Account emails (HU-09, HU-31, HU-33). Plain text for now; HU-20 adds templates and a retry queue.
  * In development they land in Mailpit (http://localhost:8025) instead of a real inbox.
  */
 @Service
@@ -48,6 +49,28 @@ public class MailService {
                     """.formatted(name, link));
         } catch (MailException e) {
             log.warn("Verification email to {} not sent: {}", to, e.getMessage());
+        }
+    }
+
+    /**
+     * HU-09 · Sent off the request thread and never fails the caller: waiting for the SMTP server, or
+     * a 503, would tell that the email has an account. The person can ask again after a minute.
+     */
+    @Async
+    public void sendPasswordResetLink(String to, String name, String token) {
+        String link = publicUrl + "/reset-password?token=" + token;
+        try {
+            send(to, "Restablecé tu contraseña de ShopFlow", """
+                    Hola %s,
+
+                    Para elegir una contraseña nueva, abrí este enlace:
+                    %s
+
+                    Vence en 30 minutos y sirve una sola vez. Si no lo pediste, ignorá este mensaje:
+                    tu contraseña no cambia.
+                    """.formatted(name, link));
+        } catch (MailException e) {
+            log.warn("Password reset email to {} not sent: {}", to, e.getMessage());
         }
     }
 

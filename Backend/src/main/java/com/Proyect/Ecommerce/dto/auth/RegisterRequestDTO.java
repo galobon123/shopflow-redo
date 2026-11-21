@@ -17,9 +17,8 @@ public class RegisterRequestDTO {
     @Email(message = "El email no es válido")
     private String email;
 
-    // BCrypt only uses the first 72 bytes and Spring Security rejects longer passwords.
     @NotBlank(message = "Ingresá una contraseña")
-    @Size(min = 8, max = 72, message = "La contraseña debe tener entre 8 y 72 caracteres")
+    @PasswordLength
     private String password;
 
     /** Jackson calls this before validation, so @Email sees the clean value. */
