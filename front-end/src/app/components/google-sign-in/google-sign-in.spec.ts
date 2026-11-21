@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpTestingController } from '@angular/common/http/testing';
-import { GoogleSignIn } from './google-sign-in';
+import { GoogleSignIn, buttonWidth } from './google-sign-in';
 import { testProviders } from '../../testing/test-providers';
 import { environment } from '../../../environments/environment';
 
@@ -19,5 +19,11 @@ describe('GoogleSignIn (HU-32)', () => {
 
     expect((fixture.nativeElement as HTMLElement).textContent?.trim()).toBe('');
     expect(document.querySelector('script[src*="accounts.google.com"]')).toBeNull();
+  });
+
+  it("draws Google's button as wide as the room it gets, between 200 and 400 px", () => {
+    expect(buttonWidth(287.6)).toBe(287);
+    expect(buttonWidth(150)).toBe(200);
+    expect(buttonWidth(900)).toBe(400);
   });
 });

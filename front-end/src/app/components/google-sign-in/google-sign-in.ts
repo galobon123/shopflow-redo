@@ -17,6 +17,14 @@ interface GoogleIdentity {
 }
 
 const GIS_URL = 'https://accounts.google.com/gsi/client';
+/** Google draws its button between these widths, in px. */
+const MIN_WIDTH = 200;
+const MAX_WIDTH = 400;
+
+/** Google's button has a fixed width: as wide as the room it gets, within the limits Google accepts. */
+export function buttonWidth(available: number): number {
+  return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, Math.floor(available)));
+}
 let gisScript: Promise<GoogleIdentity> | undefined;
 
 /** Loads Google's script once per page, and only when the button is going to be shown. */
@@ -47,7 +55,7 @@ function loadGoogleIdentity(): Promise<GoogleIdentity> {
       <div class="flex items-center gap-3 my-6 text-body-s text-ink-muted" aria-hidden="true">
         <span class="h-px flex-1 bg-line"></span>o<span class="h-px flex-1 bg-line"></span>
       </div>
-      <div #button class="flex justify-center min-h-10"></div>
+      <div #button class="flex justify-center min-h-10 w-full min-w-0"></div>
     }
   `,
 })
@@ -84,10 +92,21 @@ export class GoogleSignIn {
       ux_mode: 'popup',
       callback: ({ credential }) => this.signIn(credential),
     });
-    google.accounts.id.renderButton(host, {
-      type: 'standard', theme: 'outline', size: 'large', text: 'continue_with', shape: 'rectangular',
-      locale: 'es-419', width: Math.min(400, host.clientWidth || 400),
-    });
+    // Drawn again whenever the room changes (a narrow phone, rotating it), so it never spills out of the card.
+    let drawnWidth = 0;
+    const draw = (available: number) => {
+      const width = buttonWidth(available);
+      if (available <= 0 || width === drawnWidth) return;
+      drawnWidth = width;
+      host.replaceChildren();
+      google.accounts.id.renderButton(host, {
+        type: 'standard', theme: 'outline', size: 'large', text: 'continue_with', shape: 'rectangular',
+        locale: 'es-419', width,
+      });
+    };
+    const resizes = new ResizeObserver(([entry]) => draw(entry.contentRect.width));
+    resizes.observe(host);
+    this.destroyRef.onDestroy(() => resizes.disconnect());
   }
 
   private signIn(credential: string) {
