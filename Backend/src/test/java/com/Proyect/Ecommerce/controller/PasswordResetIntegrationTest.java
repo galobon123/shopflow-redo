@@ -162,7 +162,7 @@ class PasswordResetIntegrationTest {
 
         reset(linkToken(), "corta")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.password").value("La contraseña debe tener entre 8 y 72 caracteres"));
+                .andExpect(jsonPath("$.errors.password").value("Tiene que tener al menos 8 caracteres."));
     }
 
     /** 40 characters but 80 bytes: BCrypt's limit is in bytes. The link must survive the error. */
@@ -173,7 +173,7 @@ class PasswordResetIntegrationTest {
 
         reset(token, "ñ".repeat(40))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.password").value("La contraseña debe tener entre 8 y 72 caracteres"));
+                .andExpect(jsonPath("$.errors.password").value("Es demasiado larga. Probá con una más corta."));
 
         reset(token, "nuevaClave99").andExpect(status().isOk());
     }

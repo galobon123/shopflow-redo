@@ -72,7 +72,7 @@ class RegistrationIntegrationTest {
     void shortPasswordIsAFieldError() throws Exception {
         register("Ana", "ana@mail.com", "corta")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.password").value("La contraseña debe tener entre 8 y 72 caracteres"));
+                .andExpect(jsonPath("$.errors.password").value("Tiene que tener al menos 8 caracteres."));
         assertEquals(0, users());
     }
 
@@ -81,7 +81,7 @@ class RegistrationIntegrationTest {
     void passwordLengthCountsBytes() throws Exception {
         register("Ana", "ana@mail.com", "ñ".repeat(40))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.password").value("La contraseña debe tener entre 8 y 72 caracteres"));
+                .andExpect(jsonPath("$.errors.password").value("Es demasiado larga. Probá con una más corta."));
         assertEquals(0, users());
 
         register("Ana", "ana@mail.com", "ñ".repeat(36)).andExpect(status().is2xxSuccessful());

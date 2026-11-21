@@ -55,14 +55,14 @@ describe('Register (HU-06)', () => {
     submit();
 
     backend.expectOne(`${api}/auth/register`).flush(
-      { status: 400, title: 'Datos inválidos', errors: { password: 'La contraseña debe tener entre 8 y 72 caracteres' } },
+      { status: 400, title: 'Datos inválidos', errors: { password: 'Tiene que tener al menos 8 caracteres.' } },
       { status: 400, statusText: 'Bad Request' },
     );
     fixture.detectChanges();
 
     const password = el.querySelector('input[formControlName="password"]')!;
     expect(password.getAttribute('aria-invalid')).toBe('true');
-    expect(el.textContent).toContain('La contraseña debe tener entre 8 y 72 caracteres');
+    expect(el.textContent).toContain('Tiene que tener al menos 8 caracteres.');
   });
 
   it('goes back to the returnUrl once the account is created', () => {

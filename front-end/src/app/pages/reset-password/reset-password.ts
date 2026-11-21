@@ -5,6 +5,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { LucideAngularModule, MailX } from 'lucide-angular';
 import { AuthStore } from '../../auth-store';
 import { Toaster } from '../../core/services/toaster.service';
+import { passwordFits } from '../../core/util/password';
 import { applyServerErrors, errorMessage } from '../../core/util/error-message';
 import { SfAlert, SfButton, SfEmptyState, SfField, SfInput } from '../../ui';
 
@@ -33,7 +34,7 @@ import { SfAlert, SfButton, SfEmptyState, SfField, SfInput } from '../../ui';
             }
 
             <sf-field class="max-w-none" label="Contraseña nueva" hint="Al menos 8 caracteres."
-              [errors]="{ required: 'Elegí una contraseña.', minlength: 'Tiene que tener al menos 8 caracteres.', maxlength: 'Máximo 72 caracteres.' }">
+              [errors]="{ required: 'Elegí una contraseña.', minlength: 'Tiene que tener al menos 8 caracteres.', tooLong: 'Es demasiado larga. Probá con una más corta.' }">
               <input sfInput type="password" formControlName="password" autocomplete="new-password" />
             </sf-field>
 
@@ -68,7 +69,7 @@ export class ResetPassword implements OnInit {
   }
 
   form = this.fb.nonNullable.group({
-    password: ['', [Validators.required, Validators.minLength(8), Validators.maxLength(72)]],
+    password: ['', [Validators.required, Validators.minLength(8), passwordFits]],
   });
 
   ngOnInit() {
