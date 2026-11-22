@@ -63,7 +63,7 @@ describe('Search box suggestions', () => {
     expect(options()[1].querySelector('img')).toBeNull();
   });
 
-  it('opens the suggestion picked with the arrows and Enter', async () => {
+  it('opens the page of the suggestion picked with the arrows and Enter (HU-11)', async () => {
     const { fixture, el, backend, navigate, type, key } = await render();
     await type('olla');
     backend.expectOne((req) => req.url === suggestionsUrl).flush([SARTEN, OLLA]);
@@ -73,7 +73,7 @@ describe('Search box suggestions', () => {
     key('ArrowDown');
     el.querySelector('form')!.dispatchEvent(new Event('submit'));
 
-    expect(navigate).toHaveBeenCalledWith(['/products', 'all'], { queryParams: { q: 'Olla de acero 24 cm' } });
+    expect(navigate).toHaveBeenCalledWith(['/product', OLLA.id]);
   });
 
   it('closes with Escape and says so when nothing matches', async () => {

@@ -115,14 +115,11 @@ export class SearchBox {
     this.search(text);
   }
 
-  /**
-   * Shows the chosen product in the catalog.
-   * shortcut: there is no product page yet (HU-11); once there is, open it instead.
-   */
+  /** HU-11 · Opens the chosen product's page. */
   choose(suggestion: ProductSuggestion) {
     this.close();
     this.typed.set(suggestion.name);
-    this.router.navigate(['/products', 'all'], { queryParams: { q: suggestion.name } });
+    this.router.navigate(['/product', suggestion.id]);
   }
 
   close() {

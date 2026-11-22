@@ -11,10 +11,12 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import com.Proyect.Ecommerce.dto.PageResponse;
+import com.Proyect.Ecommerce.dto.product.ProductDetailDTO;
 import com.Proyect.Ecommerce.dto.product.ProductRequestDTO;
 import com.Proyect.Ecommerce.dto.product.ProductResponseDTO;
 import com.Proyect.Ecommerce.model.Category;
 import com.Proyect.Ecommerce.model.Product;
+import com.Proyect.Ecommerce.model.ProductImage;
 import com.Proyect.Ecommerce.exception.BadRequestException;
 import com.Proyect.Ecommerce.exception.NotFoundException;
 import com.Proyect.Ecommerce.repository.CategoryRepository;
@@ -98,9 +100,24 @@ public class ProductService {
         return searchIndex.suggest(query, SUGGESTIONS);
     }
 
-    public ProductResponseDTO findById(Long id) {
-        return toResponseDTO(productRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Producto no encontrado: " + id)));
+    /**
+     * HU-11 · Product page. An inactive product is as missing as one that never existed, except for the admin.
+     */
+    public ProductDetailDTO findById(Long id, boolean includeInactive) {
+        Product product = productRepository.findById(id)
+                .filter(p -> includeInactive || p.isActive())
+                .orElseThrow(() -> new NotFoundException("Este producto no existe o ya no está disponible."));
+        ProductDetailDTO dto = new ProductDetailDTO();
+        fill(dto, product);
+        dto.setImages(product.getImages().stream().map(ProductImage::getUrl).toList());
+        addReviewSummary(dto);
+        return dto;
+    }
+
+    /** HU-30 · Reviews don't exist yet: no product has any. Read them from the reviews table here. */
+    private void addReviewSummary(ProductDetailDTO dto) {
+        dto.setAverageRating(null);
+        dto.setReviewCount(0);
     }
 
     public ProductResponseDTO save(ProductRequestDTO dto) {
@@ -124,6 +141,11 @@ public class ProductService {
 
     private ProductResponseDTO toResponseDTO(Product product) {
         ProductResponseDTO dto = new ProductResponseDTO();
+        fill(dto, product);
+        return dto;
+    }
+
+    private void fill(ProductResponseDTO dto, Product product) {
         dto.setId(product.getId());
         dto.setName(product.getName());
         dto.setDescription(product.getDescription());
@@ -133,6 +155,5 @@ public class ProductService {
         dto.setActive(product.isActive());
         dto.setCreatedAt(product.getCreatedAt());
         dto.setImageUrl(product.getImageUrl());
-        return dto;
     }
 }

@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpTestingController, TestRequest } from '@angular/common/http/testing';
-import { Router } from '@angular/router';
+import { ViewportScroller } from '@angular/common';
+import { NavigationEnd, Event as RouterEvent, Router, Scroll } from '@angular/router';
+import { Subject } from 'rxjs';
 import { ProductsGrid } from './products-grid';
 import { aProduct, testProviders } from '../../testing/test-providers';
 import { environment } from '../../../environments/environment';
@@ -89,5 +91,36 @@ describe('ProductsGrid (HU-10)', () => {
     retry.click();
     TestBed.tick(); // starts the new request; it stays pending until answered
     backend.expectOne((r) => r.url === `${api}/products`);
+  });
+
+  describe('"Atrás" from a product (HU-11)', () => {
+    /** What the router emits after a navigation; position is only set on back/forward. */
+    function routerScroll(position: [number, number] | null) {
+      const end = new NavigationEnd(2, '/products/all', '/products/all');
+      (TestBed.inject(Router).events as Subject<RouterEvent>).next(new Scroll(end, position, null));
+    }
+
+    it('goes back to where it was once the list is on screen, not while the skeleton is', async () => {
+      const { fixture, catalogRequest, update } = render();
+      const scrollTo = vi.spyOn(TestBed.inject(ViewportScroller), 'scrollToPosition').mockImplementation(() => {});
+
+      routerScroll([0, 3101]);
+      fixture.detectChanges();
+      expect(scrollTo).not.toHaveBeenCalled(); // still loading
+
+      catalogRequest().flush(page([aProduct({ id: 1 }), aProduct({ id: 2 })], 30));
+      await update();
+      expect(scrollTo).toHaveBeenCalledExactlyOnceWith([0, 3101]);
+    });
+
+    it('a new navigation (no saved position) leaves the scroll to the router', async () => {
+      const { catalogRequest, update } = render();
+      const scrollTo = vi.spyOn(TestBed.inject(ViewportScroller), 'scrollToPosition').mockImplementation(() => {});
+
+      routerScroll(null);
+      catalogRequest().flush(page([aProduct()]));
+      await update();
+      expect(scrollTo).not.toHaveBeenCalled();
+    });
   });
 });

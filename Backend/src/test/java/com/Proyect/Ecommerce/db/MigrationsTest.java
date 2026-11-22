@@ -5,7 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
+import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
@@ -15,6 +18,8 @@ import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabas
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.Proyect.Ecommerce.repository.CityRepository;
 
@@ -89,6 +94,32 @@ class MigrationsTest {
     void findsSeededCityById() {
         Integer rosarioId = jdbc.queryForObject("SELECT id FROM city WHERE name = 'Rosario'", Integer.class);
         assertEquals("Rosario", cities.findById(rosarioId).orElseThrow().getName());
+    }
+
+    /**
+     * HU-11 · The photo a product had before V4 becomes its cover in product_images.
+     * Outside the test transaction: uncommitted inserts would hold the lock V4's ALTER TABLE waits for.
+     */
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void v4MovesEachProductPhotoToItsCover() {
+        String url = postgres.getJdbcUrl("postgres", "postgres");
+        Flyway before = Flyway.configure().dataSource(url, "postgres", "postgres")
+                .schemas("before_v4").target("3").load();
+        before.migrate();
+        jdbc.execute("INSERT INTO before_v4.categories (name) VALUES ('Remeras')");
+        jdbc.execute("INSERT INTO before_v4.products (name, price, stock, category_id, created_at, image_url) VALUES "
+                + "('Con foto', 1000, 1, 1, now(), 'https://cdn.example/remera.jpg'), "
+                + "('Sin foto', 1000, 1, 1, now(), NULL)");
+
+        Flyway.configure().dataSource(url, "postgres", "postgres").schemas("before_v4").load().migrate();
+
+        List<Map<String, Object>> images = jdbc.queryForList(
+                "SELECT p.name, i.url, i.position FROM before_v4.product_images i JOIN before_v4.products p ON p.id = i.product_id");
+        assertEquals(List.of(Map.of("name", "Con foto", "url", "https://cdn.example/remera.jpg", "position", 0)), images);
+        assertEquals(0, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'before_v4' AND table_name = 'products' AND column_name = 'image_url'",
+                Integer.class));
     }
 
     @Test

@@ -11,7 +11,7 @@
     </div>
 
     <div class="sf-card__body">
-        <h3 class="sf-card__name" [title]="product().name">{{ product().name }}</h3>
+        <h3 class="sf-card__name" [title]="product().name"><a class="sf-card__link" [routerLink]="['/product', product().id]">{{ product().name }}</a></h3>
         <div class="sf-price-row">
             <span class="sf-price">{{ product().price | ars }}</span>
         </div>

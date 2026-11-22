@@ -32,6 +32,9 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
         String getImageUrl();
     }
 
+    /** HU-11 · The photo is the cover (position 0), now in product_images. */
+    @Query("SELECT p.id AS id, p.name AS name, p.price AS price, i.url AS imageUrl "
+            + "FROM Product p LEFT JOIN p.images i ON i.position = 0 WHERE p.active = true")
     List<SearchView> findByActiveTrue();
 
     /** Takes {@code quantity} units only if they are there. Returns 0 when there isn't enough stock. */

@@ -6,9 +6,11 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import com.Proyect.Ecommerce.dto.PageResponse;
+import com.Proyect.Ecommerce.dto.product.ProductDetailDTO;
 import com.Proyect.Ecommerce.dto.product.ProductRequestDTO;
 import com.Proyect.Ecommerce.dto.product.ProductResponseDTO;
 import com.Proyect.Ecommerce.search.ProductSearchIndex;
@@ -46,10 +48,12 @@ public class ProductController {
         return ResponseEntity.ok(productService.suggest(q));
     }
 
+    /** HU-11 · Product page: 404 when it doesn't exist or is inactive, unless an admin asks. */
     @GetMapping("/{id}")
-    public ResponseEntity<ProductResponseDTO> findById(@PathVariable Long id) {
-        ProductResponseDTO product = productService.findById(id);
-        return ResponseEntity.ok(product);
+    public ResponseEntity<ProductDetailDTO> findById(@PathVariable Long id, Authentication auth) {
+        boolean admin = auth != null && auth.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+        return ResponseEntity.ok(productService.findById(id, admin));
     }
 
     @PutMapping("/{id}/deactivate")

@@ -190,9 +190,9 @@
     color: var(--color-ink);
     cursor: pointer;
   }
-  .sf-stepper button:hover:not(:disabled) { background: var(--color-sunken); }
+  .sf-stepper button:hover:not([aria-disabled="true"]) { background: var(--color-sunken); }
   .sf-stepper button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-  .sf-stepper button:disabled { color: var(--color-line-strong); cursor: not-allowed; }
+  .sf-stepper button[aria-disabled="true"] { color: var(--color-line-strong); cursor: not-allowed; }
   .sf-stepper output { min-width: 32px; text-align: center; font: 600 15px/1 var(--font-sans); font-variant-numeric: tabular-nums; }
 
   /* ---------- Badge ---------- */
@@ -224,6 +224,13 @@
   /* Always two lines tall, so every card is the same size; longer names end in "…". */
   .sf-card__name { margin: 0; min-height: 40px; font-size: 15px; line-height: 20px; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .sf-card:hover .sf-card__name { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+  /* HU-11 · The name links to the product page and its hit area covers the card; the heart and "Agregar" sit above it. */
+  .sf-card { position: relative; }
+  .sf-card__link { color: inherit; text-decoration: none; }
+  .sf-card__link::after { content: ""; position: absolute; inset: 0; }
+  .sf-card:has(.sf-card__link:focus-visible) { box-shadow: var(--shadow-focus); }
+  .sf-card__fav, .sf-card__foot { z-index: 1; }
+  .sf-card__foot { position: relative; }
   .sf-price-row { display: flex; align-items: baseline; gap: calc(var(--spacing) * 2); flex-wrap: wrap; }
   .sf-price { font-size: 20px; line-height: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
   .sf-price--promo { color: var(--color-accent); }
@@ -360,6 +367,52 @@
   .sf-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: calc(var(--spacing) * 4); margin-bottom: calc(var(--spacing) * 6); }
   .sf-toolbar .sf-field { min-width: 200px; }
 
+  /* ---------- Product page (HU-11): gallery + info ---------- */
+  .sf-pdp { box-sizing: border-box; max-width: var(--container-page); margin: 0 auto; padding: calc(var(--spacing) * 8) calc(var(--spacing) * 4) calc(var(--spacing) * 16); display: grid; gap: calc(var(--spacing) * 8); align-items: start; }
+  .sf-pdp__full { grid-column: 1 / -1; }
+  @media (min-width: 768px) {
+    .sf-pdp { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: calc(var(--spacing) * 12); padding-inline: calc(var(--spacing) * 6); }
+  }
+  .sf-pdp__info { display: grid; gap: calc(var(--spacing) * 5); align-content: start; }
+  .sf-pdp__info h1 { margin: 0; }
+  .sf-pdp__info .sf-price-row { margin: 0; }
+  .sf-pdp__category { text-decoration: none; }
+  .sf-pdp__category:hover { color: var(--color-ink); }
+  .sf-pdp__buy { display: flex; flex-wrap: wrap; align-items: center; gap: calc(var(--spacing) * 4); }
+  .sf-pdp__about { display: grid; gap: calc(var(--spacing) * 2); padding-top: calc(var(--spacing) * 5); border-top: 1px solid var(--color-line); }
+  .sf-pdp__about h2, .sf-pdp__about p { margin: 0; }
+  .sf-pdp__about p { color: var(--color-ink-soft); white-space: pre-line; text-wrap: pretty; }
+
+  /* Gallery: never moves on its own (WCAG 2.2.2). Arrows over the photo, thumbnails under it. */
+  .sf-gallery { display: grid; gap: calc(var(--spacing) * 3); min-width: 0; }
+  .sf-gallery__stage { position: relative; touch-action: pan-y; }
+  .sf-gallery__main { box-sizing: border-box; display: grid; place-items: center; width: 100%; aspect-ratio: 1 / 1; padding: 0; border: 0; border-radius: var(--radius-card); overflow: hidden; background: var(--color-sunken); cursor: zoom-in; }
+  .sf-gallery__main:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+  .sf-gallery__main img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .sf-gallery__main--empty { padding: calc(var(--spacing) * 6); cursor: default; text-align: center; color: var(--color-ink-muted); }
+  .sf-gallery__arrow { position: absolute; top: 50%; transform: translateY(-50%); }
+  /* aria-disabled, not disabled: a disabled button would drop the keyboard focus to the page.
+     Only the icon fades, so the focus ring keeps its full contrast (WCAG 1.4.11). */
+  .sf-gallery__arrow[aria-disabled="true"] { cursor: not-allowed; background: var(--color-surface); }
+  .sf-gallery__arrow[aria-disabled="true"] lucide-icon { opacity: 0.45; }
+  .sf-gallery__arrow--prev { left: calc(var(--spacing) * 3); }
+  .sf-gallery__arrow--next { right: calc(var(--spacing) * 3); }
+  .sf-gallery__count { margin: 0; font-size: 13px; line-height: 18px; color: var(--color-ink-muted); font-variant-numeric: tabular-nums; }
+  .sf-gallery__thumbs { display: flex; gap: calc(var(--spacing) * 2); margin: 0; padding: 2px; list-style: none; overflow-x: auto; }
+  .sf-gallery__thumb { display: block; flex: none; width: 64px; height: 64px; padding: 0; border: 1px solid var(--color-line); border-radius: var(--radius); overflow: hidden; background: var(--color-sunken); cursor: pointer; }
+  .sf-gallery__thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .sf-gallery__thumb:hover { border-color: var(--color-line-strong); }
+  .sf-gallery__thumb:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+  .sf-gallery__thumb[aria-current="true"] { border-color: var(--color-ink); box-shadow: inset 0 0 0 1px var(--color-ink); }
+
+  /* Zoom: the photo at its original size over the whole screen; scrolls when it is bigger than the screen. */
+  .sf-zoom { box-sizing: border-box; width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: calc(var(--spacing) * 4); border: 0; background: var(--color-ink); overflow: auto; cursor: zoom-out; }
+  .sf-zoom[open] { display: grid; }
+  .sf-zoom::backdrop { background: var(--color-ink); }
+  /* Auto margins center it without cutting off the top or left when it is bigger than the screen. */
+  .sf-zoom__photo { max-width: none; height: auto; margin: auto; cursor: default; }
+  .sf-zoom__close { position: fixed; top: calc(var(--spacing) * 4); right: calc(var(--spacing) * 4); z-index: 1; }
+
   /* ---------- Pagination ---------- */
   .sf-pagination { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: calc(var(--spacing) * 1); margin-top: calc(var(--spacing) * 10); }
   .sf-pagination > a, .sf-pagination > span { box-sizing: border-box; min-width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: calc(var(--spacing) * 1); padding: 0 calc(var(--spacing) * 3); border-radius: var(--radius); color: var(--color-ink); font-size: 15px; text-decoration: none; font-variant-numeric: tabular-nums; }
@@ -459,3 +512,8 @@
   .sf-qr { width: 64px; height: 64px; border-radius: var(--radius); background: var(--color-surface); display: grid; place-items: center; color: var(--color-ink); font: 600 10px/1 var(--font-mono); }
 
 }
+
+/* HU-11 · Outside the layer on purpose: the global :focus-visible ring in styles.css is unlayered and would win
+   over anything in @layer components. On the card link it would draw a stroke under each clamped line of the name;
+   the ring goes on the whole card instead (.sf-card:has(...) above). */
+.sf-card__link:focus-visible { box-shadow: none; }

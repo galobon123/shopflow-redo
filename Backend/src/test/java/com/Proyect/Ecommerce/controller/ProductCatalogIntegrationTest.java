@@ -21,6 +21,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.Proyect.Ecommerce.IntegrationTest;
 import com.Proyect.Ecommerce.model.Category;
 import com.Proyect.Ecommerce.model.Product;
+import com.Proyect.Ecommerce.model.ProductImage;
 import com.Proyect.Ecommerce.repository.CategoryRepository;
 import com.Proyect.Ecommerce.repository.ProductRepository;
 import com.Proyect.Ecommerce.search.ProductSearchIndex;
@@ -127,7 +128,7 @@ class ProductCatalogIntegrationTest {
         }
         product("Remera oculta", "1000", remeras, false);
         Product gorra = product("Gorra térmica", "800", gorras, true);
-        gorra.setImageUrl("https://cdn.example/gorra.jpg");
+        gorra.getImages().add(new ProductImage("https://cdn.example/gorra.jpg", 0));
         products.save(gorra);
 
         mvc.perform(get("/api/products/suggestions").param("q", "rem"))

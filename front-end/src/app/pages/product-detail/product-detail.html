@@ -1,0 +1,77 @@
+<div class="sf-pdp">
+  @if (notFound()) {
+    <sf-empty-state class="sf-pdp__full" [icon]="icons.notFound" title="Este producto no existe o ya no está disponible"
+      text="Puede que lo hayan dado de baja o que el link esté mal. En el catálogo hay mucho más para ver.">
+      <a sfButton="secondary" routerLink="/products/all">Volver al catálogo</a>
+    </sf-empty-state>
+  } @else if (product.isLoading() && !detail()) {
+    <div class="grid content-start gap-3" aria-busy="true" aria-label="Cargando producto">
+      <div sfSkeleton class="aspect-square rounded-card"></div>
+      <div class="flex gap-2">
+        @for (i of [0, 1, 2, 3]; track i) {
+          <div sfSkeleton class="size-16"></div>
+        }
+      </div>
+    </div>
+    <div class="grid content-start gap-4" aria-hidden="true">
+      <div sfSkeleton class="h-3 w-1/4"></div>
+      <div sfSkeleton class="h-10 w-11/12"></div>
+      <div sfSkeleton class="h-6 w-1/3"></div>
+      <div sfSkeleton class="h-24 w-full"></div>
+    </div>
+  } @else if (error(); as message) {
+    <sf-error-state class="sf-pdp__full py-16" [message]="message" (retry)="product.reload()" />
+  } @else if (detail(); as p) {
+    <app-product-gallery [images]="p.images" [name]="p.name" />
+
+    <section class="sf-pdp__info" aria-labelledby="product-name">
+      <a class="sf-label sf-pdp__category" [routerLink]="['/products', p.categoryName]">{{ p.categoryName }}</a>
+      <h1 id="product-name" class="font-display text-display-l">{{ p.name }}</h1>
+      <!-- HU-30 · The stars go next to the price once there are reviews (averageRating, reviewCount). -->
+
+      <div>
+        <p class="sf-price-row">
+          <span class="sf-price">{{ p.price | ars }}</span>
+          <span class="text-body-s text-ink-muted">IVA incluido</span>
+        </p>
+        <sf-stock-badge class="mt-2 block" [stock]="p.stock" />
+      </div>
+
+      @if (p.stock > 0) {
+        <div class="sf-pdp__buy">
+          <sf-qty-stepper [value]="quantity()" [max]="p.stock" (valueChange)="quantity.set($event)" />
+          <div class="flex items-center gap-2">
+            <button sfButton size="lg" type="button" (click)="addToCart()">Agregar al carrito</button>
+            <app-toggle-wishlist-button [product]="p" />
+          </div>
+        </div>
+      } @else {
+        <div class="flex items-center gap-2">
+          <button sfButton size="lg" type="button" disabled>Sin stock</button>
+          <app-toggle-wishlist-button [product]="p" />
+        </div>
+      }
+
+      @if (p.description) {
+        <div class="sf-pdp__about">
+          <h2 class="text-title">Sobre el producto</h2>
+          <p>{{ p.description }}</p>
+        </div>
+      }
+    </section>
+
+    <!-- HU-15 · Loaded by the store at login and empty for guests or if it failed: hidden then. -->
+    @if (othersBought().length > 0) {
+      <section class="sf-pdp__full" aria-labelledby="others-title">
+        <h2 id="others-title" class="text-title mb-4">Otros también compraron</h2>
+        <div class="responsive-grid">
+          @for (other of othersBought(); track other.id) {
+            <app-product-card [product]="other">
+              <app-toggle-wishlist-button [product]="other" />
+            </app-product-card>
+          }
+        </div>
+      </section>
+    }
+  }
+</div>

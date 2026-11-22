@@ -137,19 +137,20 @@ export const EcommerceStore = signalStore(
     error: () => { /* silencioso */ },
   });
   },
-  addToCart(product: ProductResponse): void {
+  /** `quantity` comes from the product page's selector (HU-11); the cards add one. */
+  addToCart(product: ProductResponse, quantity = 1): void {
     if (!authStore.isAuthenticated()) {
       toaster.info('Iniciá sesión para agregar productos al carrito.');
       return;
     }
-    cartService.add(product.id).subscribe({
+    cartService.add(product.id, quantity).subscribe({
       next: () => {
         const existing = store.cartItems().find(item => item.productId === product.id);
         if (existing) {
           patchState(store, {
             cartItems: store.cartItems().map(item =>
               item.productId === product.id
-                ? { ...item, quantity: item.quantity + 1 }
+                ? { ...item, quantity: item.quantity + quantity }
                 : item
             )
           });
@@ -159,7 +160,7 @@ export const EcommerceStore = signalStore(
             productName: product.name,
             productPrice: product.price,
             productImageUrl: product.imageUrl ?? '',
-            quantity: 1,
+            quantity,
           };
           patchState(store, { cartItems: [...store.cartItems(), newItem] });
         }

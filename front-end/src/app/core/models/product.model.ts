@@ -26,3 +26,12 @@ export interface ProductResponse {
   createdAt: string;
   imageUrl?: string;
 }
+
+/** HU-11 · Product page: the card's data plus every photo and the review summary. */
+export interface ProductDetail extends ProductResponse {
+  /** Photo URLs ordered by position; the first one is the cover. */
+  images: string[];
+  /** HU-30 · Average stars; null while the product has no reviews. */
+  averageRating: number | null;
+  reviewCount: number;
+}

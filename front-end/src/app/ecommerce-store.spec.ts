@@ -64,6 +64,18 @@ describe('EcommerceStore', () => {
     expect(store.cartTotal()).toBe(2000);
   });
 
+  it('adds the quantity chosen on the product page (HU-11)', () => {
+    setup(true, []);
+
+    store.addToCart(aProduct({ id: 15, price: 1000 }), 3);
+    backend.expectOne({ method: 'POST', url: `${api}/cart/15?qty=3` }).flush(null);
+    store.addToCart(aProduct({ id: 15, price: 1000 }), 2);
+    backend.expectOne({ method: 'POST', url: `${api}/cart/15?qty=2` }).flush(null);
+
+    expect(store.cartCount()).toBe(5);
+    expect(store.cartTotal()).toBe(5000);
+  });
+
   it('shows the backend message when the cart rejects the product (HU-03)', () => {
     setup(true, []);
 

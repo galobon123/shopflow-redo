@@ -478,18 +478,18 @@ Escenario: Producto desactivado
 ---
 
 ### HU-11 · Detalle de producto
-**Prioridad:** Must
+**Prioridad:** Must · **Estado:** Hecha
 
 > Como **invitado** quiero ver el detalle de un producto con todas sus fotos para decidir si lo compro.
 
 **Tareas**
-- [ ] BE: `GET /api/products/{id}` devuelve 404 si el producto está inactivo (salvo para admin).
-- [ ] DB (`V4`): tabla `product_images(product_id, url, position)`; la de `position = 0` es la portada que usa la card del listado.
-- [ ] BE: el detalle devuelve `images[]` ordenadas por `position`, y el promedio y la cantidad de reseñas (HU-30).
-- [ ] FE: ruta `/product/:id` con galería, descripción, precio con IVA incluido, stock, selector de cantidad, agregar al carrito y wishlist.
-- [ ] FE: galería con foto principal, flechas, miniaturas y swipe en mobile. Sin autoplay (norma del kit y WCAG 2.2.2).
-- [ ] FE: zoom a pantalla completa con la foto en resolución original; se cierra con Esc o tocando afuera y devuelve el foco.
-- [ ] FE: bloque "Otros también compraron" (HU-15).
+- [x] BE: `GET /api/products/{id}` devuelve 404 si el producto está inactivo (salvo para admin).
+- [x] DB (`V4`): tabla `product_images(product_id, url, position)`; la de `position = 0` es la portada que usa la card del listado.
+- [x] BE: el detalle devuelve `images[]` ordenadas por `position`, y el promedio y la cantidad de reseñas (HU-30).
+- [x] FE: ruta `/product/:id` con galería, descripción, precio con IVA incluido, stock, selector de cantidad, agregar al carrito y wishlist.
+- [x] FE: galería con foto principal, flechas, miniaturas y swipe en mobile. Sin autoplay (norma del kit y WCAG 2.2.2).
+- [x] FE: zoom a pantalla completa con la foto en resolución original; se cierra con Esc o tocando afuera y devuelve el foco.
+- [x] FE: bloque "Otros también compraron" (HU-15).
 
 **Escenarios**
 ```gherkin

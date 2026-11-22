@@ -52,6 +52,13 @@ export const routes: Routes = [
     .then(m => m.ProductsGrid)
   },
   {
+    // HU-11 · Product page. The title becomes the product's name once it loads.
+    path: 'product/:id',
+    title: 'Producto · ShopFlow',
+    loadComponent: () => import('./pages/product-detail/product-detail')
+    .then(m => m.ProductDetail)
+  },
+  {
     path: 'checkout',
     canActivate: [authGuard],
     loadComponent: () => import('./pages/checkout/checkout')

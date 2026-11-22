@@ -1,6 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
+import {
+  ChangeDetectionStrategy, Component, Injector, afterNextRender, computed, effect, inject, input, signal,
+} from '@angular/core';
+import { ViewportScroller } from '@angular/common';
+import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Router, RouterLink, Scroll } from '@angular/router';
 import { PackageOpen, SearchX } from 'lucide-angular';
 import { ProductCard } from '../../components/product-card/product-card';
 import { ToggleWishlistButton } from '../../components/toggle-wishlist-button/toggle-wishlist-button';
@@ -69,6 +72,26 @@ export class ProductsGrid {
     if (q) return `Resultados para “${q}”`;
     return this.category() ?? 'Todos los productos';
   });
+
+  /**
+   * HU-11 · "Atrás" from a product: the router restores the scroll while the list is still a (shorter) skeleton,
+   * so it falls short. The position it saved is applied again once the list is on screen.
+   */
+  private readonly restoreTo = signal<[number, number] | null>(null);
+
+  constructor() {
+    const scroller = inject(ViewportScroller);
+    const injector = inject(Injector);
+    this.router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
+      if (event instanceof Scroll) this.restoreTo.set(event.position);
+    });
+    effect(() => {
+      const position = this.restoreTo();
+      if (!position || this.results.isLoading()) return;
+      this.restoreTo.set(null);
+      if (this.results.hasValue()) afterNextRender(() => scroller.scrollToPosition(position), { injector });
+    });
+  }
 
   protected readonly count = computed(() => {
     const total = this.results.value()?.totalItems ?? 0;

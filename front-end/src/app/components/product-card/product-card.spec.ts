@@ -21,6 +21,12 @@ describe('ProductCard', () => {
     expect(el.textContent).toContain('Quedan 3');
   });
 
+  it('opens the product page (HU-11)', () => {
+    const el = render(aProduct({ id: 15 }));
+
+    expect(el.querySelector('a.sf-card__link')?.getAttribute('href')).toBe('/product/15');
+  });
+
   it('disables "Agregar" when there is no stock', () => {
     const el = render(aProduct({ stock: 0 }));
     const add = [...el.querySelectorAll('button')].find((b) => b.textContent?.includes('Agregar'));
