@@ -11,7 +11,7 @@ import lombok.EqualsAndHashCode;
 public class ProductDetailDTO extends ProductResponseDTO {
     /** Photo URLs ordered by position; the first one is the cover. */
     private List<String> images;
-    /** HU-30 · Average stars, null while the product has no reviews. */
+    /** HU-30 · Average stars of the visible reviews (hidden ones don't count), null while there are none. */
     private Double averageRating;
     private long reviewCount;
 }

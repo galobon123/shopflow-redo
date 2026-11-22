@@ -7,3 +7,4 @@ export * from './qty-stepper';
 export * from './badge';
 export * from './states';
 export * from './ars.pipe';
+export * from './stars';

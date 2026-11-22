@@ -21,19 +21,22 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import com.Proyect.Ecommerce.controller.AdminProductController;
+import com.Proyect.Ecommerce.controller.AdminReviewController;
 import com.Proyect.Ecommerce.controller.CategoryController;
 import com.Proyect.Ecommerce.controller.ProductController;
 import com.Proyect.Ecommerce.controller.UserController;
 import com.Proyect.Ecommerce.exception.GlobalExceptionHandler;
 import com.Proyect.Ecommerce.service.CategoryService;
 import com.Proyect.Ecommerce.service.ProductService;
+import com.Proyect.Ecommerce.service.ReviewService;
 import com.Proyect.Ecommerce.service.UserService;
 
 /**
  * HU-27 · Admin-only endpoints: a guest gets 401, a customer 403, an admin gets through.
  * Moves to /api/admin/** with HU-21; this list is the contract to keep.
  */
-@WebMvcTest({ProductController.class, AdminProductController.class, CategoryController.class, UserController.class})
+@WebMvcTest({ProductController.class, AdminProductController.class, AdminReviewController.class,
+        CategoryController.class, UserController.class})
 @Import({SecurityConfig.class, CorsConfig.class, RestAuthenticationHandlers.class, GlobalExceptionHandler.class})
 @TestPropertySource(properties = "app.cors.allowed-origins=http://localhost:4200")
 class AdminEndpointsSecurityTest {
@@ -41,6 +44,7 @@ class AdminEndpointsSecurityTest {
     @Autowired private MockMvc mvc;
 
     @MockitoBean private ProductService productService;
+    @MockitoBean private ReviewService reviewService;
     @MockitoBean private CategoryService categoryService;
     @MockitoBean private UserService userService;
     @MockitoBean private JwtService jwtService;
@@ -52,6 +56,8 @@ class AdminEndpointsSecurityTest {
                 Arguments.of(HttpMethod.GET, "/api/admin/products"),
                 Arguments.of(HttpMethod.POST, "/api/products"),
                 Arguments.of(HttpMethod.PUT, "/api/products/1/deactivate"),
+                Arguments.of(HttpMethod.PUT, "/api/admin/reviews/1/hide"),
+                Arguments.of(HttpMethod.PUT, "/api/admin/reviews/1/show"),
                 Arguments.of(HttpMethod.POST, "/api/categories"),
                 Arguments.of(HttpMethod.DELETE, "/api/categories/1"),
                 Arguments.of(HttpMethod.GET, "/api/users"),

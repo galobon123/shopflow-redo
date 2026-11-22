@@ -514,17 +514,17 @@ Escenario: Producto inexistente o inactivo
 ---
 
 ### HU-30 · Reseñas de productos comprados
-**Prioridad:** Should
+**Prioridad:** Should · **Estado:** Hecha (salvo el botón "Calificar" en "Mis pedidos", que llega con la HU-19)
 
 > Como **cliente** quiero calificar y comentar los productos que recibí, y leer las reseñas de otros, para comprar con más confianza.
 
 **Tareas**
-- [ ] DB: tabla `reviews(id, product_id, user_id, order_id, rating 1–5, comment, created_at)` con `UNIQUE(product_id, user_id)`.
-- [ ] BE: `POST /api/products/{id}/reviews` solo si el usuario tiene una orden `ENTREGADA` con ese producto (envío o retiro); si no, 403.
-- [ ] BE: `GET /api/products/{id}/reviews?rating&page` paginado, más un resumen con promedio, total y cantidad por estrella.
-- [ ] BE: el admin puede ocultar una reseña (moderación mínima); las ocultas no cuentan en el promedio.
-- [ ] FE: en el detalle (HU-11), promedio con estrellas junto al precio y panel de reseñas con filtro por estrellas.
-- [ ] FE: en "Mis pedidos" (HU-19), botón "Calificar" en los productos de órdenes entregadas que todavía no reseñé.
+- [x] DB (`V5`): tabla `reviews(id, product_id, user_id, order_id, rating 1–5, comment, created_at)` con `UNIQUE(product_id, user_id)`, más `hidden` para la moderación.
+- [x] BE: `POST /api/products/{id}/reviews` solo si el usuario tiene una orden `ENTREGADA` con ese producto (envío o retiro); si no, 403. Si ya lo reseñó, 409.
+- [x] BE: `GET /api/products/{id}/reviews?rating&page` paginado, más un resumen con promedio, total y cantidad por estrella, y `canReview` para quien pregunta.
+- [x] BE: el admin puede ocultar una reseña (moderación mínima); las ocultas no cuentan en el promedio. `PUT /api/admin/reviews/{id}/hide` y `/show`.
+- [x] FE: en el detalle (HU-11), promedio con estrellas junto al precio y panel de reseñas con filtro por estrellas. Mientras no exista "Mis pedidos", el formulario "Calificar" está en el panel, para quien puede reseñar.
+- [ ] FE: en "Mis pedidos" (HU-19), botón "Calificar" en los productos de órdenes entregadas que todavía no reseñé. Pendiente: se hace con la HU-19.
 
 **Escenarios**
 ```gherkin

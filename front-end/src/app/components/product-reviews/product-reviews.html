@@ -1,0 +1,85 @@
+<section class="sf-reviews" aria-labelledby="reviews-title">
+  <h2 #title id="reviews-title" class="font-display text-heading" tabindex="-1">Reseñas</h2>
+
+  @if (error(); as message) {
+    <sf-error-state [message]="message" (retry)="reviews.reload()" />
+  } @else if (data(); as d) {
+    @if (d.canReview) {
+      <app-review-form [productId]="productId()" (saved)="onSaved()" />
+    }
+
+    @if (d.summary.total === 0) {
+      <p class="text-ink-muted">Todavía nadie reseñó este producto.</p>
+    } @else {
+      <div class="sf-reviews__body">
+        <div class="sf-reviews__summary">
+          <p class="sf-reviews__average">
+            <span class="font-display text-display-l" aria-hidden="true">{{ formatRating(d.summary.average ?? 0) }}</span>
+            <sf-stars [rating]="d.summary.average ?? 0" [size]="20" />
+            <span class="text-body-s text-ink-muted">{{ reviewsText(d.summary.total) }}</span>
+          </p>
+
+          <div class="sf-reviews__filters" role="group" aria-label="Filtrar por estrellas">
+            <button class="sf-reviews__filter" type="button" [attr.aria-pressed]="rating() === null"
+              [attr.aria-label]="'Todas, ' + reviewsText(d.summary.total)" (click)="rating.set(null)">
+              <span>Todas</span>
+              <span class="sf-reviews__bar" aria-hidden="true"><span style="width: 100%"></span></span>
+              <span class="sf-reviews__count" aria-hidden="true">{{ d.summary.total }}</span>
+            </button>
+            @for (star of starRows; track star) {
+              <button class="sf-reviews__filter" type="button" [attr.aria-pressed]="rating() === star"
+                [attr.aria-label]="starsText(star) + ', ' + reviewsText(d.summary.counts[star])" (click)="rating.set(star)">
+                <span>{{ starsText(star) }}</span>
+                <span class="sf-reviews__bar" aria-hidden="true">
+                  <span [style.width.%]="share(d.summary.counts[star], d.summary.total)"></span>
+                </span>
+                <span class="sf-reviews__count" aria-hidden="true">{{ d.summary.counts[star] }}</span>
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="grid content-start gap-6" [attr.aria-busy]="reviews.isLoading() || null">
+          @if (d.reviews.items.length === 0) {
+            <p class="text-ink-muted">No hay reseñas de {{ starsText(rating() ?? 0) }}.</p>
+          } @else {
+            <ul class="sf-reviews__list">
+              @for (review of d.reviews.items; track review.id) {
+                <li class="sf-review" data-review>
+                  <sf-stars [rating]="review.rating" />
+                  <p class="sf-review__who">
+                    <strong>{{ review.authorName }}</strong>
+                    <time class="text-ink-muted" [attr.datetime]="review.createdAt">{{ date(review.createdAt) }}</time>
+                  </p>
+                  @if (review.comment) {
+                    <p class="sf-review__text">{{ review.comment }}</p>
+                  }
+                </li>
+              }
+            </ul>
+          }
+
+          @if (d.reviews.totalPages > 1) {
+            <nav class="sf-reviews__pager" aria-label="Páginas de reseñas">
+              <button sfButton="secondary" size="sm" type="button" [attr.aria-disabled]="page() === 0 || null"
+                (click)="goTo(page() - 1, d.reviews.totalPages)">
+                Anterior
+              </button>
+              <span class="text-body-s text-ink-muted">Página {{ d.reviews.page + 1 }} de {{ d.reviews.totalPages }}</span>
+              <button sfButton="secondary" size="sm" type="button" [attr.aria-disabled]="page() + 1 >= d.reviews.totalPages || null"
+                (click)="goTo(page() + 1, d.reviews.totalPages)">
+                Siguiente
+              </button>
+            </nav>
+          }
+        </div>
+      </div>
+    }
+  } @else {
+    <div class="grid gap-3" aria-busy="true" aria-label="Cargando reseñas">
+      <div sfSkeleton class="h-10 w-1/3"></div>
+      <div sfSkeleton class="h-24 w-full"></div>
+      <div sfSkeleton class="h-24 w-full"></div>
+    </div>
+  }
+</section>

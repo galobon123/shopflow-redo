@@ -1,15 +1,24 @@
+import { Component, input, output } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { HttpTestingController } from '@angular/common/http/testing';
 import { Title } from '@angular/platform-browser';
 import { patchState } from '@ngrx/signals';
 import { unprotected } from '@ngrx/signals/testing';
 import { ProductDetail } from './product-detail';
+import { ProductReviews } from '../../components/product-reviews/product-reviews';
 import { EcommerceStore } from '../../ecommerce-store';
 import { aProduct, testProviders } from '../../testing/test-providers';
 import { environment } from '../../../environments/environment';
 import { ProductDetail as Detail } from '../../core/models/product.model';
 
 const api = environment.apiUrl;
+
+/** HU-30 · The reviews panel has its own spec; here only its place on the page and its "reviewed" event matter. */
+@Component({ selector: 'app-product-reviews', template: '' })
+class ReviewsPanelStub {
+  readonly productId = input.required<number>();
+  readonly reviewed = output<void>();
+}
 
 function aDetail(overrides: Partial<Detail> = {}): Detail {
   return { ...aProduct(), images: ['/f/1.jpg', '/f/2.jpg'], averageRating: null, reviewCount: 0, ...overrides };
@@ -19,6 +28,7 @@ describe('ProductDetail (HU-11)', () => {
   function render(id = '15') {
     localStorage.clear();
     TestBed.configureTestingModule({ imports: [ProductDetail], providers: testProviders() });
+    TestBed.overrideComponent(ProductDetail, { remove: { imports: [ProductReviews] }, add: { imports: [ReviewsPanelStub] } });
     const store = TestBed.inject(EcommerceStore);
     const addToCart = vi.spyOn(store, 'addToCart').mockImplementation(() => {});
     const fixture = TestBed.createComponent(ProductDetail);
@@ -132,6 +142,42 @@ describe('ProductDetail (HU-11)', () => {
     expect(section?.querySelectorAll('app-product-card')).toHaveLength(2);
     expect(section?.textContent).not.toContain('Remera lino');
     expect(section?.querySelectorAll('app-toggle-wishlist-button')).toHaveLength(2);
+  });
+
+  it('HU-30 · shows the average with stars next to the price, readable as "4,2 de 5"', async () => {
+    const { backend, update } = render();
+
+    backend.expectOne(`${api}/products/15`).flush(aDetail({ averageRating: 4.2, reviewCount: 5 }));
+    const el = await update();
+
+    const rating = el.querySelector('.sf-pdp__rating')!;
+    expect(rating.querySelector('sf-stars')?.getAttribute('aria-label')).toBe('4,2 de 5 estrellas');
+    expect(rating.textContent).toContain('5 reseñas');
+    expect(el.querySelector('app-product-reviews')).not.toBeNull();
+  });
+
+  it('HU-30 · without reviews there are no stars next to the price', async () => {
+    const { backend, update } = render();
+
+    backend.expectOne(`${api}/products/15`).flush(aDetail());
+    const el = await update();
+
+    expect(el.querySelector('.sf-pdp__rating')).toBeNull();
+  });
+
+  it('HU-30 · after a new review the average next to the price is asked for again', async () => {
+    const { backend, update, fixture } = render();
+    backend.expectOne(`${api}/products/15`).flush(aDetail());
+    await update();
+
+    const panel = fixture.debugElement.query((d) => d.name === 'app-product-reviews').componentInstance as ReviewsPanelStub;
+    expect(panel.productId()).toBe(15);
+    panel.reviewed.emit();
+    TestBed.tick();
+
+    backend.expectOne(`${api}/products/15`).flush(aDetail({ averageRating: 4, reviewCount: 1 }));
+    const el = await update();
+    expect(el.querySelector('.sf-pdp__rating sf-stars')?.getAttribute('aria-label')).toBe('4 de 5 estrellas');
   });
 
   it('hides "Otros también compraron" when there is nothing else to show', async () => {

@@ -6,21 +6,25 @@ import { RouterLink } from '@angular/router';
 import { PackageX } from 'lucide-angular';
 import { ProductCard } from '../../components/product-card/product-card';
 import { ProductGallery } from '../../components/product-gallery/product-gallery';
+import { ProductReviews } from '../../components/product-reviews/product-reviews';
 import { ToggleWishlistButton } from '../../components/toggle-wishlist-button/toggle-wishlist-button';
 import { EcommerceStore } from '../../ecommerce-store';
 import { ProductService } from '../../core/services/product.service';
 import { errorMessage } from '../../core/util/error-message';
-import { ArsPipe, SfButton, SfEmptyState, SfErrorState, SfQtyStepper, SfSkeleton, SfStockBadge } from '../../ui';
+import {
+  ArsPipe, SfButton, SfEmptyState, SfErrorState, SfQtyStepper, SfSkeleton, SfStars, SfStockBadge, formatRating,
+} from '../../ui';
 
 /**
  * HU-11 · Product page at /product/:id (bound by withComponentInputBinding): photos, price with VAT,
  * stock, how many to add, cart and favourite. A missing or inactive product is a 404 from the API.
+ * HU-30 · Average stars next to the price and the reviews panel; a new review reloads the product for its average.
  */
 @Component({
   selector: 'app-product-detail',
   imports: [
-    RouterLink, ProductCard, ProductGallery, ToggleWishlistButton,
-    ArsPipe, SfButton, SfEmptyState, SfErrorState, SfQtyStepper, SfSkeleton, SfStockBadge,
+    RouterLink, ProductCard, ProductGallery, ProductReviews, ToggleWishlistButton,
+    ArsPipe, SfButton, SfEmptyState, SfErrorState, SfQtyStepper, SfSkeleton, SfStars, SfStockBadge,
   ],
   templateUrl: './product-detail.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -64,6 +68,7 @@ export class ProductDetail {
   );
 
   protected readonly icons = { notFound: PackageX };
+  protected readonly formatRating = formatRating;
 
   constructor() {
     effect(() => {

@@ -14,6 +14,7 @@ import com.Proyect.Ecommerce.dto.PageResponse;
 import com.Proyect.Ecommerce.dto.product.ProductDetailDTO;
 import com.Proyect.Ecommerce.dto.product.ProductRequestDTO;
 import com.Proyect.Ecommerce.dto.product.ProductResponseDTO;
+import com.Proyect.Ecommerce.dto.review.ReviewSummaryDTO;
 import com.Proyect.Ecommerce.model.Category;
 import com.Proyect.Ecommerce.model.Product;
 import com.Proyect.Ecommerce.model.ProductImage;
@@ -30,13 +31,16 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final ProductSearchIndex searchIndex;
+    private final ReviewService reviewService;
 
     public ProductService(ProductRepository productRepository,
                           CategoryRepository categoryRepository,
-                          ProductSearchIndex searchIndex) {
+                          ProductSearchIndex searchIndex,
+                          ReviewService reviewService) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.searchIndex = searchIndex;
+        this.reviewService = reviewService;
     }
 
     /** HU-10 · The ways the catalog can be sorted; anything else is a 400. */
@@ -114,10 +118,11 @@ public class ProductService {
         return dto;
     }
 
-    /** HU-30 · Reviews don't exist yet: no product has any. Read them from the reviews table here. */
+    /** HU-30 · Average stars and how many reviews, hidden ones left out. */
     private void addReviewSummary(ProductDetailDTO dto) {
-        dto.setAverageRating(null);
-        dto.setReviewCount(0);
+        ReviewSummaryDTO summary = reviewService.summary(dto.getId());
+        dto.setAverageRating(summary.average());
+        dto.setReviewCount(summary.total());
     }
 
     public ProductResponseDTO save(ProductRequestDTO dto) {
