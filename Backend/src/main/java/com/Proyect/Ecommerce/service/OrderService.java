@@ -50,7 +50,7 @@ public class OrderService {
     @Transactional
     public OrderResponseDTO createOrder(Long userId, OrderRequestDTO dto) {
         // HU-13 · The cart is read through CartService, the only owner of the Redis keys.
-        List<CartItemDTO> cart = cartService.getCart(userId);
+        List<CartItemDTO> cart = cartService.getCart(CartService.customer(userId));
 
         if (cart.isEmpty()) {
             throw new BadRequestException("El carrito está vacío");
@@ -111,7 +111,7 @@ public class OrderService {
         order.setTotal(total);
         Order savedOrder = orderRepository.save(order);
 
-        cartService.clearCart(userId);
+        cartService.clearCart(CartService.customer(userId));
 
         return toResponseDTO(savedOrder);
     }

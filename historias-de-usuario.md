@@ -550,15 +550,15 @@ Escenario: Filtrar por estrellas
 ## Épica 3 — Carrito (Redis)
 
 ### HU-12 · Carrito de invitado y unión al iniciar sesión
-**Prioridad:** Should
+**Prioridad:** Should · **Estado:** Hecha
 
 > Como **invitado** quiero agregar productos al carrito sin registrarme, y conservarlos cuando inicio sesión, para no perder lo que elegí.
 
 **Tareas**
-- [ ] BE (Redis): carrito de invitado en `cart:guest:{uuid}` (hash `productId → qty`, TTL de 3 días); el front manda el uuid en el header `X-Cart-Id`.
-- [ ] BE: permitir los endpoints de `/api/cart` sin autenticación cuando viene `X-Cart-Id`.
-- [ ] BE: `POST /api/cart/merge` al iniciar sesión: suma con `HINCRBY`, recorta al stock disponible y borra la clave del invitado.
-- [ ] FE: generar y guardar el `cartId` en `localStorage`, llamar al merge después del login y quitar el aviso "Iniciá sesión para agregar al carrito".
+- [x] BE (Redis): carrito de invitado en `cart:guest:{uuid}` (hash `productId → qty`, TTL de 3 días); el front manda el uuid en el header `X-Cart-Id`.
+- [x] BE: permitir los endpoints de `/api/cart` sin autenticación cuando viene `X-Cart-Id`.
+- [x] BE: `POST /api/cart/merge` al iniciar sesión: suma con `HINCRBY`, recorta al stock disponible y borra la clave del invitado.
+- [x] FE: generar y guardar el `cartId` en `localStorage`, llamar al merge después del login y quitar el aviso "Iniciá sesión para agregar al carrito".
 
 **Escenarios**
 ```gherkin

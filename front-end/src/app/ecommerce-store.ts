@@ -28,6 +28,10 @@ type EcommerceState = {
   cartItems: CartItem[];
   cartLoading: boolean;
   cartError: string | null;
+  /** HU-12 · The guest cart is joining the account's; a plain read meanwhile could arrive late and stale. */
+  cartMerging: boolean;
+  /** HU-12 · Numbers the cart reads and merges: only the latest answer is kept (a read sent before the merge loses). */
+  cartRequest: number;
   recommendations: RecommendationsResponse;
   loading: boolean;
   error: string | null;
@@ -40,6 +44,8 @@ const initialState: EcommerceState = {
   cartItems: [],
   cartLoading: false,
   cartError: null,
+  cartMerging: false,
+  cartRequest: 0,
   recommendations: { recommended: [], othersBought: [] },
   loading: false,
   error: null,
@@ -139,22 +145,20 @@ export const EcommerceStore = signalStore(
     });
     patchState(store, { wishListItems: [] });
   },
+  /** HU-12 · Signed in it's the account's cart; otherwise this browser's guest cart. */
   loadCart(): void {
-  if (!authStore.isAuthenticated()) return;
-  patchState(store, { cartLoading: true, cartError: null });
+  if (store.cartMerging()) return;
+  const request = store.cartRequest() + 1;
+  patchState(store, { cartLoading: true, cartError: null, cartRequest: request });
   cartService.getCart().pipe(
     finalize(() => patchState(store, { cartLoading: false })),
   ).subscribe({
-    next: (items) => patchState(store, { cartItems: items }),
-    error: (err) => patchState(store, { cartError: errorMessage(err) }),
+    next: (items) => { if (request === store.cartRequest()) patchState(store, { cartItems: items }); },
+    error: (err) => { if (request === store.cartRequest()) patchState(store, { cartError: errorMessage(err) }); },
   });
   },
   /** `quantity` comes from the product page's selector (HU-11); the cards add one. */
   addToCart(product: ProductResponse, quantity = 1): void {
-    if (!authStore.isAuthenticated()) {
-      toaster.info('Iniciá sesión para agregar productos al carrito.');
-      return;
-    }
     cartService.add(product.id, quantity).subscribe({
       next: () => {
         const existing = store.cartItems().find(item => item.productId === product.id);
@@ -360,6 +364,24 @@ export const EcommerceStore = signalStore(
       },
     });
   },
+  /**
+   * HU-12 · Runs every time a session starts, whatever the way in (password, Google, new-device code,
+   * email link): the guest cart joins the account's, and the browser starts a new, empty guest cart.
+   */
+  mergeCart(): void {
+    patchState(store, { cartMerging: true, cartLoading: true, cartError: null, cartRequest: store.cartRequest() + 1 });
+    cartService.merge().pipe(
+      finalize(() => patchState(store, { cartMerging: false, cartLoading: false })),
+    ).subscribe({
+      next: ({ items, notices }) => {
+        cartService.newGuestCart();
+        patchState(store, { cartItems: items });
+        notices.forEach((notice) => toaster.info(notice));
+      },
+      error: (err) => patchState(store, { cartError: errorMessage(err) }),
+    });
+  },
+  /** Checkout needs a session: a guest goes through the login (authGuard) and comes back with the cart joined. */
   proceedToCheckout(): void {
     router.navigate(['/checkout']);
   }
@@ -374,7 +396,7 @@ export const EcommerceStore = signalStore(
         if (authStore.isAuthenticated()) {
           untracked(() => {
             store.loadWishlist();
-            store.loadCart();
+            store.mergeCart();
             store.loadRecommendations();
           });
         } else {
@@ -385,6 +407,7 @@ export const EcommerceStore = signalStore(
               wishListItems: [],
               recommendations: { recommended: [], othersBought: [] },
             });
+            store.loadCart();
           });
         }
       });

@@ -18,6 +18,7 @@ describe('EcommerceStore', () => {
   const loggedIn = signal(false);
 
   function setup(authenticated: boolean, cart = [aCartItem()]) {
+    localStorage.removeItem('cart_id');
     loggedIn.set(authenticated);
     toaster = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
     TestBed.configureTestingModule({
@@ -35,19 +36,94 @@ describe('EcommerceStore', () => {
     backend.expectOne(`${api}/categories`).flush([]);
     if (authenticated) {
       backend.expectOne(`${api}/wishlist`).flush([]);
-      backend.expectOne(`${api}/cart`).flush(cart);
+      backend.expectOne({ method: 'POST', url: `${api}/cart/merge` }).flush({ items: cart, notices: [] });
       backend.match((r) => r.url.includes('/recommendations')).forEach((r) => r.flush({ recommended: [], othersBought: [] }));
+    } else {
+      backend.expectOne({ method: 'GET', url: `${api}/cart` }).flush(cart);
     }
+  }
+
+  /** The session starts (any way in: password, Google, code, email link): the store reacts to AuthStore. */
+  function signIn() {
+    loggedIn.set(true);
+    TestBed.tick();
+    backend.expectOne(`${api}/wishlist`).flush([]);
+    backend.match((r) => r.url.includes('/recommendations')).forEach((r) => r.flush({ recommended: [], othersBought: [] }));
   }
 
   afterEach(() => backend.verify());
 
-  it('asks a guest to sign in instead of calling the cart API', () => {
-    setup(false);
+  /** HU-12 · A guest's cart is named by a UUID kept in this browser. */
+  it('lets a guest add to the cart, under the same X-Cart-Id every time', () => {
+    setup(false, []);
 
-    store.addToCart(aProduct());
+    store.addToCart(aProduct({ id: 15, price: 1000 }), 2);
+    const add = backend.expectOne({ method: 'POST', url: `${api}/cart/15?qty=2` });
+    add.flush(null);
+    store.loadCart();
+    const read = backend.expectOne({ method: 'GET', url: `${api}/cart` });
+    read.flush([aCartItem({ productId: 15, productPrice: 1000, quantity: 2 })]);
 
-    expect(toaster.info).toHaveBeenCalledWith('Iniciá sesión para agregar productos al carrito.');
+    const cartId = localStorage.getItem('cart_id');
+    expect(cartId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(add.request.headers.get('X-Cart-Id')).toBe(cartId);
+    expect(read.request.headers.get('X-Cart-Id')).toBe(cartId);
+    expect(store.cartCount()).toBe(2);
+    expect(toaster.info).not.toHaveBeenCalled();
+  });
+
+  /** HU-12 · Escenario: El carrito del invitado pasa a la cuenta. */
+  it('joins the guest cart to the account on signing in, and starts a new guest cart', () => {
+    setup(false, [aCartItem({ productName: 'Remera azul', quantity: 2 })]);
+    const guestCartId = localStorage.getItem('cart_id');
+
+    signIn();
+    const merge = backend.expectOne({ method: 'POST', url: `${api}/cart/merge` });
+    expect(merge.request.headers.get('X-Cart-Id')).toBe(guestCartId);
+    merge.flush({ items: [aCartItem({ productName: 'Remera azul', quantity: 3 })], notices: [] });
+
+    expect(store.cartItems()[0].quantity).toBe(3);
+    expect(localStorage.getItem('cart_id')).not.toBe(guestCartId);
+  });
+
+  /** HU-12 · Escenario: La unión supera el stock. */
+  it('says which quantities the merge trimmed to the stock', () => {
+    setup(false, [aCartItem({ productName: 'Remera azul', quantity: 2 })]);
+
+    signIn();
+    backend.expectOne(`${api}/cart/merge`).flush({
+      items: [aCartItem({ productName: 'Remera azul', quantity: 2, stock: 2 })],
+      notices: ['Ajustamos la cantidad de Remera azul al stock disponible'],
+    });
+
+    expect(store.cartItems()[0].quantity).toBe(2);
+    expect(toaster.info).toHaveBeenCalledWith('Ajustamos la cantidad de Remera azul al stock disponible');
+  });
+
+  it('keeps the merged cart even if a read sent just before it answers later', () => {
+    setup(false, []);
+    store.loadCart();
+    const staleRead = backend.expectOne({ method: 'GET', url: `${api}/cart` });
+
+    signIn();
+    backend.expectOne(`${api}/cart/merge`).flush({ items: [aCartItem({ quantity: 3 })], notices: [] });
+    staleRead.flush([]);
+
+    expect(store.cartItems()[0].quantity).toBe(3);
+  });
+
+  it('after signing out shows the new, empty guest cart, not the one that was joined', () => {
+    setup(false, [aCartItem({ quantity: 2 })]);
+    signIn();
+    backend.expectOne(`${api}/cart/merge`).flush({ items: [aCartItem({ quantity: 2 })], notices: [] });
+    const newGuestCartId = localStorage.getItem('cart_id');
+
+    loggedIn.set(false);
+    TestBed.tick();
+    const read = backend.expectOne({ method: 'GET', url: `${api}/cart` });
+    expect(read.request.headers.get('X-Cart-Id')).toBe(newGuestCartId);
+    read.flush([]);
+
     expect(store.cartItems()).toEqual([]);
   });
 
@@ -142,16 +218,13 @@ describe('EcommerceStore', () => {
 
   it('keeps the reason when the cart cannot be read', () => {
     setup(false);
-    loggedIn.set(true);
-    TestBed.tick();
+    signIn();
 
-    backend.expectOne(`${api}/wishlist`).flush([]);
     expect(store.cartLoading()).toBe(true);
-    backend.expectOne(`${api}/cart`).flush(
+    backend.expectOne(`${api}/cart/merge`).flush(
       { status: 503, detail: 'No pudimos leer tu carrito.' },
       { status: 503, statusText: 'Service Unavailable' },
     );
-    backend.match((r) => r.url.includes('/recommendations')).forEach((r) => r.flush({ recommended: [], othersBought: [] }));
 
     expect(store.cartLoading()).toBe(false);
     expect(store.cartError()).toBe('Algo falló de nuestro lado.');
@@ -199,5 +272,6 @@ describe('EcommerceStore', () => {
 
     expect(store.cartItems()).toEqual([]);
     expect(store.wishListItems()).toEqual([]);
+    backend.expectOne({ method: 'GET', url: `${api}/cart` }).flush([]);
   });
 });

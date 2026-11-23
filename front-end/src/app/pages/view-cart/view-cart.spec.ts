@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { aCartItem, testProviders } from '../../testing/test-providers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpTestingController } from '@angular/common/http/testing';
+import { Router } from '@angular/router';
 import { AuthStore } from '../../auth-store';
 import { CartItem } from '../../core/models/cart.model';
 import { environment } from '../../../environments/environment';
@@ -15,12 +16,14 @@ describe('ViewCart', () => {
   let fixture: ComponentFixture<ViewCart>;
   let backend: HttpTestingController;
 
+  /** HU-12 · The cart page is open to guests: the reads go with X-Cart-Id, no session needed. */
   function configure() {
+    localStorage.removeItem('cart_id');
     TestBed.configureTestingModule({
       imports: [ViewCart],
       providers: [
         testProviders(),
-        { provide: AuthStore, useValue: { isAuthenticated: signal(true), emailVerified: signal(true) } },
+        { provide: AuthStore, useValue: { isAuthenticated: signal(false), emailVerified: signal(true) } },
       ],
     });
     backend = TestBed.inject(HttpTestingController);
@@ -40,7 +43,7 @@ describe('ViewCart', () => {
     }
   }
 
-  /** Opens the cart page for a signed-in customer; `cart` is what GET /api/cart answers. */
+  /** Opens the cart page as a guest; `cart` is what GET /api/cart answers. */
   async function open(cart: CartItem[] | null | 'error') {
     configure();
     fixture = TestBed.createComponent(ViewCart);
@@ -74,8 +77,18 @@ describe('ViewCart', () => {
 
   it('lets an available cart continue to checkout', async () => {
     const el = await open([aCartItem({ quantity: 1, stock: 5 })]);
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
 
     expect(checkoutButton(el).disabled).toBe(false);
+    // HU-12 · A guest goes there too: authGuard sends them to sign in and back, with the cart joined.
+    checkoutButton(el).click();
+    expect(navigate).toHaveBeenCalledWith(['/checkout']);
+  });
+
+  it('does not offer favourites to a guest', async () => {
+    const el = await open([aCartItem()]);
+
+    expect(el.querySelector('app-tease-wishlist')).toBeNull();
   });
 
   /** HU-13 · Escenario: Un producto se desactiva mientras está en el carrito (after the cart was read at login). */

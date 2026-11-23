@@ -77,8 +77,8 @@ export const routes: Routes = [
     .then(m => m.MyWishlist)
   },
   {
+    // HU-12 · Open to guests: their cart lives under X-Cart-Id. Checkout still asks to sign in.
     path: 'cart',
-    canActivate: [authGuard],
     loadComponent: () => import('./pages/view-cart/view-cart')
     .then(m => m.ViewCart)
   },

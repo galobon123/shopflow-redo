@@ -68,6 +68,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.DELETE, "/api/categories/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/users/me").authenticated()
                 .requestMatchers("/api/users/**").hasRole("ADMIN")
+                // HU-12 · Guests use the cart with X-Cart-Id (CartController decides whose it is); merging needs a session.
+                .requestMatchers("/api/cart/merge").authenticated()
+                .requestMatchers("/api/cart", "/api/cart/**").permitAll()
                 .anyRequest().authenticated()
 
             )

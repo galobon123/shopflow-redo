@@ -2,7 +2,10 @@
     <app-back-button class="mb-6" navigateTo="/products/all">Seguir comprando</app-back-button>
     <h1 class="font-display text-display-l mb-4">Tu carrito</h1>
 
-    <app-tease-wishlist class="mb-6 block"/>
+    <!-- HU-12 · Guests see the cart too; favourites still need an account. -->
+    @if (authStore.isAuthenticated()) {
+        <app-tease-wishlist class="mb-6 block"/>
+    }
 
     @if (store.cartLoading() && store.cartItems().length === 0) {
         <div class="grid gap-4" aria-busy="true" aria-label="Cargando carrito">

@@ -7,6 +7,7 @@ import { TeaseWishlist } from './tease-wishlist/tease-wishlist';
 import { SummarizeOrder } from '../../components/summarize-order/summarize-order';
 import { SfAlert, SfButton, SfEmptyState, SfErrorState, SfSkeleton } from '../../ui';
 import { EcommerceStore } from '../../ecommerce-store';
+import { AuthStore } from '../../auth-store';
 
 @Component({
   selector: 'app-view-cart',
@@ -17,6 +18,7 @@ import { EcommerceStore } from '../../ecommerce-store';
 })
 export class ViewCart {
   store = inject(EcommerceStore);
+  protected readonly authStore = inject(AuthStore);
 
   /** HU-13 · The stock or the product may have changed since the cart was last read: ask again on every visit. */
   constructor() {

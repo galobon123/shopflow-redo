@@ -42,11 +42,13 @@ describe('Checkout with an unavailable product', () => {
     const fixture = TestBed.createComponent(Checkout);
     fixture.detectChanges();
 
-    backend.match((r) => !r.url.endsWith('/cart')).forEach((r) => r.flush([]));
-    backend.match(`${environment.apiUrl}/cart`).forEach((r) => r.flush([
+    const cart = [
       aCartItem({ productId: 15, productName: 'Taza', productPrice: 1000, quantity: 2 }),
       aCartItem({ productId: 16, productName: 'Gorra roja', productPrice: 5000, quantity: 1, available: false }),
-    ]));
+    ];
+    backend.match((r) => r.url.endsWith('/cart/merge')).forEach((r) => r.flush({ items: cart, notices: [] }));
+    backend.match((r) => !r.url.endsWith('/cart')).forEach((r) => r.flush([]));
+    backend.match(`${environment.apiUrl}/cart`).forEach((r) => r.flush(cart));
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
 
