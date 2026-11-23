@@ -1,4 +1,5 @@
 <div class="sf-pdp">
+  <app-back-button class="sf-pdp__full -mb-4 md:-mb-8">Volver</app-back-button>
   @if (notFound()) {
     <sf-empty-state class="sf-pdp__full" [icon]="icons.notFound" title="Este producto no existe o ya no está disponible"
       text="Puede que lo hayan dado de baja o que el link esté mal. En el catálogo hay mucho más para ver.">
@@ -26,7 +27,7 @@
 
     <section class="sf-pdp__info" aria-labelledby="product-name">
       <a class="sf-label sf-pdp__category" [routerLink]="['/products', p.categoryName]">{{ p.categoryName }}</a>
-      <h1 id="product-name" class="font-display text-display-l">{{ p.name }}</h1>
+      <h1 id="product-name" class="font-display text-heading md:text-display-l">{{ p.name }}</h1>
 
       <div>
         <p class="sf-price-row">
@@ -61,8 +62,9 @@
 
       @if (p.description) {
         <div class="sf-pdp__about">
-          <h2 class="text-title">Sobre el producto</h2>
-          <p>{{ p.description }}</p>
+          <h2 id="about-title" class="text-title">Sobre el producto</h2>
+          <!-- A long one scrolls in its box, so the reviews stay close; tabindex lets the keyboard scroll it too. -->
+          <p class="sf-pdp__about-text" tabindex="0" role="region" aria-labelledby="about-title">{{ p.description }}</p>
         </div>
       }
     </section>

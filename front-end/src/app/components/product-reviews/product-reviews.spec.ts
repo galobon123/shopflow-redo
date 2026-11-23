@@ -9,7 +9,7 @@ const api = environment.apiUrl;
 const reviewsOf15 = `${api}/products/15/reviews`;
 
 function aReview(overrides: Partial<Review> = {}): Review {
-  return { id: 1, rating: 5, comment: 'Muy buena tela', authorName: 'Ana', createdAt: '2026-11-10T13:00:00Z', ...overrides };
+  return { id: 1, rating: 5, comment: 'Muy buena tela', authorName: 'Ana', createdAt: '2026-11-10T13:00:00Z', edited: false, ...overrides };
 }
 
 /** 3 reviews of 5 stars and 2 of 1, like the HU-30 scenario. */
@@ -21,13 +21,18 @@ function reviews(overrides: Partial<Reviews> = {}, items: Review[] = [
     summary: { average: 3.4, total: 5, counts: { '5': 3, '4': 0, '3': 0, '2': 0, '1': 2 } },
     reviews: { items, page: 0, size: 10, totalItems: items.length, totalPages: 1 },
     canReview: false,
+    mine: null,
     ...overrides,
   };
 }
 
 describe('ProductReviews (HU-30)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   function render() {
     localStorage.clear();
+    // The test DOM has no layout: "Ver más" never shows up here (it has its own tests).
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
     TestBed.configureTestingModule({ imports: [ProductReviews], providers: testProviders() });
     const fixture = TestBed.createComponent(ProductReviews);
     fixture.componentRef.setInput('productId', 15);
@@ -136,11 +141,14 @@ describe('ProductReviews (HU-30)', () => {
     listRequest('page=0').flush(reviews({ reviews: { items: [aReview()], page: 0, size: 10, totalItems: 12, totalPages: 2 } }));
     const el = await update();
 
-    expect(el.textContent).toContain('Página 1 de 2');
+    expect(el.querySelector('[aria-label="Página 1"]')!.getAttribute('aria-current')).toBe('page');
     expect(button('Anterior').getAttribute('aria-disabled')).toBe('true');
     button('Siguiente').click();
     settle();
     listRequest('page=1');
+    el.querySelector<HTMLButtonElement>('[aria-label="Página 1"]')!.click();
+    settle();
+    listRequest('page=0');
   });
 
   it('shows the error and retries', async () => {
@@ -224,6 +232,72 @@ describe('ProductReviews (HU-30)', () => {
 
       backend.expectNone((r) => r.method === 'POST');
       expect(el.textContent).toContain('Elegí de 1 a 5 estrellas.');
+    });
+
+    describe('Editar', () => {
+      const mine = { id: 4, rating: 1, comment: 'Se destiñó', createdAt: '2026-11-10T13:00:00Z', edited: false, hidden: false };
+
+      async function withMine(overrides: Partial<typeof mine> = {}) {
+        const view = render();
+        view.listRequest('page=0').flush(reviews({ mine: { ...mine, ...overrides } }));
+        await view.update();
+        return view;
+      }
+
+      it('shows the own review with "Editar" instead of the form', async () => {
+        const { el } = await withMine();
+
+        const card = el.querySelector('.sf-my-review')!;
+        expect(card.textContent).toContain('Tu reseña');
+        expect(card.textContent).toContain('Se destiñó');
+        expect(el.querySelector('form')).toBeNull();
+      });
+
+      it('opens the form with what it says now and saves the change', async () => {
+        const { el, button, update, backend, settle, listRequest, reviewed } = await withMine();
+
+        button('Editar').click();
+        await update();
+        const form = el.querySelector('form')!;
+        expect(form.querySelector('h3')?.textContent).toContain('Editá tu reseña');
+        const radios = [...form.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
+        expect(radios.findIndex((r) => r.checked)).toBe(0); // 1 star
+        expect(document.activeElement).toBe(radios[0]);
+        expect(form.querySelector('textarea')?.value).toBe('Se destiñó');
+
+        form.querySelectorAll<HTMLInputElement>('input[type="radio"]')[3].click();
+        form.dispatchEvent(new Event('submit'));
+        settle();
+        const put = backend.expectOne((r) => r.method === 'PUT' && r.url === `${reviewsOf15}/mine`);
+        expect(put.request.body).toEqual({ rating: 4, comment: 'Se destiñó' });
+        put.flush({ ...mine, rating: 4, edited: true });
+        settle();
+
+        expect(reviewed).toHaveBeenCalled();
+        listRequest('page=0').flush(reviews({ mine: { ...mine, rating: 4, edited: true } }));
+        await update();
+        expect(el.querySelector('form')).toBeNull();
+        expect(el.querySelector('.sf-my-review')?.textContent).toContain('Editada');
+      });
+
+      it('cancels back to the review, with the focus on "Editar"', async () => {
+        const { el, button, update, backend } = await withMine();
+
+        button('Editar').click();
+        await update();
+        button('Cancelar').click();
+        await update();
+
+        backend.expectNone((r) => r.method === 'PUT');
+        expect(el.querySelector('form')).toBeNull();
+        expect(document.activeElement).toBe(button('Editar'));
+      });
+
+      it('tells its author when an admin hid it', async () => {
+        const { el } = await withMine({ hidden: true });
+
+        expect(el.querySelector('.sf-my-review')?.textContent).toContain('solo la ves vos');
+      });
     });
 
     it('shows why the server refused it', async () => {

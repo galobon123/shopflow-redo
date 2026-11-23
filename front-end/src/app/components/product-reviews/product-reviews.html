@@ -4,11 +4,8 @@
   @if (error(); as message) {
     <sf-error-state [message]="message" (retry)="reviews.reload()" />
   } @else if (data(); as d) {
-    @if (d.canReview) {
-      <app-review-form [productId]="productId()" (saved)="onSaved()" />
-    }
-
     @if (d.summary.total === 0) {
+      <ng-container *ngTemplateOutlet="own; context: { $implicit: d }" />
       <p class="text-ink-muted">Todavía nadie reseñó este producto.</p>
     } @else {
       <div class="sf-reviews__body">
@@ -39,39 +36,38 @@
           </div>
         </div>
 
-        <div class="grid content-start gap-6" [attr.aria-busy]="reviews.isLoading() || null">
-          @if (d.reviews.items.length === 0) {
-            <p class="text-ink-muted">No hay reseñas de {{ starsText(rating() ?? 0) }}.</p>
-          } @else {
-            <ul class="sf-reviews__list">
-              @for (review of d.reviews.items; track review.id) {
-                <li class="sf-review" data-review>
-                  <sf-stars [rating]="review.rating" />
-                  <p class="sf-review__who">
-                    <strong>{{ review.authorName }}</strong>
-                    <time class="text-ink-muted" [attr.datetime]="review.createdAt">{{ date(review.createdAt) }}</time>
-                  </p>
-                  @if (review.comment) {
-                    <p class="sf-review__text">{{ review.comment }}</p>
-                  }
-                </li>
-              }
-            </ul>
-          }
+        <div class="grid content-start gap-8">
+          <!-- Next to the summary, on top of the others' reviews: where the person is already looking. -->
+          <ng-container *ngTemplateOutlet="own; context: { $implicit: d }" />
 
-          @if (d.reviews.totalPages > 1) {
-            <nav class="sf-reviews__pager" aria-label="Páginas de reseñas">
-              <button sfButton="secondary" size="sm" type="button" [attr.aria-disabled]="page() === 0 || null"
-                (click)="goTo(page() - 1, d.reviews.totalPages)">
-                Anterior
-              </button>
-              <span class="text-body-s text-ink-muted">Página {{ d.reviews.page + 1 }} de {{ d.reviews.totalPages }}</span>
-              <button sfButton="secondary" size="sm" type="button" [attr.aria-disabled]="page() + 1 >= d.reviews.totalPages || null"
-                (click)="goTo(page() + 1, d.reviews.totalPages)">
-                Siguiente
-              </button>
-            </nav>
-          }
+          <div class="grid content-start gap-6" [attr.aria-busy]="reviews.isLoading() || null">
+            @if (d.reviews.items.length === 0) {
+              <p class="text-ink-muted">No hay reseñas de {{ starsText(rating() ?? 0) }}.</p>
+            } @else {
+              <ul class="sf-reviews__list">
+                @for (review of d.reviews.items; track review.id) {
+                  <li class="sf-review" data-review>
+                    <sf-stars [rating]="review.rating" />
+                    <p class="sf-review__who">
+                      <strong>{{ review.authorName }}</strong>
+                      <time class="text-ink-muted" [attr.datetime]="review.createdAt">{{ date(review.createdAt) }}</time>
+                      @if (review.edited) {
+                        <span class="text-ink-muted">· Editada</span>
+                      }
+                    </p>
+                    @if (review.comment) {
+                      <app-review-text [text]="review.comment" />
+                    }
+                  </li>
+                }
+              </ul>
+            }
+
+            @if (d.reviews.totalPages > 1) {
+              <sf-pagination buttons size="sm" label="Páginas de reseñas" [page]="page() + 1"
+                [totalPages]="d.reviews.totalPages" (pageChange)="page.set($event - 1)" />
+            }
+          </div>
         </div>
       </div>
     }
@@ -82,4 +78,35 @@
       <div sfSkeleton class="h-24 w-full"></div>
     </div>
   }
+
+  <!-- The person's own review (with "Editar"), the form to change it, or the one to write it. -->
+  <ng-template #own let-d>
+    @if (d.mine; as mine) {
+      @if (editing()) {
+        <app-review-form [productId]="productId()" [editing]="mine" (saved)="onSaved()" (cancelled)="stopEditing()" />
+      } @else {
+        <article class="sf-my-review" aria-labelledby="my-review-title">
+          <h3 id="my-review-title" class="text-title">Tu reseña</h3>
+          <sf-stars [rating]="mine.rating" />
+          <p class="sf-review__who">
+            <time class="text-ink-muted" [attr.datetime]="mine.createdAt">{{ date(mine.createdAt) }}</time>
+            @if (mine.edited) {
+              <span class="text-ink-muted">· Editada</span>
+            }
+          </p>
+          @if (mine.comment) {
+            <app-review-text [text]="mine.comment" />
+          }
+          @if (mine.hidden) {
+            <p class="text-body-s text-ink-muted">La ocultamos porque no cumple las reglas de la tienda: solo la ves vos.</p>
+          }
+          <button #editButton sfButton="secondary" size="sm" type="button" class="justify-self-start" (click)="editing.set(true)">
+            Editar
+          </button>
+        </article>
+      }
+    } @else if (d.canReview) {
+      <app-review-form [productId]="productId()" (saved)="onSaved()" />
+    }
+  </ng-template>
 </section>

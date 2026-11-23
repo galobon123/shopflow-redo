@@ -358,7 +358,13 @@
   .sf-catalog__nav { align-self: start; min-width: 0; }
   @media (min-width: 768px) {
     .sf-catalog { grid-template-columns: 220px minmax(0, 1fr); padding-inline: calc(var(--spacing) * 6); }
-    .sf-catalog__nav { position: sticky; top: calc(var(--header-height) + var(--spacing) * 6); }
+    /* Sticky but never taller than the screen: on a phone held sideways the list scrolls on its own. */
+    .sf-catalog__nav {
+      position: sticky; top: calc(var(--header-height) + var(--spacing) * 6);
+      display: flex; flex-direction: column; max-height: calc(100dvh - var(--header-height) - var(--spacing) * 12);
+    }
+    /* contain: a swipe that reaches the end of the list stays there instead of moving the page. */
+    .sf-catalog__nav .sf-nav { min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; padding: 3px; margin: -3px; }
   }
   /* Phones: the category list becomes one scrollable row. */
   @media (max-width: 767px) {
@@ -374,14 +380,16 @@
     .sf-pdp { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: calc(var(--spacing) * 12); padding-inline: calc(var(--spacing) * 6); }
   }
   .sf-pdp__info { display: grid; gap: calc(var(--spacing) * 5); align-content: start; }
-  .sf-pdp__info h1 { margin: 0; }
+  .sf-pdp__info h1 { margin: 0; text-wrap: balance; overflow-wrap: anywhere; }
   .sf-pdp__info .sf-price-row { margin: 0; }
   .sf-pdp__category { text-decoration: none; }
   .sf-pdp__category:hover { color: var(--color-ink); }
   .sf-pdp__buy { display: flex; flex-wrap: wrap; align-items: center; gap: calc(var(--spacing) * 4); }
   .sf-pdp__about { display: grid; gap: calc(var(--spacing) * 2); padding-top: calc(var(--spacing) * 5); border-top: 1px solid var(--color-line); }
   .sf-pdp__about h2, .sf-pdp__about p { margin: 0; }
-  .sf-pdp__about p { color: var(--color-ink-soft); white-space: pre-line; text-wrap: pretty; }
+  .sf-pdp__about p { color: var(--color-ink-soft); white-space: pre-line; text-wrap: pretty; overflow-wrap: anywhere; }
+  .sf-pdp__about-text { max-height: 10lh; overflow-y: auto; border-radius: var(--radius); }
+  .sf-pdp__about-text:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 
   .sf-pdp__rating { display: flex; flex-wrap: wrap; align-items: center; gap: calc(var(--spacing) * 2); margin: 0; font-size: 14px; line-height: 20px; }
 
@@ -424,18 +432,26 @@
   .sf-review:first-child { padding-top: 0; }
   .sf-review__who { display: flex; flex-wrap: wrap; gap: calc(var(--spacing) * 2); margin: 0; font-size: 14px; line-height: 20px; }
   .sf-review__text { margin: 0; color: var(--color-ink-soft); white-space: pre-line; text-wrap: pretty; overflow-wrap: anywhere; }
-  .sf-reviews__pager { display: flex; flex-wrap: wrap; align-items: center; gap: calc(var(--spacing) * 3); }
-  /* aria-disabled, not disabled: the focus stays on the button at the first and last page. */
-  .sf-reviews__pager .sf-btn[aria-disabled="true"] { color: var(--color-ink-muted); cursor: not-allowed; }
-  .sf-review-form { display: grid; gap: calc(var(--spacing) * 5); max-width: 560px; padding: calc(var(--spacing) * 6); border: 1px solid var(--color-line); border-radius: var(--radius-card); background: var(--color-surface); }
+  /* A height, not line-clamp: with line-clamp Chrome leaves the cut lines out of scrollHeight, and "Ver más" never shows. */
+  .sf-review__text--clamped { max-height: 5lh; overflow: hidden; }
+  .sf-review__text--faded { mask-image: linear-gradient(to bottom, #000 calc(100% - 1lh), transparent); }
+  .sf-review__more { padding: 0; border: 0; border-radius: var(--radius); background: none; font: inherit; font-size: 14px; line-height: 20px; font-weight: 600; color: var(--color-ink); cursor: pointer; }
+  .sf-review__more:hover { color: var(--color-ink-soft); }
+  .sf-review__more:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+  .sf-review-form { display: grid; gap: calc(var(--spacing) * 5); padding: calc(var(--spacing) * 6); border: 1px solid var(--color-line); border-radius: var(--radius-card); background: var(--color-surface); }
   .sf-review-form h3 { margin: 0; }
+  .sf-my-review { display: grid; gap: calc(var(--spacing) * 3); padding: calc(var(--spacing) * 6); border: 1px solid var(--color-line); border-radius: var(--radius-card); background: var(--color-surface); }
+  .sf-my-review h3, .sf-my-review > p { margin: 0; }
   .sf-input--area { height: auto; min-height: 112px; padding: calc(var(--spacing) * 3); line-height: 22px; resize: vertical; }
 
   /* Gallery: never moves on its own (WCAG 2.2.2). Arrows over the photo, thumbnails under it. */
   .sf-gallery { display: grid; gap: calc(var(--spacing) * 3); min-width: 0; }
-  .sf-gallery__stage { position: relative; touch-action: pan-y; }
+  .sf-gallery__stage { position: relative; touch-action: pan-y; overflow: hidden; border-radius: var(--radius-card); }
+  .sf-gallery__track { display: flex; transition: transform 350ms var(--ease-out); }
+  .sf-gallery__track--dragging { transition: none; }
+  .sf-gallery__slide { flex: 0 0 100%; min-width: 0; }
   .sf-gallery__main { box-sizing: border-box; display: grid; place-items: center; width: 100%; aspect-ratio: 1 / 1; padding: 0; border: 0; border-radius: var(--radius-card); overflow: hidden; background: var(--color-sunken); cursor: zoom-in; }
-  .sf-gallery__main:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+  .sf-gallery__main:focus-visible { outline: none; box-shadow: inset 0 0 0 2px #2440b8, inset 0 0 0 4px #ffffff; }
   .sf-gallery__main img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .sf-gallery__main--empty { padding: calc(var(--spacing) * 6); cursor: default; text-align: center; color: var(--color-ink-muted); }
   .sf-gallery__arrow { position: absolute; top: 50%; transform: translateY(-50%); }
@@ -463,11 +479,15 @@
 
   /* ---------- Pagination ---------- */
   .sf-pagination { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: calc(var(--spacing) * 1); margin-top: calc(var(--spacing) * 10); }
-  .sf-pagination > a, .sf-pagination > span { box-sizing: border-box; min-width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: calc(var(--spacing) * 1); padding: 0 calc(var(--spacing) * 3); border-radius: var(--radius); color: var(--color-ink); font-size: 15px; text-decoration: none; font-variant-numeric: tabular-nums; }
-  .sf-pagination a:hover { background: var(--color-sunken); }
-  .sf-pagination a:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-  .sf-pagination a[aria-current="page"] { background: var(--color-ink); color: var(--color-on-ink); font-weight: 600; }
-  .sf-pagination a[aria-disabled="true"] { color: var(--color-ink-muted); opacity: 0.45; pointer-events: none; }
+  .sf-pagination > a, .sf-pagination > button, .sf-pagination > span { box-sizing: border-box; min-width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: calc(var(--spacing) * 1); padding: 0 calc(var(--spacing) * 3); border-radius: var(--radius); color: var(--color-ink); font-size: 15px; text-decoration: none; font-variant-numeric: tabular-nums; }
+  .sf-pagination > button { border: 0; background: none; font-family: inherit; cursor: pointer; }
+  .sf-pagination :is(a, button):hover { background: var(--color-sunken); }
+  .sf-pagination :is(a, button):focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+  .sf-pagination :is(a, button)[aria-current="page"] { background: var(--color-ink); color: var(--color-on-ink); font-weight: 600; }
+  .sf-pagination :is(a, button)[aria-disabled="true"] { color: var(--color-ink-muted); opacity: 0.45; pointer-events: none; }
+  /* Smaller, for a list inside a page (the reviews). */
+  .sf-pagination--sm { margin-top: calc(var(--spacing) * 6); }
+  .sf-pagination--sm > a, .sf-pagination--sm > button, .sf-pagination--sm > span { min-width: 32px; height: 32px; padding: 0 calc(var(--spacing) * 2); font-size: 14px; }
   .sf-pagination > span { color: var(--color-ink-muted); }
 
   /* ---------- PromoBand ---------- */
@@ -510,7 +530,7 @@
   .sf-empty__icon svg { width: 32px; height: 32px; }
   .sf-empty h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 32px; line-height: 38px; letter-spacing: -0.01em; text-wrap: balance; }
   .sf-empty p { margin: calc(var(--spacing) * -3) 0 0; color: var(--color-ink-muted); text-wrap: pretty; }
-  .sf-error { display: grid; gap: calc(var(--spacing) * 3); justify-items: start; max-width: 440px; }
+  .sf-error { display: grid; gap: calc(var(--spacing) * 5); justify-items: center; max-width: 440px; margin-inline: auto; }
 
   /* ---------- Skeleton ---------- */
   .sf-skel {

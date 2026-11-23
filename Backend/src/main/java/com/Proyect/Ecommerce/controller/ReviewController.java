@@ -8,11 +8,13 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.Proyect.Ecommerce.dto.review.MyReviewDTO;
 import com.Proyect.Ecommerce.dto.review.ProductReviewsDTO;
 import com.Proyect.Ecommerce.dto.review.ReviewRequestDTO;
 import com.Proyect.Ecommerce.dto.review.ReviewResponseDTO;
@@ -38,6 +40,15 @@ public class ReviewController {
         boolean admin = auth != null && auth.getAuthorities().stream()
                 .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
         return ResponseEntity.ok(reviewService.list(id, rating, page, userId, admin));
+    }
+
+    /** The author changes their own review; 404 if they haven't reviewed the product. */
+    @PutMapping("/mine")
+    public ResponseEntity<MyReviewDTO> update(@PathVariable Long id,
+                                              @Valid @RequestBody ReviewRequestDTO review,
+                                              Authentication auth) {
+        Long userId = (Long) auth.getCredentials();
+        return ResponseEntity.ok(reviewService.update(userId, id, review));
     }
 
     /** 403 without an ENTREGADA order with the product, 409 if already reviewed. */

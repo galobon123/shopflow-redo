@@ -60,6 +60,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                 // HU-30 · Any customer can send a review; ReviewService checks they received the product.
                 .requestMatchers(HttpMethod.POST, "/api/products/*/reviews").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/products/*/reviews/mine").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/products/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/products/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasRole("ADMIN")

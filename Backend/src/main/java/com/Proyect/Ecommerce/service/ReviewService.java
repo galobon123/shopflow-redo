@@ -1,5 +1,7 @@
 package com.Proyect.Ecommerce.service;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.Proyect.Ecommerce.dto.PageResponse;
+import com.Proyect.Ecommerce.dto.review.MyReviewDTO;
 import com.Proyect.Ecommerce.dto.review.ProductReviewsDTO;
 import com.Proyect.Ecommerce.dto.review.ReviewRequestDTO;
 import com.Proyect.Ecommerce.dto.review.ReviewResponseDTO;
@@ -31,7 +34,8 @@ import com.Proyect.Ecommerce.repository.ReviewRepository;
 
 /**
  * HU-30 · Reviews: only of products the customer received (an ENTREGADA order, shipped or picked up),
- * one per person and product. Hidden ones (admin moderation) are out of the list and of the average.
+ * one per person and product, which its author can change. Hidden ones (admin moderation) are out of the list
+ * and of the average.
  */
 @Service
 public class ReviewService {
@@ -68,8 +72,10 @@ public class ReviewService {
         Page<Review> found = rating == null
                 ? reviewRepository.findByProductIdAndHiddenFalse(productId, pageable)
                 : reviewRepository.findByProductIdAndRatingAndHiddenFalse(productId, rating, pageable);
+        MyReviewDTO mine = userId == null ? null : reviewRepository.findByProductIdAndUserId(productId, userId)
+                .map(this::toMyReviewDTO).orElse(null);
         return new ProductReviewsDTO(summary(productId), PageResponse.of(found, this::toResponseDTO),
-                canReview(userId, productId));
+                canReview(userId, productId), mine);
     }
 
     /** Average rounded to one decimal; every star from 5 to 1 is in {@code counts}, zeros included. */
@@ -104,9 +110,7 @@ public class ReviewService {
         review.setProduct(product);
         review.setUser(order.getUser());
         review.setOrder(order);
-        review.setRating(dto.getRating());
-        String comment = dto.getComment() == null ? "" : dto.getComment().trim();
-        review.setComment(comment.isEmpty() ? null : comment);
+        apply(review, dto);
         try {
             return toResponseDTO(reviewRepository.saveAndFlush(review));
         } catch (DataIntegrityViolationException e) {
@@ -115,12 +119,32 @@ public class ReviewService {
         }
     }
 
+    /**
+     * The author changes their stars or comment. It keeps its date and place in the list, and stays hidden if an
+     * admin hid it: editing is no way around moderation.
+     */
+    @Transactional
+    public MyReviewDTO update(Long userId, Long productId, ReviewRequestDTO dto) {
+        visibleProduct(productId, false);
+        Review review = reviewRepository.findByProductIdAndUserId(productId, userId)
+                .orElseThrow(() -> new NotFoundException("Todavía no reseñaste este producto."));
+        apply(review, dto);
+        review.setUpdatedAt(LocalDateTime.now());
+        return toMyReviewDTO(review);
+    }
+
     /** Admin moderation: hide a review or show it again. */
     @Transactional
     public void setHidden(Long reviewId, boolean hidden) {
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new NotFoundException("Reseña no encontrada: " + reviewId));
         review.setHidden(hidden);
+    }
+
+    private static void apply(Review review, ReviewRequestDTO dto) {
+        review.setRating(dto.getRating());
+        String comment = dto.getComment() == null ? "" : dto.getComment().trim();
+        review.setComment(comment.isEmpty() ? null : comment);
     }
 
     private boolean canReview(Long userId, Long productId) {
@@ -138,8 +162,17 @@ public class ReviewService {
     /** Only the first name goes out ("Ana Gómez" → "Ana"): a customer's full name is not public. */
     private ReviewResponseDTO toResponseDTO(Review review) {
         String firstName = review.getUser().getName().trim().split("\\s+")[0];
-        // createdAt is the JVM's local time, which EcommerceApplication fixes to UTC.
         return new ReviewResponseDTO(review.getId(), review.getRating(), review.getComment(), firstName,
-                review.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant());
+                instant(review.getCreatedAt()), review.getUpdatedAt() != null);
+    }
+
+    private MyReviewDTO toMyReviewDTO(Review review) {
+        return new MyReviewDTO(review.getId(), review.getRating(), review.getComment(), instant(review.getCreatedAt()),
+                review.getUpdatedAt() != null, review.isHidden());
+    }
+
+    /** Dates are the JVM's local time, which EcommerceApplication fixes to UTC. */
+    private static Instant instant(LocalDateTime time) {
+        return time.atZone(ZoneId.systemDefault()).toInstant();
     }
 }

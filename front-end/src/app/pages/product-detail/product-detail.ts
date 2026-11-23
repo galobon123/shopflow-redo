@@ -4,6 +4,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
 import { PackageX } from 'lucide-angular';
+import { BackButton } from '../../components/back-button/back-button';
 import { ProductCard } from '../../components/product-card/product-card';
 import { ProductGallery } from '../../components/product-gallery/product-gallery';
 import { ProductReviews } from '../../components/product-reviews/product-reviews';
@@ -23,7 +24,7 @@ import {
 @Component({
   selector: 'app-product-detail',
   imports: [
-    RouterLink, ProductCard, ProductGallery, ProductReviews, ToggleWishlistButton,
+    RouterLink, BackButton, ProductCard, ProductGallery, ProductReviews, ToggleWishlistButton,
     ArsPipe, SfButton, SfEmptyState, SfErrorState, SfQtyStepper, SfSkeleton, SfStars, SfStockBadge,
   ],
   templateUrl: './product-detail.html',

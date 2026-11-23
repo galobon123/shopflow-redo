@@ -232,6 +232,65 @@ class ReviewIntegrationTest {
     }
 
     @Test
+    void theAuthorChangesTheirReviewAndItSaysEdited() throws Exception {
+        User ana = customer("Ana Gómez");
+        Long id = reviewed(ana, 2);
+        mvc.perform(get("/api/products/{id}/reviews", remera.getId()).with(as(ana)))
+                .andExpect(jsonPath("$.mine.id").value(id))
+                .andExpect(jsonPath("$.mine.edited").value(false))
+                .andExpect(jsonPath("$.reviews.items[0].edited").value(false));
+
+        mvc.perform(edit(remera, 5, "  Después de lavarla mejoró mucho  ").with(as(ana)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rating").value(5))
+                .andExpect(jsonPath("$.comment").value("Después de lavarla mejoró mucho"))
+                .andExpect(jsonPath("$.edited").value(true));
+
+        mvc.perform(get("/api/products/{id}/reviews", remera.getId()))
+                .andExpect(jsonPath("$.reviews.items", hasSize(1)))
+                .andExpect(jsonPath("$.reviews.items[0].rating").value(5))
+                .andExpect(jsonPath("$.reviews.items[0].edited").value(true))
+                .andExpect(jsonPath("$.summary.average").value(5.0))
+                .andExpect(jsonPath("$.mine").doesNotExist()); // guest
+
+        // An empty comment removes it; the stars stay required.
+        mvc.perform(edit(remera, 4, "").with(as(ana))).andExpect(jsonPath("$.comment").doesNotExist());
+        mvc.perform(edit(remera, 0, null).with(as(ana)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.rating").value("Elegí de 1 a 5 estrellas."));
+    }
+
+    @Test
+    void onlyTheAuthorEditsAndOnlyWhatTheyWrote() throws Exception {
+        reviewed(customer("Ana"), 2);
+        User bruno = customer("Bruno");
+
+        mvc.perform(edit(remera, 5, null)).andExpect(status().isUnauthorized());
+        // Bruno has no review of the product: there's nothing of his to change, Ana's stays as it was.
+        mvc.perform(edit(remera, 5, null).with(as(bruno)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("Todavía no reseñaste este producto."));
+        mvc.perform(get("/api/products/{id}/reviews", remera.getId()))
+                .andExpect(jsonPath("$.reviews.items[0].rating").value(2));
+    }
+
+    @Test
+    void editingAHiddenReviewDoesNotShowItAgain() throws Exception {
+        User bruno = customer("Bruno");
+        Long id = reviewed(bruno, 1);
+        mvc.perform(put("/api/admin/reviews/{id}/hide", id).with(user("admin@example.com").roles("ADMIN")))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(edit(remera, 5, "Ahora sí").with(as(bruno)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.hidden").value(true));
+        mvc.perform(get("/api/products/{id}/reviews", remera.getId()).with(as(bruno)))
+                .andExpect(jsonPath("$.reviews.items", hasSize(0)))
+                .andExpect(jsonPath("$.summary.total").value(0))
+                .andExpect(jsonPath("$.mine.hidden").value(true));
+    }
+
+    @Test
     void reviewsOfAMissingProductAre404() throws Exception {
         mvc.perform(get("/api/products/{id}/reviews", 9999)).andExpect(status().isNotFound());
         mvc.perform(post("/api/products/{id}/reviews", 9999).with(as(customer("Bruno")))
@@ -252,6 +311,14 @@ class ReviewIntegrationTest {
                 ? "{\"rating\":" + rating + "}"
                 : "{\"rating\":" + rating + ",\"comment\":\"" + comment + "\"}";
         return post("/api/products/{id}/reviews", product.getId())
+                .contentType(MediaType.APPLICATION_JSON).content(body);
+    }
+
+    private static MockHttpServletRequestBuilder edit(Product product, int rating, String comment) {
+        String body = comment == null
+                ? "{\"rating\":" + rating + "}"
+                : "{\"rating\":" + rating + ",\"comment\":\"" + comment + "\"}";
+        return put("/api/products/{id}/reviews/mine", product.getId())
                 .contentType(MediaType.APPLICATION_JSON).content(body);
     }
 

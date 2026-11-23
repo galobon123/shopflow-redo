@@ -8,7 +8,8 @@ import { SfIconButton } from '../../ui';
 const SWIPE_PX = 40;
 
 /**
- * HU-11 · Product photos: main photo, arrows, thumbnails, keyboard arrows and swipe on phones.
+ * HU-11 · Product photos: main photo, arrows, thumbnails, keyboard arrows and swipe on phones. Changing photo
+ * slides to the next one, and on phones the photo follows the finger.
  * Never moves on its own (kit rule, WCAG 2.2.2). Tapping the main photo opens it full screen at its
  * original resolution; Esc, the close button or a tap outside the photo close it and focus goes back.
  * At either end the arrows are aria-disabled, not disabled, so keyboard focus never drops to the page.
@@ -34,9 +35,12 @@ export class ProductGallery {
 
   private readonly zoom = viewChild<ElementRef<HTMLDialogElement>>('zoom');
   private readonly zoomPhoto = viewChild<ElementRef<HTMLImageElement>>('zoomPhoto');
-  private readonly opener = viewChild<ElementRef<HTMLButtonElement>>('opener');
+  private readonly slides = viewChildren<ElementRef<HTMLElement>>('slide');
   private readonly thumbs = viewChildren<ElementRef<HTMLButtonElement>>('thumb');
-  private touchStartX: number | null = null;
+  private touchStart: { x: number; y: number } | null = null;
+  /** How far the finger dragged the photo, in px; null when not dragging (then it slides with a transition). */
+  protected readonly dragX = signal<number | null>(null);
+  protected readonly offset = computed(() => `translateX(calc(${this.index() * -100}% + ${this.dragX() ?? 0}px))`);
 
   protected readonly icons = { prev: ChevronLeft, next: ChevronRight, close: X };
 
@@ -59,14 +63,26 @@ export class ProductGallery {
   }
 
   protected onTouchStart(event: TouchEvent) {
-    this.touchStartX = event.changedTouches[0]?.clientX ?? null;
+    const touch = event.changedTouches[0];
+    this.touchStart = touch ? { x: touch.clientX, y: touch.clientY } : null;
+  }
+
+  /** The photo follows the finger sideways; past the first or last one it gives only a little, like a rubber band. */
+  protected onTouchMove(event: TouchEvent) {
+    const touch = event.changedTouches[0];
+    if (!this.touchStart || !touch) return;
+    const dx = touch.clientX - this.touchStart.x;
+    if (Math.abs(touch.clientY - this.touchStart.y) > Math.abs(dx)) return; // scrolling the page
+    const atEnd = (dx > 0 && this.index() === 0) || (dx < 0 && this.index() === this.images().length - 1);
+    this.dragX.set(atEnd ? dx / 3 : dx);
   }
 
   protected onTouchEnd(event: TouchEvent) {
     const endX = event.changedTouches[0]?.clientX;
-    if (this.touchStartX === null || endX === undefined) return;
-    const dx = endX - this.touchStartX;
-    this.touchStartX = null;
+    this.dragX.set(null);
+    if (this.touchStart === null || endX === undefined) return;
+    const dx = endX - this.touchStart.x;
+    this.touchStart = null;
     if (Math.abs(dx) >= SWIPE_PX) this.show(this.index() + (dx < 0 ? 1 : -1));
   }
 
@@ -96,7 +112,7 @@ export class ProductGallery {
   /** The dialog closed (button, outside tap or Esc): focus goes back to the photo that opened it. */
   protected onZoomClosed() {
     this.zoomed.set(false);
-    this.opener()?.nativeElement.focus();
+    this.slides()[this.index()]?.nativeElement.querySelector('button')?.focus();
   }
 
   /** A tap anywhere but on the photo closes the zoom. */

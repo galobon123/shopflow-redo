@@ -21,7 +21,7 @@ describe('ProductGallery (HU-11)', () => {
     fixture.componentRef.setInput('name', 'Remera lino');
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
-    const main = () => el.querySelector<HTMLImageElement>('.sf-gallery__main img')?.getAttribute('src');
+    const main = () => el.querySelector<HTMLImageElement>('.sf-gallery__slide:not([inert]) img')?.getAttribute('src');
     const thumbs = () => [...el.querySelectorAll<HTMLButtonElement>('.sf-gallery__thumb')];
     const press = (key: string, on: HTMLElement = el) => {
       on.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
@@ -112,7 +112,7 @@ describe('ProductGallery (HU-11)', () => {
     }
     let complete = false;
     Object.defineProperty(photo, 'complete', { get: () => complete });
-    const opener = () => el.querySelector<HTMLButtonElement>('.sf-gallery__main')!;
+    const opener = () => el.querySelector<HTMLButtonElement>('.sf-gallery__slide:not([inert]) .sf-gallery__main')!;
 
     opener().click();
     expect(dialog.scrollLeft).toBe(0); // still loading
@@ -146,10 +146,32 @@ describe('ProductGallery (HU-11)', () => {
     expect(main()).toBe('/f/1.jpg');
   });
 
+  it('while swiping the photo follows the finger, only a little past the first one, and slides into place on release', () => {
+    const { fixture, el } = render();
+    const stage = el.querySelector<HTMLElement>('.sf-gallery__stage')!;
+    const track = el.querySelector<HTMLElement>('.sf-gallery__track')!;
+    const touch = (type: string, x: number, y = 100) => {
+      stage.dispatchEvent(Object.assign(new Event(type), { changedTouches: [{ clientX: x, clientY: y }] }));
+      fixture.detectChanges();
+    };
+
+    touch('touchstart', 300);
+    touch('touchmove', 200);
+    expect(track.style.transform).toBe('translateX(calc(0% + -100px))');
+    expect(track.classList).toContain('sf-gallery__track--dragging');
+    touch('touchmove', 330, 400); // mostly down: the page scrolls, the photo stays
+    expect(track.style.transform).toBe('translateX(calc(0% + -100px))');
+    touch('touchmove', 330);
+    expect(track.style.transform).toBe('translateX(calc(0% + 10px))');
+    touch('touchend', 150);
+    expect(track.style.transform).toBe('translateX(calc(-100% + 0px))');
+    expect(track.classList).not.toContain('sf-gallery__track--dragging');
+  });
+
   it('tapping the main photo opens the zoom with the original file; Esc or a tap outside closes it and focus returns', () => {
     const { fixture, el } = render();
     document.body.appendChild(el);
-    const opener = el.querySelector<HTMLButtonElement>('.sf-gallery__main')!;
+    const opener = el.querySelector<HTMLButtonElement>('.sf-gallery__slide:not([inert]) .sf-gallery__main')!;
     const dialog = el.querySelector<HTMLDialogElement>('dialog')!;
 
     opener.click();

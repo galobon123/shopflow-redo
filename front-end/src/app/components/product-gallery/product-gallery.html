@@ -1,12 +1,23 @@
-<div class="sf-gallery__stage" (touchstart)="onTouchStart($event)" (touchend)="onTouchEnd($event)">
-  @if (current() && !failed().has(index())) {
-    <button #opener type="button" class="sf-gallery__main" (click)="openZoom()"
-      [attr.aria-label]="'Ampliar foto ' + (index() + 1) + ' de ' + images().length">
-      <img [src]="current()" [alt]="name()" (error)="onImageError(index())" />
-    </button>
-  } @else {
-    <span class="sf-gallery__main sf-gallery__main--empty"><span class="line-clamp-4">{{ name() }}</span></span>
-  }
+<div class="sf-gallery__stage" (touchstart)="onTouchStart($event)" (touchmove)="onTouchMove($event)"
+  (touchend)="onTouchEnd($event)" (touchcancel)="dragX.set(null)">
+  <!-- Every photo side by side, slid to the current one: it travels there like a carousel and follows the finger. -->
+  <div class="sf-gallery__track" [class.sf-gallery__track--dragging]="dragX() !== null" [style.transform]="offset()">
+    @for (url of images(); track $index) {
+      <!-- Only the current one is reachable: the others are off screen. -->
+      <div #slide class="sf-gallery__slide" [attr.inert]="$index === index() ? null : ''">
+        @if (!failed().has($index)) {
+          <button type="button" class="sf-gallery__main" (click)="openZoom()"
+            [attr.aria-label]="'Ampliar foto ' + ($index + 1) + ' de ' + images().length">
+            <img [src]="url" [alt]="name()" (error)="onImageError($index)" />
+          </button>
+        } @else {
+          <span class="sf-gallery__main sf-gallery__main--empty"><span class="line-clamp-4">{{ name() }}</span></span>
+        }
+      </div>
+    } @empty {
+      <span class="sf-gallery__main sf-gallery__main--empty"><span class="line-clamp-4">{{ name() }}</span></span>
+    }
+  </div>
 
   @if (images().length > 1) {
     <button sfIconButton="outlined" type="button" class="sf-gallery__arrow sf-gallery__arrow--prev"

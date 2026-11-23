@@ -1,13 +1,16 @@
 import {
-  ChangeDetectionStrategy, Component, ElementRef, computed, inject, input, linkedSignal, output, signal, viewChild,
+  ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, computed, inject, input, linkedSignal, output,
+  signal, viewChild,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { AuthStore } from '../../auth-store';
 import { ProductReviews as Reviews } from '../../core/models/review.model';
 import { ReviewService } from '../../core/services/review.service';
 import { errorMessage } from '../../core/util/error-message';
 import { ReviewForm } from '../review-form/review-form';
-import { SfButton, SfErrorState, SfSkeleton, SfStars, formatRating } from '../../ui';
+import { ReviewText } from '../review-text/review-text';
+import { SfButton, SfErrorState, SfPagination, SfSkeleton, SfStars, formatRating } from '../../ui';
 
 /** The store's day (createdAt is an instant): the same date for every visitor, and for the tests in CI's UTC. */
 const DATE = new Intl.DateTimeFormat('es-AR', {
@@ -25,23 +28,29 @@ function reviewsText(count: number): string {
 
 /**
  * HU-30 · Reviews panel of the product page: average and count per star (each one a filter), the reviews
- * newest first, and "Calificar" for someone who received the product and hasn't reviewed it.
+ * newest first, and "Calificar" for someone who received the product and hasn't reviewed it. Someone who did
+ * sees their own review on top, with "Editar".
  */
 @Component({
   selector: 'app-product-reviews',
-  imports: [ReviewForm, SfButton, SfErrorState, SfSkeleton, SfStars],
+  imports: [NgTemplateOutlet, ReviewForm, ReviewText, SfButton, SfErrorState, SfPagination, SfSkeleton, SfStars],
   templateUrl: './product-reviews.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProductReviews {
   private readonly reviewService = inject(ReviewService);
   private readonly auth = inject(AuthStore);
+  private readonly injector = inject(Injector);
 
   readonly productId = input.required<number>();
   /** A review was published: the page refreshes the average next to the price. */
   readonly reviewed = output<void>();
 
   private readonly title = viewChild.required<ElementRef<HTMLElement>>('title');
+  private readonly editButton = viewChild('editButton', { read: ElementRef<HTMLElement> });
+
+  /** Changing the own review; closed again for another product. */
+  protected readonly editing = linkedSignal({ source: this.productId, computation: () => false });
 
   /** Stars to filter by; null is every review. */
   protected readonly rating = signal<number | null>(null);
@@ -78,16 +87,12 @@ export class ProductReviews {
     return DATE.format(new Date(createdAt));
   }
 
-  /** aria-disabled, not disabled, on the ends: a disabled button would drop the keyboard focus to the page. */
-  protected goTo(page: number, totalPages: number) {
-    if (page >= 0 && page < totalPages) this.page.set(page);
-  }
-
   /**
-   * Back to every review, first page, so the new one is on screen. The form goes away with canReview, so the
+   * Back to every review, first page, so the new or changed one is on screen. The form goes away, so the
    * focus moves to the panel's title instead of falling to the page (WCAG 2.4.3).
    */
   protected onSaved() {
+    this.editing.set(false);
     this.title().nativeElement.focus();
     if (this.rating() === null && this.page() === 0) this.reviews.reload();
     else {
@@ -95,5 +100,11 @@ export class ProductReviews {
       this.page.set(0);
     }
     this.reviewed.emit();
+  }
+
+  /** Back to the review as it was, with the focus on "Editar" again. */
+  protected stopEditing() {
+    this.editing.set(false);
+    afterNextRender(() => this.editButton()?.nativeElement.focus(), { injector: this.injector });
   }
 }

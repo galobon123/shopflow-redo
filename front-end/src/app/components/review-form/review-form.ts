@@ -1,6 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, OnInit, afterNextRender, inject, input, output, signal } from '@angular/core';
+import { Observable } from 'rxjs';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CircleAlert, LucideAngularModule, Star } from 'lucide-angular';
+import { MyReview } from '../../core/models/review.model';
 import { ReviewService } from '../../core/services/review.service';
 import { Toaster } from '../../core/services/toaster.service';
 import { applyServerErrors, errorMessage } from '../../core/util/error-message';
@@ -11,6 +13,7 @@ export const MAX_COMMENT = 1000;
 /**
  * HU-30 · "Calificar": stars (a native radio group, so arrows move between them) and an optional comment.
  * Only shown to someone who received the product and hasn't reviewed it; the server checks it again.
+ * With `editing`, the same form changes the person's own review, starting from what it says now.
  */
 @Component({
   selector: 'app-review-form',
@@ -18,7 +21,7 @@ export const MAX_COMMENT = 1000;
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <form class="sf-review-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
-      <h3 class="text-title">Calificá este producto</h3>
+      <h3 class="text-title">{{ editing() ? 'Editá tu reseña' : 'Calificá este producto' }}</h3>
       @if (formError(); as message) {
         <sf-alert>{{ message }}</sf-alert>
       }
@@ -47,18 +50,30 @@ export const MAX_COMMENT = 1000;
           placeholder="¿Qué te pareció? Calce, tela, lo que te sirva contarle a otro."></textarea>
       </sf-field>
 
-      <button sfButton="primary" type="submit" class="justify-self-start" [loading]="saving()">Publicar reseña</button>
+      <div class="flex flex-wrap gap-3">
+        <button sfButton="primary" type="submit" [loading]="saving()">
+          {{ editing() ? 'Guardar cambios' : 'Publicar reseña' }}
+        </button>
+        @if (editing()) {
+          <button sfButton="ghost" type="button" (click)="cancelled.emit()">Cancelar</button>
+        }
+      </div>
     </form>
   `,
 })
-export class ReviewForm {
+export class ReviewForm implements OnInit {
   private readonly fb = inject(FormBuilder);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly reviewService = inject(ReviewService);
   private readonly toaster = inject(Toaster);
 
   readonly productId = input.required<number>();
-  /** The review was published. */
+  /** The person's own review, to change it; null writes a new one. */
+  readonly editing = input<MyReview | null>(null);
+  /** The review was published or changed. */
   readonly saved = output<void>();
+  /** Editing, the person changed their mind. */
+  readonly cancelled = output<void>();
 
   protected readonly form = this.fb.group({
     rating: this.fb.control<number | null>(null, Validators.required),
@@ -72,6 +87,18 @@ export class ReviewForm {
   protected readonly maxComment = MAX_COMMENT;
   protected readonly starIcon = Star;
   protected readonly alertIcon = CircleAlert;
+
+  constructor() {
+    // "Editar" goes away with the click: the focus moves to the stars it had, not to the page.
+    afterNextRender(() => {
+      if (this.editing()) this.host.nativeElement.querySelector<HTMLInputElement>('input[type="radio"]:checked')?.focus();
+    });
+  }
+
+  ngOnInit() {
+    const review = this.editing();
+    if (review) this.form.setValue({ rating: review.rating, comment: review.comment ?? '' });
+  }
 
   /** Like sf-field: shown once touched; a text error is the server's message. */
   protected ratingError(): string | null {
@@ -90,10 +117,14 @@ export class ReviewForm {
     const { rating, comment } = this.form.getRawValue();
     this.saving.set(true);
     this.formError.set(null);
-    this.reviewService.create(this.productId(), { rating: rating!, comment: comment.trim() || null }).subscribe({
+    const review = { rating: rating!, comment: comment.trim() || null };
+    const request: Observable<unknown> = this.editing()
+      ? this.reviewService.update(this.productId(), review)
+      : this.reviewService.create(this.productId(), review);
+    request.subscribe({
       next: () => {
         this.saving.set(false);
-        this.toaster.success('¡Gracias! Tu reseña ya está publicada.');
+        this.toaster.success(this.editing() ? 'Listo, actualizamos tu reseña.' : '¡Gracias! Tu reseña ya está publicada.');
         this.saved.emit();
       },
       error: (err) => {
