@@ -75,6 +75,19 @@ describe('ViewCart', () => {
     expect(el.textContent).toContain('Reintentar');
   });
 
+  /** HU-13 · The stock dropped while the product was in the cart. */
+  it('says on top what changed because of the stock, until "Entendido"', async () => {
+    const el = await open([aCartItem({ productId: 15, productName: 'Taza', quantity: 4, stock: 2 })]);
+    backend.expectOne({ method: 'PUT', url: `${api}/cart/15?qty=2` }).flush(null);
+    const alert = () => el.querySelector('sf-alert.sf-alert--warning');
+
+    expect(alert()?.textContent).toContain('De Taza quedan solo 2: ajustamos tu carrito.');
+    expect(el.querySelector('sf-qty-stepper')).not.toBeNull();
+    [...el.querySelectorAll('button')].find((b) => b.textContent!.includes('Entendido'))!.click();
+    fixture.detectChanges();
+    expect(alert()).toBeNull();
+  });
+
   it('lets an available cart continue to checkout', async () => {
     const el = await open([aCartItem({ quantity: 1, stock: 5 })]);
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
@@ -82,6 +95,7 @@ describe('ViewCart', () => {
     expect(checkoutButton(el).disabled).toBe(false);
     // HU-12 · A guest goes there too: authGuard sends them to sign in and back, with the cart joined.
     checkoutButton(el).click();
+    backend.expectOne({ method: 'GET', url: `${api}/cart` }).flush([aCartItem({ quantity: 1, stock: 5 })]);
     expect(navigate).toHaveBeenCalledWith(['/checkout']);
   });
 
@@ -178,16 +192,6 @@ describe('ViewCart', () => {
       await settle();
 
       expect(document.activeElement?.textContent?.trim()).toBe('Ver el catálogo');
-    });
-
-    it('goes to "Restar uno" of the selector after "Dejar N"', async () => {
-      const el = await openAttached([aCartItem({ productId: 15, quantity: 4, stock: 2 })]);
-
-      press(el, '[sfAlertAction]');
-      backend.expectOne({ method: 'PUT', url: `${api}/cart/15?qty=2` }).flush(null);
-      await settle();
-
-      expect(document.activeElement?.getAttribute('aria-label')).toBe('Restar uno');
     });
   });
 });

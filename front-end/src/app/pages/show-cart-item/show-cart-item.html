@@ -13,13 +13,6 @@
         <div class="min-w-0">
             @if (!item().available) {
                 <sf-badge tone="out">No disponible</sf-badge>
-            } @else if (overStock()) {
-                <sf-alert tone="warning">
-                    Solo quedan {{ item().stock }}.
-                    <button sfAlertAction sfButton="ghost" size="sm" type="button" (click)="keepStock()">
-                        Dejar {{ item().stock }}
-                    </button>
-                </sf-alert>
             } @else {
                 <sf-qty-stepper [value]="item().quantity" [max]="item().stock" (valueChange)="store.updateCartQty(item().productId, $event)" />
             }

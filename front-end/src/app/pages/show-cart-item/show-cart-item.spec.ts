@@ -26,7 +26,6 @@ describe('ShowCartItem', () => {
     const el = await render(aCartItem({ quantity: 5, stock: 5 }));
 
     expect(el.querySelector('[aria-label="Sumar uno"]')!.getAttribute('aria-disabled')).toBe('true');
-    expect(el.textContent).toContain('Quedan 5 en stock');
   });
 
   it('leaves "+" on below the stock', async () => {
@@ -43,17 +42,6 @@ describe('ShowCartItem', () => {
     expect(el.textContent).toContain('No disponible');
     expect(el.querySelector('sf-qty-stepper')).toBeNull();
     expect(el.querySelector('.opacity-45')).not.toBeNull();
-  });
-
-  it('says how many are left when the stock dropped below the cart, and offers to adjust', async () => {
-    const el = await render(aCartItem({ productId: 15, quantity: 4, stock: 2 }));
-    const updateCartQty = vi.spyOn(TestBed.inject(EcommerceStore), 'updateCartQty').mockImplementation(() => {});
-
-    expect(el.textContent).toContain('Solo quedan 2.');
-    expect(el.querySelector('sf-qty-stepper')).toBeNull();
-    el.querySelector<HTMLButtonElement>('[sfAlertAction]')!.click();
-
-    expect(updateCartQty).toHaveBeenCalledWith(15, 2);
   });
 
   it('names its icon buttons after the product and writes prices in pesos', async () => {

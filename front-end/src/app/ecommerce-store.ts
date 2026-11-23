@@ -32,6 +32,8 @@ type EcommerceState = {
   cartMerging: boolean;
   /** HU-12 · Numbers the cart reads and merges: only the latest answer is kept (a read sent before the merge loses). */
   cartRequest: number;
+  /** HU-13 · What changed in the cart because the stock moved; shown on top of the cart page until dismissed. */
+  cartNotices: string[];
   recommendations: RecommendationsResponse;
   loading: boolean;
   error: string | null;
@@ -46,10 +48,36 @@ const initialState: EcommerceState = {
   cartError: null,
   cartMerging: false,
   cartRequest: 0,
+  cartNotices: [],
   recommendations: { recommended: [], othersBought: [] },
   loading: false,
   error: null,
 };
+
+/**
+ * HU-13 · The cart follows the stock as soon as it's read: a quantity above what's left drops to it, and a
+ * sold-out product leaves the cart, each with a notice to show. The server is told too (fire and forget: if it fails,
+ * the next read fits it again). A deactivated product that still has stock stays, as "No disponible".
+ */
+function fitToStock(items: CartItem[], cartService: CartService) {
+  const notices: string[] = [];
+  const fitted = items.flatMap((item) => {
+    if (!item.available && item.stock === 0) {
+      cartService.remove(item.productId).subscribe({ error: () => {} });
+      notices.push(`Se agotó ${item.productName}: lo sacamos de tu carrito.`);
+      return [];
+    }
+    if (item.available && item.quantity > item.stock) {
+      cartService.updateQty(item.productId, item.stock).subscribe({ error: () => {} });
+      notices.push(item.stock === 1
+        ? `De ${item.productName} queda solo 1: ajustamos tu carrito.`
+        : `De ${item.productName} quedan solo ${item.stock}: ajustamos tu carrito.`);
+      return [{ ...item, quantity: item.stock }];
+    }
+    return [item];
+  });
+  return { items: fitted, notices };
+}
 
 /** HU-13 · Unavailable items stay listed but don't count towards units or total. */
 const purchasable = (items: CartItem[]) => items.filter(item => item.available);
@@ -76,7 +104,21 @@ export const EcommerceStore = signalStore(
     orderService = inject(OrderService),
     addressService = inject(AddressService),
     router = inject(Router),
-    toaster = inject(Toaster)) => ({
+    toaster = inject(Toaster)) => {
+  /**
+   * A cart just read from the server, fitted to the stock. If something changed or can't be bought while paying,
+   * back to the cart, where the notices make sense: never pay for something that's no longer there.
+   */
+  const setCart = (items: CartItem[]): boolean => {
+    const { items: fitted, notices } = fitToStock(items, cartService);
+    const changed = notices.length > 0;
+    patchState(store, { cartItems: fitted });
+    if (changed) patchState(store, { cartNotices: notices });
+    if ((changed || store.cartBlocked()) && router.url.startsWith('/checkout')) router.navigate(['/cart']);
+    return changed;
+  };
+
+  return {
   /** The catalog itself is paged by the server (HU-10, products-grid); only categories live here. */
   loadCategories(): void {
     categoryService.getAll().subscribe({
@@ -153,7 +195,7 @@ export const EcommerceStore = signalStore(
   cartService.getCart().pipe(
     finalize(() => patchState(store, { cartLoading: false })),
   ).subscribe({
-    next: (items) => { if (request === store.cartRequest()) patchState(store, { cartItems: items }); },
+    next: (items) => { if (request === store.cartRequest()) setCart(items); },
     error: (err) => { if (request === store.cartRequest()) patchState(store, { cartError: errorMessage(err) }); },
   });
   },
@@ -213,7 +255,7 @@ export const EcommerceStore = signalStore(
       error: (err) => {
         toaster.error(err);
         if (err?.status === 409) {
-          cartService.getCart().subscribe({ next: (items) => patchState(store, { cartItems: items }) });
+          cartService.getCart().subscribe({ next: (items) => setCart(items) });
         }
       },
     });
@@ -318,9 +360,10 @@ export const EcommerceStore = signalStore(
       error: (err) => {
         patchState(store, { loading: false, error: errorMessage(err) });
         toaster.error(err);
-        // HU-13 · A 409 means a product went unavailable or short: read the cart again so it shows which one.
+        // HU-13 · A 409 means a product went unavailable or short: back to the cart, read again so it shows which one.
         if (err?.status === 409) {
-          cartService.getCart().subscribe({ next: (items) => patchState(store, { cartItems: items }) });
+          router.navigate(['/cart']);
+          cartService.getCart().subscribe({ next: (items) => setCart(items) });
         }
       },
     });
@@ -375,17 +418,29 @@ export const EcommerceStore = signalStore(
     ).subscribe({
       next: ({ items, notices }) => {
         cartService.newGuestCart();
-        patchState(store, { cartItems: items });
+        setCart(items);
         notices.forEach((notice) => toaster.info(notice));
       },
       error: (err) => patchState(store, { cartError: errorMessage(err) }),
     });
   },
-  /** Checkout needs a session: a guest goes through the login (authGuard) and comes back with the cart joined. */
+  /**
+   * Checkout needs a session: a guest goes through the login (authGuard) and comes back with the cart joined.
+   * HU-13 · The stock is read again first: if it moved since the cart page loaded, the cart is fitted and stays.
+   */
+  dismissCartNotices(): void {
+    patchState(store, { cartNotices: [] });
+  },
   proceedToCheckout(): void {
-    router.navigate(['/checkout']);
+    cartService.getCart().subscribe({
+      next: (items) => {
+        if (!setCart(items) && !store.cartBlocked()) router.navigate(['/checkout']);
+      },
+      error: (err) => toaster.error(err),
+    });
   }
-})),
+  };
+}),
   withHooks({
     onInit(store) {
       const authStore = inject(AuthStore);
@@ -404,6 +459,7 @@ export const EcommerceStore = signalStore(
             patchState(store, {
               cartItems: [],
               cartError: null,
+              cartNotices: [],
               wishListItems: [],
               recommendations: { recommended: [], othersBought: [] },
             });

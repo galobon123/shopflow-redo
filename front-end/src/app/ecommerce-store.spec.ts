@@ -210,10 +210,39 @@ describe('EcommerceStore', () => {
     expect(store.cartBlocked()).toBe(false);
   });
 
-  it('blocks the checkout while a quantity is above the stock left', () => {
-    setup(true, [aCartItem({ quantity: 4, stock: 2 })]);
+  /** HU-13 · The stock dropped while the product was in the cart. */
+  it('fits a quantity above the stock to what is left, and takes a sold-out product out, each with a notice', () => {
+    setup(true, [
+      aCartItem({ productId: 15, productName: 'Taza', quantity: 4, stock: 2 }),
+      aCartItem({ productId: 16, productName: 'Gorra roja', quantity: 1, stock: 0, available: false }),
+    ]);
 
-    expect(store.cartBlocked()).toBe(true);
+    expect(store.cartItems()).toHaveLength(1);
+    expect(store.cartItems()[0].quantity).toBe(2);
+    expect(store.cartBlocked()).toBe(false);
+    expect(store.cartNotices()).toEqual([
+      'De Taza quedan solo 2: ajustamos tu carrito.',
+      'Se agotó Gorra roja: lo sacamos de tu carrito.',
+    ]);
+    store.dismissCartNotices();
+    expect(store.cartNotices()).toEqual([]);
+    backend.expectOne({ method: 'PUT', url: `${api}/cart/15?qty=2` }).flush(null);
+    backend.expectOne({ method: 'DELETE', url: `${api}/cart/16` }).flush(null);
+  });
+
+  it('reads the stock again before going to pay: if it moved, the cart is fitted and stays', () => {
+    setup(true, [aCartItem({ productId: 15, quantity: 3, stock: 5 })]);
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+    store.proceedToCheckout();
+    backend.expectOne({ method: 'GET', url: `${api}/cart` }).flush([aCartItem({ productId: 15, quantity: 3, stock: 1 })]);
+    backend.expectOne({ method: 'PUT', url: `${api}/cart/15?qty=1` }).flush(null);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(store.cartItems()[0].quantity).toBe(1);
+
+    store.proceedToCheckout();
+    backend.expectOne({ method: 'GET', url: `${api}/cart` }).flush([aCartItem({ productId: 15, quantity: 1, stock: 1 })]);
+    expect(navigate).toHaveBeenCalledWith(['/checkout']);
   });
 
   it('keeps the reason when the cart cannot be read', () => {
@@ -245,8 +274,9 @@ describe('EcommerceStore', () => {
     expect(navigate).toHaveBeenCalledWith(['/order-success'], { state: { order } });
   });
 
-  it('keeps the cart, shows why and marks the item when the order fails with 409 (HU-13)', () => {
+  it('keeps the cart, shows why and goes back to the cart when the order fails with 409 (HU-13)', () => {
     setup(true);
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
 
     store.placeOrder({ firstName: 'Lucía', lastName: 'Pérez', address: 'San Martín 123', cityId: 1, zipCode: '2000' });
     backend.expectOne(`${api}/addresses`).flush({ id: 9 });
@@ -259,8 +289,10 @@ describe('EcommerceStore', () => {
     expect(store.error()).toBe('Sin stock de Remera lino.');
     expect(store.loading()).toBe(false);
 
-    backend.expectOne({ method: 'GET', url: `${api}/cart` }).flush([aCartItem({ quantity: 2, stock: 1 })]);
-    expect(store.cartBlocked()).toBe(true);
+    expect(navigate).toHaveBeenCalledWith(['/cart']);
+    backend.expectOne({ method: 'GET', url: `${api}/cart` }).flush([aCartItem({ productId: 15, quantity: 2, stock: 1 })]);
+    expect(store.cartItems()[0].quantity).toBe(1);
+    backend.expectOne({ method: 'PUT', url: `${api}/cart/15?qty=1` }).flush(null);
   });
 
   it('clears cart and wishlist when the session ends', () => {

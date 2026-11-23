@@ -1,5 +1,14 @@
 <div class="mx-auto max-w-page py-6">
     <app-back-button class="mb-6" navigateTo="/products/all">Seguir comprando</app-back-button>
+    <!-- HU-13 · The stock moved: what changed in the cart, on top, until the customer says they saw it. -->
+    @if (store.cartNotices().length > 0) {
+        <sf-alert tone="warning" class="mb-6">
+            @for (notice of store.cartNotices(); track notice) {
+                <span class="block">{{ notice }}</span>
+            }
+            <button sfAlertAction sfButton="ghost" size="sm" type="button" (click)="store.dismissCartNotices()">Entendido</button>
+        </sf-alert>
+    }
     <h1 class="font-display text-display-l mb-4">Tu carrito</h1>
 
     <!-- HU-12 · Guests see the cart too; favourites still need an account. -->
@@ -31,7 +40,7 @@
                         <!-- HU-13 · The checkout waits until every item can actually be bought. -->
                         @if (store.cartBlocked()) {
                             <sf-alert tone="warning" class="mt-6">
-                                Para seguir, sacá los productos que no están disponibles y ajustá las cantidades al stock que queda.
+                                Para seguir, sacá los productos que no están disponibles.
                             </sf-alert>
                         }
                         <button sfButton size="lg" block type="button" class="mt-6"

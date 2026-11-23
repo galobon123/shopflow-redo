@@ -193,7 +193,11 @@
   .sf-stepper button:hover:not([aria-disabled="true"]) { background: var(--color-sunken); }
   .sf-stepper button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
   .sf-stepper button[aria-disabled="true"] { color: var(--color-line-strong); cursor: not-allowed; }
-  .sf-stepper output { min-width: 32px; text-align: center; font: 600 15px/1 var(--font-sans); font-variant-numeric: tabular-nums; }
+  .sf-stepper input { box-sizing: border-box; width: 40px; height: 32px; padding: 0; border: 0; border-radius: var(--radius); background: transparent; color: var(--color-ink); text-align: center; font: 600 15px/1 var(--font-sans); font-variant-numeric: tabular-nums; }
+  .sf-stepper input:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+  /* More than the stock: the number shakes no. */
+  .sf-stepper__shake { animation: sf-shake 320ms var(--ease-out); }
+  @keyframes sf-shake { 20% { transform: translateX(-4px); } 40% { transform: translateX(4px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
 
   /* ---------- Badge ---------- */
   .sf-badge {

@@ -5,13 +5,13 @@ import { BackButton } from "../../components/back-button/back-button";
 import { ListCartItems } from "./list-cart-items/list-cart-items";
 import { TeaseWishlist } from './tease-wishlist/tease-wishlist';
 import { SummarizeOrder } from '../../components/summarize-order/summarize-order';
-import { SfAlert, SfButton, SfEmptyState, SfErrorState, SfSkeleton } from '../../ui';
+import { SfAlert, SfAlertAction, SfButton, SfEmptyState, SfErrorState, SfSkeleton } from '../../ui';
 import { EcommerceStore } from '../../ecommerce-store';
 import { AuthStore } from '../../auth-store';
 
 @Component({
   selector: 'app-view-cart',
-  imports: [BackButton, ListCartItems, TeaseWishlist, SummarizeOrder, RouterLink, SfAlert, SfButton, SfEmptyState, SfErrorState, SfSkeleton],
+  imports: [BackButton, ListCartItems, TeaseWishlist, SummarizeOrder, RouterLink, SfAlert, SfAlertAction, SfButton, SfEmptyState, SfErrorState, SfSkeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './view-cart.html',
   styleUrl: './view-cart.css',
