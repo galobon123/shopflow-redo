@@ -1,21 +1,43 @@
 <div class="mx-auto max-w-page py-6">
-    <app-back-button class="mb-6" navigateTo="/products/all">Continue Shopping</app-back-button>
-    <h1 class="font-display text-display-l mb-4">Shopping Cart</h1>
+    <app-back-button class="mb-6" navigateTo="/products/all">Seguir comprando</app-back-button>
+    <h1 class="font-display text-display-l mb-4">Tu carrito</h1>
 
     <app-tease-wishlist class="mb-6 block"/>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2">
-            <app-list-cart-items/>
+    @if (store.cartLoading() && store.cartItems().length === 0) {
+        <div class="grid gap-4" aria-busy="true" aria-label="Cargando carrito">
+            @for (i of [0, 1, 2]; track i) {
+                <div sfSkeleton class="h-24 w-full"></div>
+            }
         </div>
-        <div>
-            <app-summarize-order>
-                <ng-container actionButtons>
-                    <button matButton="filled" class="w-full mt-6 py-3" (click)="store.proceedToCheckout()">
-                        Proceed to Checkout
-                    </button>
-                </ng-container>
-            </app-summarize-order>
+    } @else if (store.cartError(); as message) {
+        <sf-error-state class="py-16" [message]="message" (retry)="store.loadCart()" />
+    } @else if (store.cartItems().length === 0) {
+        <sf-empty-state [icon]="emptyIcon" title="Tu carrito está vacío"
+            text="Cuando agregues productos los vas a ver acá, con el total actualizado.">
+            <a sfButton="secondary" routerLink="/products/all">Ver el catálogo</a>
+        </sf-empty-state>
+    } @else {
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2">
+                <app-list-cart-items/>
+            </div>
+            <div>
+                <app-summarize-order>
+                    <ng-container actionButtons>
+                        <!-- HU-13 · The checkout waits until every item can actually be bought. -->
+                        @if (store.cartBlocked()) {
+                            <sf-alert tone="warning" class="mt-6">
+                                Para seguir, sacá los productos que no están disponibles y ajustá las cantidades al stock que queda.
+                            </sf-alert>
+                        }
+                        <button sfButton size="lg" block type="button" class="mt-6"
+                            [disabled]="store.cartBlocked()" (click)="store.proceedToCheckout()">
+                            Continuar al pago
+                        </button>
+                    </ng-container>
+                </app-summarize-order>
+            </div>
         </div>
-    </div>
+    }
 </div>

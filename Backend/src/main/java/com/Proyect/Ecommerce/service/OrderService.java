@@ -2,18 +2,13 @@ package com.Proyect.Ecommerce.service;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.Proyect.Ecommerce.dto.address.AddressResponseDTO;
+import com.Proyect.Ecommerce.dto.cart.CartItemDTO;
 import com.Proyect.Ecommerce.dto.order.OrderItemDTO;
 import com.Proyect.Ecommerce.dto.order.OrderRequestDTO;
 import com.Proyect.Ecommerce.dto.order.OrderResponseDTO;
@@ -34,49 +29,40 @@ import com.Proyect.Ecommerce.repository.UserRepository;
 @Service
 public class OrderService {
 
-    private static final String CART_KEY_PREFIX = "cart:";
-
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
     private final AddressRepository addressRepository;
     private final UserRepository userRepository;
-    private final StringRedisTemplate redisTemplate;
+    private final CartService cartService;
 
     public OrderService(OrderRepository orderRepository,
                         ProductRepository productRepository,
                         AddressRepository addressRepository,
                         UserRepository userRepository,
-                        StringRedisTemplate redisTemplate) {
+                        CartService cartService) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
         this.addressRepository = addressRepository;
         this.userRepository = userRepository;
-        this.redisTemplate = redisTemplate;
+        this.cartService = cartService;
     }
 
     @Transactional
     public OrderResponseDTO createOrder(Long userId, OrderRequestDTO dto) {
-        String cartKey = CART_KEY_PREFIX + userId;
-        Map<Object, Object> rawCart = redisTemplate.opsForHash().entries(cartKey);
+        // HU-13 · The cart is read through CartService, the only owner of the Redis keys.
+        List<CartItemDTO> cart = cartService.getCart(userId);
 
-        if (rawCart.isEmpty()) {
+        if (cart.isEmpty()) {
             throw new BadRequestException("El carrito está vacío");
         }
 
-        Set<Long> productIds = new HashSet<>();
-        for (Object k : rawCart.keySet()) {
-            try {
-                productIds.add(Long.parseLong(k.toString()));
-            } catch (NumberFormatException ignored) {
+        // HU-13 · Nothing is skipped in silence: an unavailable product blocks the purchase until it's taken out.
+        for (CartItemDTO line : cart) {
+            if (!line.isAvailable()) {
+                throw new ConflictException(line.getProductName()
+                        + " ya no está disponible. Sacá ese producto del carrito para seguir.");
             }
         }
-
-        if (productIds.isEmpty()) {
-            throw new BadRequestException("El carrito está vacío");
-        }
-
-        Map<Long, Product> productMap = productRepository.findAllById(productIds).stream()
-                .collect(Collectors.toMap(Product::getId, Function.identity()));
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("Usuario no encontrado: " + userId));
@@ -100,22 +86,11 @@ public class OrderService {
 
         BigDecimal total = BigDecimal.ZERO;
 
-        for (Map.Entry<Object, Object> entry : rawCart.entrySet()) {
-            Long productId;
-            int quantity;
-
-            try {
-                productId = Long.parseLong(entry.getKey().toString());
-                quantity = Integer.parseInt(entry.getValue().toString());
-            } catch (NumberFormatException e) {
-                continue;
-            }
-
-            Product product = productMap.get(productId);
-
-            if (product == null || !product.isActive()) {
-                continue;
-            }
+        for (CartItemDTO line : cart) {
+            Long productId = line.getProductId();
+            int quantity = line.getQuantity();
+            // Already loaded by getCart in this transaction: no second query.
+            Product product = productRepository.getReferenceById(productId);
 
             // Check and decrement in one UPDATE: two buyers can't both take the last unit.
             // Throwing rolls back the decrements already made for earlier items.
@@ -133,14 +108,10 @@ public class OrderService {
             total = total.add(product.getPrice().multiply(BigDecimal.valueOf(quantity)));
         }
 
-        if (order.getItems().isEmpty()) {
-            throw new BadRequestException("El carrito no contiene productos válidos");
-        }
-
         order.setTotal(total);
         Order savedOrder = orderRepository.save(order);
 
-        redisTemplate.delete(cartKey);
+        cartService.clearCart(userId);
 
         return toResponseDTO(savedOrder);
     }

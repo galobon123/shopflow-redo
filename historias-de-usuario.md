@@ -580,16 +580,16 @@ Escenario: La unión supera el stock
 ---
 
 ### HU-13 · Cantidades del carrito con una sola regla de stock
-**Prioridad:** Must · **Auditoría:** #18
+**Prioridad:** Must · **Auditoría:** #18 · **Estado:** Hecha
 
 > Como **cliente** quiero cambiar cantidades y ver siempre la verdad sobre el stock para no llevarme sorpresas en el checkout.
 
 **Tareas**
-- [ ] BE: `CartService` es el **único** que lee y escribe el carrito; el prefijo `cart:` vive en un solo lugar.
-- [ ] BE: si se pide más que el stock, responder 409 con "Solo quedan N". No recortar en silencio.
-- [ ] BE: `getCart` marca los ítems inactivos o sin stock como `available: false` en vez de borrarlos sin avisar.
-- [ ] FE: los ítems no disponibles se muestran atenuados con "No disponible" y el checkout se bloquea hasta quitarlos.
-- [ ] FE: el selector de cantidad deshabilita "+" al llegar al stock.
+- [x] BE: `CartService` es el **único** que lee y escribe el carrito; el prefijo `cart:` vive en un solo lugar.
+- [x] BE: si se pide más que el stock, responder 409 con "Solo quedan N". No recortar en silencio.
+- [x] BE: `getCart` marca los ítems inactivos o sin stock como `available: false` en vez de borrarlos sin avisar.
+- [x] FE: los ítems no disponibles se muestran atenuados con "No disponible" y el checkout se bloquea hasta quitarlos.
+- [x] FE: el selector de cantidad deshabilita "+" al llegar al stock.
 
 **Escenarios**
 ```gherkin

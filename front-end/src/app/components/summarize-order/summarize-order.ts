@@ -16,9 +16,10 @@ import { ArsPipe } from '../../ui';
 export class SummarizeOrder {
   store = inject(EcommerceStore);
 
-  itemCount = computed(() => this.store.cartItems().reduce((acc, item) => acc + item.quantity, 0));
+  /** HU-13 · From the store, which leaves unavailable items out. */
+  itemCount = this.store.cartCount;
 
-  subtotal = computed(() => this.store.cartItems().reduce((acc, item) => acc + item.productPrice * item.quantity, 0));
+  subtotal = this.store.cartTotal;
 
   tax = computed(() => this.subtotal() * 0.21);
 

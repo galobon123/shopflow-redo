@@ -1,9 +1,18 @@
 import { testProviders } from '../../testing/test-providers';
 import { TestBed } from '@angular/core/testing';
 import { Location } from '@angular/common';
+import { Component, signal } from '@angular/core';
 import { Router, provideRouter } from '@angular/router';
 
 import { BackButton } from './back-button';
+
+@Component({
+  imports: [BackButton],
+  template: `<app-back-button [navigateTo]="to()">Seguir comprando</app-back-button>`,
+})
+class Host {
+  readonly to = signal<string | undefined>('/products/all');
+}
 
 describe('BackButton', () => {
   beforeEach(() => {
@@ -46,5 +55,16 @@ describe('BackButton', () => {
 
     expect(navigate).toHaveBeenCalledWith('/products/all');
     expect(back).not.toHaveBeenCalled();
+  });
+
+  it('shows its label both as a link and as a back button', async () => {
+    const fixture = TestBed.createComponent(Host);
+    await fixture.whenStable();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('a')!.textContent!.trim()).toBe('Seguir comprando');
+
+    fixture.componentInstance.to.set(undefined);
+    await fixture.whenStable();
+    expect(el.querySelector('button')!.textContent!.trim()).toBe('Seguir comprando');
   });
 });

@@ -32,6 +32,8 @@ export function aCartItem(overrides: Partial<CartItem> = {}): CartItem {
     productPrice: 48900,
     productImageUrl: '',
     quantity: 2,
+    stock: 10,
+    available: true,
     ...overrides,
   };
 }

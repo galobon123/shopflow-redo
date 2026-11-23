@@ -1,11 +1,14 @@
+<!-- Content can only be projected once: captured here, stamped in whichever branch renders. -->
+<ng-template #label><ng-content /></ng-template>
+
 @if (navigateTo(); as url) {
   <a sfButton="ghost" class="-ms-4" [routerLink]="url">
     <lucide-icon [img]="backIcon" />
-    <ng-content />
+    <ng-container [ngTemplateOutlet]="label" />
   </a>
 } @else {
   <button sfButton="ghost" class="-ms-4" type="button" (click)="goBack()">
     <lucide-icon [img]="backIcon" />
-    <ng-content />
+    <ng-container [ngTemplateOutlet]="label" />
   </button>
 }

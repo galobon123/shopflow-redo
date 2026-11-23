@@ -114,14 +114,33 @@ class OrderServiceIntegrationTest {
     void undoesEarlierItemsWhenALaterOneHasNoStock() {
         User lucia = user("lucia");
         Product taza = product("Taza", "1000.00", 5);
-        Product plato = product("Plato", "2500.00", 0);
+        Product plato = product("Plato", "2500.00", 1);
         putInCart(lucia, taza, 2);
-        putInCart(lucia, plato, 1);
+        putInCart(lucia, plato, 2);
 
         assertThrows(ConflictException.class, () -> orders.createOrder(lucia.getId(), orderTo(address(lucia))));
 
         assertEquals(5, stockOf(taza), "the transaction rolls back the units already taken");
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM orders", Integer.class));
+    }
+
+    /** HU-13 · Escenario: Un producto se desactiva mientras está en el carrito (the backend blocks the checkout too). */
+    @Test
+    void refusesWhileTheCartHasAProductThatIsNoLongerAvailable() {
+        User lucia = user("lucia");
+        Product taza = product("Taza", "1000.00", 5);
+        Product gorra = product("Gorra roja", "5000.00", 3);
+        putInCart(lucia, taza, 1);
+        putInCart(lucia, gorra, 1);
+        gorra.setActive(false);
+        products.save(gorra);
+
+        ConflictException error = assertThrows(ConflictException.class,
+                () -> orders.createOrder(lucia.getId(), orderTo(address(lucia))));
+
+        assertEquals("Gorra roja ya no está disponible. Sacá ese producto del carrito para seguir.", error.getMessage());
+        assertEquals(5, stockOf(taza));
+        assertTrue(redis.hasKey(cartKey(lucia)), "nothing is dropped from the cart");
     }
 
     /** HU-17/HU-27 · Escenario: Dos clientes compran la última unidad. */

@@ -26,6 +26,8 @@ type EcommerceState = {
   /** Products whose favourite is being saved or removed right now (the heart waits for the server). */
   wishListSaving: number[];
   cartItems: CartItem[];
+  cartLoading: boolean;
+  cartError: string | null;
   recommendations: RecommendationsResponse;
   loading: boolean;
   error: string | null;
@@ -36,10 +38,15 @@ const initialState: EcommerceState = {
   wishListItems: [],
   wishListSaving: [],
   cartItems: [],
+  cartLoading: false,
+  cartError: null,
   recommendations: { recommended: [], othersBought: [] },
   loading: false,
   error: null,
 };
+
+/** HU-13 · Unavailable items stay listed but don't count towards units or total. */
+const purchasable = (items: CartItem[]) => items.filter(item => item.available);
 
 export const EcommerceStore = signalStore(
   { providedIn: 'root' },
@@ -47,9 +54,11 @@ export const EcommerceStore = signalStore(
 
   withComputed((store) => ({
   wishListCount: computed(() => store.wishListItems().length),
-  cartCount: computed(() => store.cartItems().reduce((sum, item) => sum + item.quantity, 0)),
-  cartTotal: computed(() => store.cartItems().reduce((sum, item) => 
+  cartCount: computed(() => purchasable(store.cartItems()).reduce((sum, item) => sum + item.quantity, 0)),
+  cartTotal: computed(() => purchasable(store.cartItems()).reduce((sum, item) =>
     sum + item.productPrice * item.quantity, 0)),
+  /** HU-13 · Checkout waits until unavailable items are removed and no quantity is above the stock left. */
+  cartBlocked: computed(() => store.cartItems().some(item => !item.available || item.quantity > item.stock)),
 })),
 
   withMethods((store,
@@ -132,9 +141,12 @@ export const EcommerceStore = signalStore(
   },
   loadCart(): void {
   if (!authStore.isAuthenticated()) return;
-  cartService.getCart().subscribe({
+  patchState(store, { cartLoading: true, cartError: null });
+  cartService.getCart().pipe(
+    finalize(() => patchState(store, { cartLoading: false })),
+  ).subscribe({
     next: (items) => patchState(store, { cartItems: items }),
-    error: () => { /* silencioso */ },
+    error: (err) => patchState(store, { cartError: errorMessage(err) }),
   });
   },
   /** `quantity` comes from the product page's selector (HU-11); the cards add one. */
@@ -161,6 +173,8 @@ export const EcommerceStore = signalStore(
             productPrice: product.price,
             productImageUrl: product.imageUrl ?? '',
             quantity,
+            stock: product.stock,
+            available: true,
           };
           patchState(store, { cartItems: [...store.cartItems(), newItem] });
         }
@@ -191,7 +205,13 @@ export const EcommerceStore = signalStore(
           });
         }
       },
-      error: (err) => toaster.error(err),
+      // HU-13 · The quantity stays as it was; a 409 means the stock moved, so the cart is read again.
+      error: (err) => {
+        toaster.error(err);
+        if (err?.status === 409) {
+          cartService.getCart().subscribe({ next: (items) => patchState(store, { cartItems: items }) });
+        }
+      },
     });
   },
   clearCart(): void {
@@ -248,6 +268,8 @@ export const EcommerceStore = signalStore(
               productPrice: item.productPrice,
               productImageUrl: item.productImageUrl,
               quantity: 1,
+              stock: item.productStock,
+              available: true,
             });
           }
         });
@@ -292,6 +314,10 @@ export const EcommerceStore = signalStore(
       error: (err) => {
         patchState(store, { loading: false, error: errorMessage(err) });
         toaster.error(err);
+        // HU-13 · A 409 means a product went unavailable or short: read the cart again so it shows which one.
+        if (err?.status === 409) {
+          cartService.getCart().subscribe({ next: (items) => patchState(store, { cartItems: items }) });
+        }
       },
     });
   },
@@ -355,6 +381,7 @@ export const EcommerceStore = signalStore(
           untracked(() => {
             patchState(store, {
               cartItems: [],
+              cartError: null,
               wishListItems: [],
               recommendations: { recommended: [], othersBought: [] },
             });

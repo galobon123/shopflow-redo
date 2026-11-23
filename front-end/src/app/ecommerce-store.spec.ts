@@ -89,6 +89,74 @@ describe('EcommerceStore', () => {
     expect(errorMessage(toaster.error.mock.calls[0][0])).toBe('No hay stock suficiente: quedan 0.');
   });
 
+  /** HU-13 · Escenario: Subir la cantidad dentro del stock. */
+  it('raises a quantity within the stock and updates the total', () => {
+    setup(true, [aCartItem({ productId: 15, productPrice: 1000, quantity: 1, stock: 5 })]);
+
+    store.updateCartQty(15, 3);
+    backend.expectOne({ method: 'PUT', url: `${api}/cart/15?qty=3` }).flush(null);
+
+    expect(store.cartItems()[0].quantity).toBe(3);
+    expect(store.cartTotal()).toBe(3000);
+  });
+
+  /** HU-13 · Escenario: Pedir más que el stock. */
+  it('keeps the previous quantity on a 409, says how many are left and reads the cart again', () => {
+    setup(true, [aCartItem({ productId: 15, quantity: 2, stock: 6 })]);
+
+    store.updateCartQty(15, 6);
+    backend.expectOne({ method: 'PUT', url: `${api}/cart/15?qty=6` }).flush(
+      { status: 409, title: 'Conflicto', detail: 'Solo quedan 5.' },
+      { status: 409, statusText: 'Conflict' },
+    );
+
+    expect(store.cartItems()[0].quantity).toBe(2);
+    expect(errorMessage(toaster.error.mock.calls[0][0])).toBe('Solo quedan 5.');
+    backend.expectOne({ method: 'GET', url: `${api}/cart` }).flush([aCartItem({ productId: 15, quantity: 2, stock: 5 })]);
+    expect(store.cartItems()[0].stock).toBe(5);
+  });
+
+  /** HU-13 · Escenario: Un producto se desactiva mientras está en el carrito. */
+  it('leaves unavailable items out of units and total, and blocks the checkout', () => {
+    setup(true, [
+      aCartItem({ productId: 15, productPrice: 1000, quantity: 2 }),
+      aCartItem({ productId: 16, productName: 'Gorra roja', productPrice: 5000, quantity: 1, available: false }),
+    ]);
+
+    expect(store.cartItems()).toHaveLength(2);
+    expect(store.cartCount()).toBe(2);
+    expect(store.cartTotal()).toBe(2000);
+    expect(store.cartBlocked()).toBe(true);
+
+    store.removeFromCart(16);
+    backend.expectOne({ method: 'DELETE', url: `${api}/cart/16` }).flush(null);
+
+    expect(store.cartBlocked()).toBe(false);
+  });
+
+  it('blocks the checkout while a quantity is above the stock left', () => {
+    setup(true, [aCartItem({ quantity: 4, stock: 2 })]);
+
+    expect(store.cartBlocked()).toBe(true);
+  });
+
+  it('keeps the reason when the cart cannot be read', () => {
+    setup(false);
+    loggedIn.set(true);
+    TestBed.tick();
+
+    backend.expectOne(`${api}/wishlist`).flush([]);
+    expect(store.cartLoading()).toBe(true);
+    backend.expectOne(`${api}/cart`).flush(
+      { status: 503, detail: 'No pudimos leer tu carrito.' },
+      { status: 503, statusText: 'Service Unavailable' },
+    );
+    backend.match((r) => r.url.includes('/recommendations')).forEach((r) => r.flush({ recommended: [], othersBought: [] }));
+
+    expect(store.cartLoading()).toBe(false);
+    expect(store.cartError()).toBe('Algo falló de nuestro lado.');
+  });
+
   it('places the order: address first, then the order; empties the cart and goes to the receipt', () => {
     setup(true);
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
@@ -104,7 +172,7 @@ describe('EcommerceStore', () => {
     expect(navigate).toHaveBeenCalledWith(['/order-success'], { state: { order } });
   });
 
-  it('keeps the cart and shows why when the order fails', () => {
+  it('keeps the cart, shows why and marks the item when the order fails with 409 (HU-13)', () => {
     setup(true);
 
     store.placeOrder({ firstName: 'Lucía', lastName: 'Pérez', address: 'San Martín 123', cityId: 1, zipCode: '2000' });
@@ -117,6 +185,9 @@ describe('EcommerceStore', () => {
     expect(store.cartItems()).toHaveLength(1);
     expect(store.error()).toBe('Sin stock de Remera lino.');
     expect(store.loading()).toBe(false);
+
+    backend.expectOne({ method: 'GET', url: `${api}/cart` }).flush([aCartItem({ quantity: 2, stock: 1 })]);
+    expect(store.cartBlocked()).toBe(true);
   });
 
   it('clears cart and wishlist when the session ends', () => {

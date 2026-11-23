@@ -1,10 +1,8 @@
 <div appViewPanel>
-    <h2 class="font-display text-heading mb-4">
-        Cart Items ({{ store.cartCount() }})
-    </h2>
+    <h2 #heading tabindex="-1" class="font-display text-heading mb-4">Productos</h2>
     <div class="flex flex-col gap-6">
-        @for (item of store.cartItems(); track item.productId) {
-            <app-show-cart-item [item]="item" />
+        @for (item of store.cartItems(); track item.productId; let i = $index) {
+            <app-show-cart-item [item]="item" (leaving)="markLeaving(item.productId, i)" />
         }
     </div>
 </div>

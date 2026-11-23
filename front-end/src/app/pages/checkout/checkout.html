@@ -15,21 +15,33 @@
 
                 <ng-container checkoutItems>
                     @for (item of store.cartItems(); track item.productId) {
-                        <div class="text-body flex justify-between">
-                            <span> {{ item.productName }} x {{ item.quantity }} </span>
-                            <span> ${{ item.productPrice * item.quantity | number:'1.2-2' }} </span>
+                        <!-- HU-13 · An unavailable line shows no amount, so the list adds up to the subtotal. -->
+                        <div class="text-body flex justify-between gap-3">
+                            <span [class.opacity-45]="!item.available"> {{ item.productName }} x {{ item.quantity }} </span>
+                            @if (item.available) {
+                                <span> {{ item.productPrice * item.quantity | ars }} </span>
+                            } @else {
+                                <sf-badge tone="out">No disponible</sf-badge>
+                            }
                         </div>
                     }
                 </ng-container>
 
                 <ng-container actionButtons>
+                    <!-- HU-13 · Same rule as the cart page; the backend refuses it too. -->
+                    @if (store.cartBlocked()) {
+                        <sf-alert tone="warning" class="mt-6">
+                            Hay productos de tu carrito que no podés comprar así.
+                            <a sfAlertAction sfButton="ghost" size="sm" routerLink="/cart">Ir al carrito</a>
+                        </sf-alert>
+                    }
                     @if (!authStore.emailVerified()) {
                         <sf-alert tone="warning" class="mt-6">Confirmá tu email para comprar. El enlace está en tu bandeja de entrada.</sf-alert>
                     }
                     <button
                         matButton="filled"
                         class="w-full mt-6 py-3"
-                        [disabled]="store.loading() || !authStore.emailVerified()"
+                        [disabled]="store.loading() || !authStore.emailVerified() || store.cartBlocked()"
                         (click)="placeOrder()"
                     >
                         {{ store.loading() ? 'Processing...' : 'Place Order'}}

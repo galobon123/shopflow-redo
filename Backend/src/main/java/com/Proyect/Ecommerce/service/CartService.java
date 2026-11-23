@@ -19,6 +19,11 @@ import com.Proyect.Ecommerce.exception.NotFoundException;
 import com.Proyect.Ecommerce.model.Product;
 import com.Proyect.Ecommerce.repository.ProductRepository;
 
+/**
+ * HU-13 · The only class that reads or writes carts in Redis (hash productId → qty).
+ * The public methods name the cart by user; the work is done on a key, so a guest cart
+ * (HU-12, under the same prefix) can reuse it.
+ */
 @Service
 public class CartService {
 
@@ -35,7 +40,48 @@ public class CartService {
     }
 
     public List<CartItemDTO> getCart(Long userId) {
-        String key = buildCartKey(userId);
+        return readCart(userKey(userId));
+    }
+
+    public void addToCart(Long userId, Long productId, int qty) {
+        if (qty <= 0) {
+            throw new BadRequestException("La cantidad debe ser mayor a cero.");
+        }
+        String key = userKey(userId);
+        Object currentQtyObj = redisTemplate.opsForHash().get(key, productId.toString());
+        int currentQtyInCart = currentQtyObj != null ? Integer.parseInt(currentQtyObj.toString()) : 0;
+        writeQty(key, productId, currentQtyInCart + qty);
+    }
+
+    public void updateQty(Long userId, Long productId, int qty) {
+        String key = userKey(userId);
+        if (qty <= 0) {
+            removeItem(key, productId);
+            return;
+        }
+        writeQty(key, productId, qty);
+    }
+
+    public void removeFromCart(Long userId, Long productId) {
+        removeItem(userKey(userId), productId);
+    }
+
+    public void clearCart(Long userId) {
+        redisTemplate.delete(userKey(userId));
+    }
+
+    //#region Helper Methods
+
+    private String userKey(Long userId) {
+        return CART_KEY_PREFIX + userId;
+    }
+
+    /**
+     * HU-13 · Deactivated or sold-out products stay in the cart as available=false, and the
+     * quantity is never trimmed to the stock: the customer sees it and decides.
+     * Only entries that can't be shown (unreadable, or a product row that no longer exists) are dropped.
+     */
+    private List<CartItemDTO> readCart(String key) {
         Map<Object, Object> rawCart = redisTemplate.opsForHash().entries(key);
 
         if (rawCart.isEmpty()) {
@@ -52,33 +98,20 @@ public class CartService {
             }
         }
 
-        if (productIds.isEmpty()) {
-            return List.of();
-        }
-
         Map<Long, Product> productMap = productRepository.findAllById(productIds).stream()
                 .collect(Collectors.toMap(Product::getId, Function.identity()));
 
         List<CartItemDTO> result = new ArrayList<>();
-        List<String> orphanProductIds = new ArrayList<>();
+        List<String> unreadable = new ArrayList<>();
 
         for (Map.Entry<Object, Object> entry : rawCart.entrySet()) {
             try {
                 Long productId = Long.parseLong(entry.getKey().toString());
                 Product product = productMap.get(productId);
-
-                if (product == null || !product.isActive()) {
-                    orphanProductIds.add(productId.toString());
-                    continue;
-                }
-
                 int quantity = Integer.parseInt(entry.getValue().toString());
 
-                int currentStock = product.getStock();
-                int effectiveQuantity = Math.min(quantity, currentStock);
-
-                if (effectiveQuantity <= 0) {
-                    orphanProductIds.add(productId.toString());
+                if (product == null || quantity <= 0) {
+                    unreadable.add(entry.getKey().toString());
                     continue;
                 }
 
@@ -87,27 +120,26 @@ public class CartService {
                 dto.setProductName(product.getName());
                 dto.setProductPrice(product.getPrice());
                 dto.setProductImageUrl(product.getImageUrl());
-                dto.setQuantity(effectiveQuantity);
+                dto.setQuantity(quantity);
+                dto.setStock(product.getStock());
+                dto.setAvailable(product.isActive() && product.getStock() > 0);
 
                 result.add(dto);
 
             } catch (NumberFormatException ignored) {
-                orphanProductIds.add(entry.getKey().toString());
+                unreadable.add(entry.getKey().toString());
             }
         }
 
-        if (!orphanProductIds.isEmpty()) {
-            redisTemplate.opsForHash().delete(key, orphanProductIds.toArray());
+        if (!unreadable.isEmpty()) {
+            redisTemplate.opsForHash().delete(key, unreadable.toArray());
         }
 
         return result;
     }
 
-    public void addToCart(Long userId, Long productId, int qty) {
-        if (qty <= 0) {
-            throw new BadRequestException("La cantidad debe ser mayor a cero.");
-        }
-
+    /** HU-13 · The one stock rule: more than the stock is a 409 that says how many are left. */
+    private void writeQty(String key, Long productId, int qty) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new NotFoundException("El producto con ID " + productId + " no existe."));
 
@@ -115,56 +147,22 @@ public class CartService {
             throw new ConflictException("El producto no se encuentra disponible.");
         }
 
-        String key = buildCartKey(userId);
-        Object currentQtyObj = redisTemplate.opsForHash().get(key, productId.toString());
-        int currentQtyInCart = currentQtyObj != null ? Integer.parseInt(currentQtyObj.toString()) : 0;
-        int targetQty = currentQtyInCart + qty;
-
-        if (targetQty > product.getStock()) {
-            throw new BadRequestException("No hay stock suficiente: quedan "
-            + product.getStock() + " y en total pediste " + targetQty + ".");
-        }
-
-        redisTemplate.opsForHash().put(key, productId.toString(), String.valueOf(targetQty));
-        refreshExpiry(key);
-    }
-
-    public void updateQty(Long userId, Long productId, int qty) {
-        String key = buildCartKey(userId);
-
-        if (qty <= 0) {
-            removeFromCart(userId, productId);
-            return;
-        }
-
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new NotFoundException("El producto con ID " + productId + " no existe."));
-
         if (qty > product.getStock()) {
-            throw new BadRequestException("No hay stock suficiente: quedan " + product.getStock() + ".");
+            throw new ConflictException(product.getStock() > 0
+                    ? "Solo quedan " + product.getStock() + "."
+                    : "El producto se quedó sin stock.");
         }
 
         redisTemplate.opsForHash().put(key, productId.toString(), String.valueOf(qty));
         refreshExpiry(key);
     }
 
-    public void removeFromCart(Long userId, Long productId) {
-        String key = buildCartKey(userId);
+    private void removeItem(String key, Long productId) {
         redisTemplate.opsForHash().delete(key, productId.toString());
 
         if (Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
             refreshExpiry(key);
         }
-    }
-
-    public void clearCart(Long userId) {
-        redisTemplate.delete(buildCartKey(userId));
-    }
-
-    //#region Helper Methods
-
-    private String buildCartKey(Long userId) {
-        return CART_KEY_PREFIX + userId;
     }
 
     private void refreshExpiry(String key) {

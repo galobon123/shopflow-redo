@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
-import { Location } from '@angular/common';
+import { Location, NgTemplateOutlet } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { ArrowLeft, LucideAngularModule } from 'lucide-angular';
 import { SfButton } from '../../ui';
@@ -10,7 +10,7 @@ import { SfButton } from '../../ui';
  */
 @Component({
   selector: 'app-back-button',
-  imports: [SfButton, RouterLink, LucideAngularModule],
+  imports: [SfButton, RouterLink, LucideAngularModule, NgTemplateOutlet],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './back-button.html',
   styleUrl: './back-button.css',
