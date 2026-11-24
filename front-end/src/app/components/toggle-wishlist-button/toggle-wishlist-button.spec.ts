@@ -18,12 +18,17 @@ describe('ToggleWishlistButton', () => {
     return { fixture, backend, button };
   }
 
-  it('pulses and ignores taps until the server saves it, then shows it as saved', () => {
+  /** HU-14 · Optimistic: marked right away, and ignores taps until the server answers so add and remove can't cross. */
+  it('is marked right away and ignores taps until the server saves it', () => {
     const { fixture, backend, button } = render();
 
+    button.focus();
     button.click();
     fixture.detectChanges();
-    expect(button.disabled).toBe(true);
+    expect(document.activeElement).toBe(button); // aria-disabled, not disabled: the keyboard focus stays
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(button.getAttribute('aria-label')).toBe('Quitar de favoritos');
+    expect(button.getAttribute('aria-disabled')).toBe('true');
     expect(button.getAttribute('aria-busy')).toBe('true');
 
     button.click();
@@ -32,17 +37,18 @@ describe('ToggleWishlistButton', () => {
 
     saves[0].flush({});
     fixture.detectChanges();
-    expect(button.disabled).toBe(false);
+    expect(button.hasAttribute('aria-disabled')).toBe(false);
     expect(button.getAttribute('aria-busy')).toBe('false');
     expect(button.getAttribute('aria-pressed')).toBe('true');
-    expect(button.getAttribute('aria-label')).toBe('Quitar de favoritos');
 
     // Answers right away, with the "Agregado a favoritos" toast still on screen.
     button.click();
+    fixture.detectChanges();
+    expect(button.getAttribute('aria-pressed')).toBe('false');
     backend.expectOne((req) => req.method === 'DELETE' && req.url === `${environment.apiUrl}/wishlist/15`);
   });
 
-  it('can be tapped again when saving fails', () => {
+  it('goes back to unmarked and can be tapped again when saving fails', () => {
     const { fixture, backend, button } = render();
 
     button.click();
@@ -51,7 +57,7 @@ describe('ToggleWishlistButton', () => {
       .flush({ detail: 'Error' }, { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
 
-    expect(button.disabled).toBe(false);
+    expect(button.hasAttribute('aria-disabled')).toBe(false);
     expect(button.getAttribute('aria-pressed')).toBe('false');
   });
 });

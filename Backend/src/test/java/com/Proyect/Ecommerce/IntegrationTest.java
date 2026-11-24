@@ -27,7 +27,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
         "app.public-url=http://localhost:4200",
         "app.google.client-id=",
         // No sample catalog: each test creates the products it needs.
-        "app.demo-data.enabled=false"
+        "app.demo-data.enabled=false",
+        // The Neo4j retry job runs when a test calls it, not on the clock.
+        "app.neo4j-sync.retry-cron=-"
 })
 @Import(TestcontainersConfiguration.class)
 @Testcontainers(disabledWithoutDocker = true)

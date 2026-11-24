@@ -23,8 +23,15 @@ import { Router } from '@angular/router';
 type EcommerceState = {
   categories: CategoryResponse[];
   wishListItems: WishListResponse[];
-  /** Products whose favourite is being saved or removed right now (the heart waits for the server). */
+  wishListLoading: boolean;
+  wishListError: string | null;
+  /**
+   * Products whose favourite is being saved or removed right now. HU-14 · The heart already shows the new state
+   * (optimistic) but ignores taps until the server answers, so an add and a remove can't cross.
+   */
   wishListSaving: number[];
+  /** HU-14 · "Vaciar favoritos" is waiting for the server; the list stays until it answers. */
+  wishListClearing: boolean;
   cartItems: CartItem[];
   cartLoading: boolean;
   cartError: string | null;
@@ -42,7 +49,10 @@ type EcommerceState = {
 const initialState: EcommerceState = {
   categories: [],
   wishListItems: [],
+  wishListLoading: false,
+  wishListError: null,
   wishListSaving: [],
+  wishListClearing: false,
   cartItems: [],
   cartLoading: false,
   cartError: null,
@@ -135,57 +145,84 @@ export const EcommerceStore = signalStore(
   },
   loadWishlist(): void {
   if (!authStore.isAuthenticated()) return;
-    wishListService.getWishlist().subscribe({
+    patchState(store, { wishListLoading: true, wishListError: null });
+    wishListService.getWishlist().pipe(
+      finalize(() => patchState(store, { wishListLoading: false })),
+    ).subscribe({
       next: (items) => patchState(store, { wishListItems: items }),
-      error: () => { /* silencioso, no bloquea la app */ },
+      // Only the favourites page shows it; everywhere else the hearts just start empty.
+      error: (err) => patchState(store, { wishListError: errorMessage(err) }),
     });
   },
+  /** HU-14 · Optimistic: the heart is marked right away; if the server says no, it goes back and says why. */
   addToWishList : (product: ProductResponse) => { 
     if (!authStore.isAuthenticated()) {
     toaster.info('Iniciá sesión para guardar favoritos.');
     return;
   }
   if (store.wishListSaving().includes(product.id)) return;
-  patchState(store, { wishListSaving: [...store.wishListSaving(), product.id] });
+  if (store.wishListItems().some(item => item.productId === product.id)) return;
+  const item: WishListResponse = {
+    id: 0,
+    productId: product.id,
+    productName: product.name,
+    productPrice: product.price,
+    productImageUrl: product.imageUrl ?? '',
+    productStock: product.stock,
+    createdAt: new Date().toISOString(),
+  };
+  patchState(store, {
+    wishListItems: [...store.wishListItems(), item],
+    wishListSaving: [...store.wishListSaving(), product.id],
+  });
   wishListService.add(product.id).pipe(
     finalize(() => patchState(store, { wishListSaving: store.wishListSaving().filter(id => id !== product.id) })),
   ).subscribe({
-      next: () => {
-        const item: WishListResponse = {
-          id: 0,
-          productId: product.id,
-          productName: product.name,
-          productPrice: product.price,
-          productImageUrl: product.imageUrl ?? '',
-          productStock: product.stock,
-          createdAt: new Date().toISOString(),
-        };
-        patchState(store, { wishListItems: [...store.wishListItems(), item] });
-        toaster.success('Agregado a favoritos.');
+      next: () => toaster.success('Agregado a favoritos.'),
+      error: (err) => {
+        patchState(store, { wishListItems: store.wishListItems().filter(p => p.productId !== product.id) });
+        toaster.error(err);
       },
-      error: (err) => toaster.error(err),
     });
   },
+  /** HU-14 · Optimistic too: it leaves the list right away and comes back to its place if the server fails. */
   removeFromWishList : (productId: number) => {
       if (store.wishListSaving().includes(productId)) return;
-      patchState(store, { wishListSaving: [...store.wishListSaving(), productId] });
+      const index = store.wishListItems().findIndex(p => p.productId === productId);
+      if (index === -1) return;
+      const removed = store.wishListItems()[index];
+      patchState(store, {
+        wishListItems: store.wishListItems().filter(p => p.productId !== productId),
+        wishListSaving: [...store.wishListSaving(), productId],
+      });
       wishListService.remove(productId).pipe(
         finalize(() => patchState(store, { wishListSaving: store.wishListSaving().filter(id => id !== productId) })),
       ).subscribe({
-      next: () => {
-        patchState(store, { 
-          wishListItems: store.wishListItems().filter(p => p.productId !== productId) 
-        });
-        toaster.success('Quitado de favoritos.');
+      next: () => toaster.success('Quitado de favoritos.'),
+      error: (err) => {
+        const items = [...store.wishListItems()];
+        items.splice(Math.min(index, items.length), 0, removed);
+        patchState(store, { wishListItems: items });
+        toaster.error(err);
       },
-      error: (err) => toaster.error(err),
     });
   },
+  /**
+   * HU-14 · One request, all or nothing. Not optimistic: emptying everything and bringing it back on an error
+   * would flash the empty page, so the list stays until the server answers.
+   */
   clearWishlist: () => {
-      store.wishListItems().forEach(item => {
-      wishListService.remove(item.productId).subscribe();
+    if (store.wishListClearing()) return;
+    patchState(store, { wishListClearing: true });
+    wishListService.clear().pipe(
+      finalize(() => patchState(store, { wishListClearing: false })),
+    ).subscribe({
+      next: () => {
+        patchState(store, { wishListItems: [] });
+        toaster.success('Vaciaste tus favoritos.');
+      },
+      error: () => toaster.error('No pudimos vaciar tus favoritos, probá de nuevo.'),
     });
-    patchState(store, { wishListItems: [] });
   },
   /** HU-12 · Signed in it's the account's cart; otherwise this browser's guest cart. */
   loadCart(): void {
@@ -461,6 +498,7 @@ export const EcommerceStore = signalStore(
               cartError: null,
               cartNotices: [],
               wishListItems: [],
+              wishListError: null,
               recommendations: { recommended: [], othersBought: [] },
             });
             store.loadCart();

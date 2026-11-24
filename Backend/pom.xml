@@ -128,6 +128,12 @@
 			<artifactId>testcontainers-redis</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- HU-14 · Waits for what happens after the response (the Neo4j sync runs on its own thread). -->
+		<dependency>
+			<groupId>org.awaitility</groupId>
+			<artifactId>awaitility</artifactId>
+			<scope>test</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>

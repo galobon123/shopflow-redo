@@ -50,15 +50,16 @@
   }
   .sf-btn:active { transform: scale(0.98); }
   .sf-btn:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-  .sf-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+  /* aria-disabled looks the same but keeps the keyboard focus on the button (HU-14). */
+  .sf-btn:is(:disabled, [aria-disabled="true"]) { opacity: 0.45; cursor: not-allowed; transform: none; }
   .sf-btn--primary { background: var(--color-ink); color: var(--color-on-ink); }
-  .sf-btn--primary:hover:not(:disabled) { background: var(--color-ink-soft); }
+  .sf-btn--primary:hover:not(:disabled, [aria-disabled="true"]) { background: var(--color-ink-soft); }
   .sf-btn--secondary { background: var(--color-surface); color: var(--color-ink); border-color: var(--color-line-strong); }
-  .sf-btn--secondary:hover:not(:disabled) { background: var(--color-canvas); }
+  .sf-btn--secondary:hover:not(:disabled, [aria-disabled="true"]) { background: var(--color-canvas); }
   .sf-btn--ghost { background: transparent; color: var(--color-ink); }
-  .sf-btn--ghost:hover:not(:disabled) { background: var(--color-sunken); }
+  .sf-btn--ghost:hover:not(:disabled, [aria-disabled="true"]) { background: var(--color-sunken); }
   .sf-btn--danger { background: var(--color-surface); color: var(--color-danger); border-color: var(--color-danger); }
-  .sf-btn--danger:hover:not(:disabled) { background: var(--color-danger-soft); }
+  .sf-btn--danger:hover:not(:disabled, [aria-disabled="true"]) { background: var(--color-danger-soft); }
   .sf-btn--sm { height: 32px; padding: 0 calc(var(--spacing) * 3); font-size: 13px; }
   .sf-btn--lg { height: var(--control-height); padding: 0 calc(var(--spacing) * 6); font-size: 15px; }
   .sf-btn--block { width: 100%; }
@@ -97,12 +98,12 @@
   .sf-icon-btn[aria-pressed="true"] { color: var(--color-accent); }
   .sf-icon-btn[aria-pressed="true"] svg { fill: currentColor; }
   /* Favourite heart (and the wishlist's trash): red when saved, grows on hover, pulses while the server saves it
-     (and can't be tapped). */
+     (and ignores taps: aria-disabled, so the keyboard focus stays on it). */
   .sf-fav, .sf-fav:hover { color: var(--color-ink); }
   .sf-fav svg { transition: transform 160ms var(--ease-out), fill 160ms var(--ease-out), color 160ms var(--ease-out); }
   .sf-fav:hover svg { transform: scale(1.2); }
   .sf-fav[aria-pressed="true"] { color: var(--color-heart); }
-  .sf-fav:disabled { cursor: progress; }
+  .sf-fav:is(:disabled, [aria-disabled="true"]) { cursor: progress; }
   .sf-fav[aria-busy="true"] svg { animation: sf-fav-saving 700ms ease-in-out infinite; }
   @keyframes sf-fav-saving { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.25); opacity: 0.55; } }
   .sf-icon-btn--danger { color: var(--color-danger); }

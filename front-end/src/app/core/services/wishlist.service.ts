@@ -25,6 +25,11 @@ export class WishListService {
     return this.http.delete<void>(`${this.url}/${productId}`);
   }
 
+  /** HU-14 · Empties the whole wishlist in one request (one transaction on the server). */
+  clear(): Observable<void> {
+    return this.http.delete<void>(this.url);
+  }
+
   check(productId: number): Observable<boolean> {
     return this.http.get<boolean>(`${this.url}/check/${productId}`);
   }

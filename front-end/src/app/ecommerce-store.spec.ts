@@ -7,7 +7,7 @@ import { AuthStore } from './auth-store';
 import { Toaster } from './core/services/toaster.service';
 import { errorMessage } from './core/util/error-message';
 import { environment } from '../environments/environment';
-import { aCartItem, aProduct, testProviders } from './testing/test-providers';
+import { aCartItem, aProduct, aWishItem, testProviders } from './testing/test-providers';
 
 const api = environment.apiUrl;
 
@@ -305,5 +305,41 @@ describe('EcommerceStore', () => {
     expect(store.cartItems()).toEqual([]);
     expect(store.wishListItems()).toEqual([]);
     backend.expectOne({ method: 'GET', url: `${api}/cart` }).flush([]);
+  });
+
+  /** HU-14 · The heart is marked before the server answers; a failure takes it back and says why. */
+  it('adds a favourite right away and takes it back, saying why, when the server fails', () => {
+    setup(true);
+
+    store.addToWishList(aProduct({ id: 15, name: 'Taza' }));
+    expect(store.wishListItems().map((item) => item.productName)).toEqual(['Taza']);
+    expect(store.wishListSaving()).toEqual([15]);
+
+    const failure = backend.expectOne({ method: 'POST', url: `${api}/wishlist/15` });
+    failure.flush({ status: 404, detail: 'Producto no encontrado: 15' }, { status: 404, statusText: 'Not Found' });
+
+    expect(store.wishListItems()).toEqual([]);
+    expect(store.wishListSaving()).toEqual([]);
+    expect(toaster.error).toHaveBeenCalledWith(expect.objectContaining({ status: 404 }));
+    expect(toaster.success).not.toHaveBeenCalled();
+  });
+
+  it('removes a favourite right away and puts it back in its place when the server fails', () => {
+    setup(true);
+    store.loadWishlist();
+    backend.expectOne(`${api}/wishlist`).flush([
+      aWishItem({ productId: 1, productName: 'Taza' }),
+      aWishItem({ productId: 2, productName: 'Mate' }),
+      aWishItem({ productId: 3, productName: 'Termo' }),
+    ]);
+
+    store.removeFromWishList(2);
+    expect(store.wishListItems().map((item) => item.productName)).toEqual(['Taza', 'Termo']);
+
+    backend.expectOne({ method: 'DELETE', url: `${api}/wishlist/2` })
+      .flush({ status: 500 }, { status: 500, statusText: 'Server Error' });
+
+    expect(store.wishListItems().map((item) => item.productName)).toEqual(['Taza', 'Mate', 'Termo']);
+    expect(toaster.error).toHaveBeenCalled();
   });
 });

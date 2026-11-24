@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.neo4j.driver.Driver;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +28,7 @@ public class RecommendationService {
 
     private final RecommendationRepository recommendationRepository;
     private final ProductRepository productRepository;
+    private final Driver neo4j;
 
     @Transactional(readOnly = true)
     public RecommendationResponseDTO getRecommendations(Long userId) {
@@ -69,6 +71,16 @@ public class RecommendationService {
     @Transactional("neo4jTransactionManager")
     public void syncWishlistRemove(Long userId, Long productId) {
         recommendationRepository.syncWishlistRemove(userId, productId);
+    }
+
+    /** HU-14 · Whether Neo4j answers now; the retry job waits for it instead of spending attempts. */
+    public boolean isAvailable() {
+        try {
+            neo4j.verifyConnectivity();
+            return true;
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
 

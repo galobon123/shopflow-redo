@@ -618,15 +618,15 @@ Escenario: Un producto se desactiva mientras está en el carrito
 ## Épica 4 — Wishlist y recomendaciones (Neo4j)
 
 ### HU-14 · Wishlist que no depende de Neo4j
-**Prioridad:** Should · **Auditoría:** #9, #17
+**Prioridad:** Should · **Auditoría:** #9, #17 · **Estado:** Hecha
 
 > Como **cliente** quiero guardar productos en mi wishlist aunque falle el sistema de recomendaciones, para que una función secundaria no me rompa la principal.
 
 **Tareas**
-- [ ] BE: publicar `WishlistChanged` y sincronizar Neo4j en un `@TransactionalEventListener(AFTER_COMMIT)` asíncrono.
-- [ ] BE (Redis): si Neo4j falla, encolar el evento en `neo4j:sync:pending` (lista) y que un job reintente cada minuto.
-- [ ] BE: `DELETE /api/wishlist` para vaciarla en una sola transacción.
-- [ ] FE: UI optimista (el corazón se marca enseguida), con rollback y mensaje si falla.
+- [x] BE: publicar `WishlistChanged` y sincronizar Neo4j en un `@TransactionalEventListener(AFTER_COMMIT)` asíncrono.
+- [x] BE (Redis): si Neo4j falla, encolar el evento en `neo4j:sync:pending` (lista) y que un job reintente cada minuto.
+- [x] BE: `DELETE /api/wishlist` para vaciarla en una sola transacción.
+- [x] FE: UI optimista (el corazón se marca enseguida), con rollback y mensaje si falla.
 
 **Escenarios**
 ```gherkin

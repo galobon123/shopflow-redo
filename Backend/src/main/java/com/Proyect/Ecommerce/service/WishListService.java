@@ -2,10 +2,10 @@ package com.Proyect.Ecommerce.service;
 
 import java.util.List;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.Proyect.Ecommerce.dto.builder.RecommendationBuilderDTO;
 import com.Proyect.Ecommerce.dto.wishlist.WishListResponseDTO;
 import com.Proyect.Ecommerce.model.Product;
 import com.Proyect.Ecommerce.model.User;
@@ -21,16 +21,16 @@ public class WishListService {
     private final WishListRepository wishListRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
-    private final RecommendationService recommendationService;
+    private final ApplicationEventPublisher events;
 
     public WishListService(WishListRepository wishListRepository,
                            ProductRepository productRepository,
                            UserRepository userRepository,
-                           RecommendationService recommendationService) {
+                           ApplicationEventPublisher events) {
         this.wishListRepository = wishListRepository;
         this.productRepository = productRepository;
         this.userRepository = userRepository;
-        this.recommendationService = recommendationService;
+        this.events = events;
     }
 
     public List<WishListResponseDTO> getWishlist(Long userId) {
@@ -53,24 +53,21 @@ public class WishListService {
         wishList.setUser(user);
         wishList.setProduct(product);
         wishListRepository.save(wishList);
-        recommendationService.recommendationAdd(
-            RecommendationBuilderDTO.builder()
-                .userId(user.getId())
-                .userEmail(user.getEmail())
-                .productId(product.getId())
-                .productName(product.getName())
-                .price(product.getPrice())
-                .imageUrl(product.getImageUrl())
-                .categoryId(product.getCategory().getId())
-                .categoryName(product.getCategory().getName())
-                .build()
-        );
+        // HU-14 · Neo4j is synced after the commit (WishlistGraphSync): if it's down, the wishlist still saves.
+        events.publishEvent(new WishlistChanged(userId, productId));
     }
 
     @Transactional
     public void removeFromWishlist(Long userId, Long productId) {
         wishListRepository.deleteByUserIdAndProductId(userId, productId);
-        recommendationService.syncWishlistRemove(userId, productId);
+        events.publishEvent(new WishlistChanged(userId, productId));
+    }
+
+    /** HU-14 · All or nothing, in one statement; each product removed is then taken out of Neo4j too. */
+    @Transactional
+    public void clearWishlist(Long userId) {
+        wishListRepository.deleteAllOfUser(userId)
+                .forEach(productId -> events.publishEvent(new WishlistChanged(userId, productId)));
     }
 
     public boolean isInWishlist(Long userId, Long productId) {

@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { provideHotToastConfig } from '@ngxpert/hot-toast';
 import { ProductResponse } from '../core/models/product.model';
 import { CartItem } from '../core/models/cart.model';
+import { WishListResponse } from '../core/models/wishlist.model';
 
 /** What every page/component test needs: router, a fake backend (HttpTestingController) and toasts. */
 export function testProviders(): (Provider | EnvironmentProviders)[] {
@@ -34,6 +35,19 @@ export function aCartItem(overrides: Partial<CartItem> = {}): CartItem {
     quantity: 2,
     stock: 10,
     available: true,
+    ...overrides,
+  };
+}
+
+export function aWishItem(overrides: Partial<WishListResponse> = {}): WishListResponse {
+  return {
+    id: 1,
+    productId: 15,
+    productName: 'Remera lino',
+    productPrice: 48900,
+    productImageUrl: '',
+    productStock: 3,
+    createdAt: '2026-11-01T10:00:00',
     ...overrides,
   };
 }
