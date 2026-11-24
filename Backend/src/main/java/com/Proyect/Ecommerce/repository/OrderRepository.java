@@ -21,6 +21,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     boolean existsByUserIdAndStatusAndItemsProductId(Long userId, OrderStatus status, Long productId);
 
+    /** HU-16 · An address an order was sent to is never changed in place. */
+    boolean existsByAddressId(Long addressId);
+
     /** HU-15 · The order with what Neo4j needs (customer, items, their products and categories), read off any request. */
     @Query("SELECT DISTINCT o FROM Order o JOIN FETCH o.user LEFT JOIN FETCH o.items i LEFT JOIN FETCH i.product p "
             + "LEFT JOIN FETCH p.category WHERE o.id = :id")

@@ -690,16 +690,16 @@ Escenario: Neo4j caído
 ## Épica 5 — Checkout, pagos y pedidos
 
 ### HU-16 · Direcciones con provincia, ciudad y CPA
-**Prioridad:** Must · **Auditoría:** #6, #16
+**Prioridad:** Must · **Auditoría:** #6, #16 · **Estado:** Hecha
 
 > Como **cliente** quiero elegir mi provincia y ciudad de una lista y reutilizar mis direcciones para completar el checkout rápido.
 
 **Tareas**
-- [ ] BE: `GET /api/states` y `GET /api/cities?stateId=` (públicos y cacheables).
-- [ ] BE: aceptar el CPA (`^[A-Z]\d{4}[A-Z]{3}$`) o el código viejo de 4 dígitos; normalizar a mayúsculas sin espacios.
-- [ ] BE: borrar o consultar una dirección de otro usuario → 404 (no revelar que existe).
-- [ ] FE: selects dependientes provincia → ciudad, lista de direcciones guardadas para elegir y opción "Agregar nueva".
-- [ ] FE: `autocomplete` correcto en los campos (`given-name`, `family-name`, `street-address`, `postal-code`).
+- [x] BE: `GET /api/states` y `GET /api/cities?stateId=` (públicos y cacheables).
+- [x] BE: aceptar el CPA (`^[A-Z]\d{4}[A-Z]{3}$`) o el código viejo de 4 dígitos; normalizar a mayúsculas sin espacios.
+- [x] BE: borrar o consultar una dirección de otro usuario → 404 (no revelar que existe).
+- [x] FE: selects dependientes provincia → ciudad, lista de direcciones guardadas para elegir y opción "Agregar nueva".
+- [x] FE: `autocomplete` correcto en los campos (`given-name`, `family-name`, `street-address`, `postal-code`).
 
 **Escenarios**
 ```gherkin

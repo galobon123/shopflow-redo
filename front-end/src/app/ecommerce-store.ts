@@ -14,10 +14,10 @@ import { CartItem } from './core/models/cart.model';
 import { CartService } from './core/services/cart.service';
 import { OrderService } from './core/services/order.service';
 import { AddressService } from './core/services/address.service';
-import { AddressRequest } from './core/models/address.model';
+import { AddressRequest, AddressResponse } from './core/models/address.model';
 import { OrderResponse } from './core/models/order.model';
-import { forkJoin, of } from 'rxjs';
-import { map, catchError, switchMap, finalize } from 'rxjs/operators';
+import { forkJoin, Observable, of } from 'rxjs';
+import { map, catchError, switchMap, finalize, tap } from 'rxjs/operators';
 import { Router } from '@angular/router';
 
 type EcommerceState = {
@@ -42,6 +42,10 @@ type EcommerceState = {
   /** HU-13 · What changed in the cart because the stock moved; shown on top of the cart page until dismissed. */
   cartNotices: string[];
   recommendations: RecommendationsResponse;
+  /** HU-16 · "Mis direcciones", the last used first (the checkout preselects it). */
+  addresses: AddressResponse[];
+  addressesLoading: boolean;
+  addressesError: string | null;
   loading: boolean;
   error: string | null;
 };
@@ -60,6 +64,9 @@ const initialState: EcommerceState = {
   cartRequest: 0,
   cartNotices: [],
   recommendations: { sections: [] },
+  addresses: [],
+  addressesLoading: false,
+  addressesError: null,
   loading: false,
   error: null,
 };
@@ -380,16 +387,30 @@ export const EcommerceStore = signalStore(
       }
     });
   },
-  placeOrder(address: AddressRequest): void {
-    patchState(store, { loading: true, error: null });
-    addressService.createAddress(address).pipe(
-      switchMap((createdAddress) =>
-        orderService.createOrder(createdAddress.id).pipe(
-          map((order) => ({ order, error: null as string | null }))
-        )
-      )
+  /** HU-16 · Read when the checkout opens: they change only there, and a session may never need them. */
+  loadAddresses(): void {
+    patchState(store, { addressesLoading: true, addressesError: null });
+    addressService.getAddresses().pipe(
+      finalize(() => patchState(store, { addressesLoading: false })),
     ).subscribe({
-      next: ({ order }) => {
+      next: (addresses) => patchState(store, { addresses }),
+      error: (err) => patchState(store, { addressesError: errorMessage(err) }),
+    });
+  },
+  /**
+   * HU-16 · Ships to a saved address (its id) or to a new one, saved first. The new one joins "Mis direcciones"
+   * at the top right away, so if the order fails, trying again reuses it instead of saving it twice.
+   */
+  placeOrder(shipTo: number | AddressRequest): void {
+    patchState(store, { loading: true, error: null });
+    const addressId: Observable<number> = typeof shipTo === 'number' ? of(shipTo) : addressService.createAddress(shipTo).pipe(
+      tap((created) => patchState(store, { addresses: [created, ...store.addresses()] })),
+      map((created) => created.id),
+    );
+    addressId.pipe(
+      switchMap((id) => orderService.createOrder(id)),
+    ).subscribe({
+      next: (order) => {
         patchState(store, { cartItems: [], loading: false });
         router.navigate(['/order-success'], { state: { order } });
         toaster.success('¡Listo! Recibimos tu pedido.');
@@ -500,6 +521,8 @@ export const EcommerceStore = signalStore(
               wishListItems: [],
               wishListError: null,
               recommendations: { sections: [] },
+              addresses: [],
+              addressesError: null,
             });
             store.loadCart();
           });

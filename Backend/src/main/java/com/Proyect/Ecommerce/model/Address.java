@@ -1,5 +1,7 @@
 package com.Proyect.Ecommerce.model;
 
+import java.time.LocalDateTime;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -12,7 +14,6 @@ import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -43,8 +44,11 @@ public class Address {
     @JoinColumn(name = "city_id", nullable = false)
     private City city;
 
+    /**
+     * HU-16 · The CPA rule lives in AddressRequestDTO, not here: addresses saved before it (1 to 4 digits)
+     * must still be deletable and editable, and Hibernate would check the rule on every UPDATE.
+     */
     @NotBlank(message = "Ingresá el código postal")
-    @Digits(integer= 4, fraction = 0, message = "El código postal no es válido")
     @Column(nullable= false)
     private String zipCode;
 
@@ -52,4 +56,7 @@ public class Address {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
+
+    /** HU-16 · Set when the customer deletes it: hidden from "Mis direcciones", kept for the orders sent there. */
+    private LocalDateTime deletedAt;
 }

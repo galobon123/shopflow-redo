@@ -58,6 +58,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
+                // HU-16 · Provinces and cities for the address form.
+                .requestMatchers(HttpMethod.GET, "/api/states", "/api/cities").permitAll()
                 // HU-30 · Any customer can send a review; ReviewService checks they received the product.
                 .requestMatchers(HttpMethod.POST, "/api/products/*/reviews").authenticated()
                 .requestMatchers(HttpMethod.PUT, "/api/products/*/reviews/mine").authenticated()

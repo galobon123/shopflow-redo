@@ -1,37 +1,39 @@
-import { Component, inject, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, viewChild } from '@angular/core';
 import { BackButton } from "../../components/back-button/back-button";
 import { PaymentForm } from './payment-form/payment-form';
 import { ShippingForm } from './shipping-form/shipping-form';
 import { SummarizeOrder } from '../../components/summarize-order/summarize-order';
 import { EcommerceStore } from '../../ecommerce-store';
-import { MatButton } from '@angular/material/button';
 import { AuthStore } from '../../auth-store';
 import { RouterLink } from '@angular/router';
 import { ArsPipe, SfAlert, SfAlertAction, SfBadge, SfButton } from '../../ui';
 
 @Component({
   selector: 'app-checkout',
-  imports: [BackButton, ShippingForm, PaymentForm, SummarizeOrder, MatButton, RouterLink, ArsPipe, SfAlert, SfAlertAction, SfBadge, SfButton],
+  imports: [BackButton, ShippingForm, PaymentForm, SummarizeOrder, RouterLink, ArsPipe, SfAlert, SfAlertAction, SfBadge, SfButton],
   templateUrl: './checkout.html',
   styleUrl: './checkout.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Checkout {
   store = inject(EcommerceStore);
   /** HU-31 · Buying waits for the email confirmation; the backend refuses it too. */
   authStore = inject(AuthStore);
-  @ViewChild(ShippingForm) shippingForm!: ShippingForm;
+  private shippingForm = viewChild.required(ShippingForm);
 
-  /** HU-13 · Same as the cart page: the checkout decides on a fresh cart, not on the one read at login. */
+  /**
+   * HU-13 · Same as the cart page: the checkout decides on a fresh cart, not on the one read at login.
+   * HU-16 · "Mis direcciones" too: the last used comes chosen.
+   */
   constructor() {
     this.store.loadCart();
+    this.store.loadAddresses();
   }
 
   placeOrder(): void {
-    if (!this.authStore.emailVerified() || this.store.cartBlocked()) return;
-    if (this.shippingForm.form.invalid) {
-      this.shippingForm.form.markAllAsTouched();
-      return;
-    }
-    this.store.placeOrder(this.shippingForm.form.value);
+    if (this.store.loading() || !this.authStore.emailVerified() || this.store.cartBlocked()) return;
+    const shipTo = this.shippingForm().shipTo();
+    if (shipTo === null) return;
+    this.store.placeOrder(shipTo);
   }
 }

@@ -125,7 +125,9 @@
   }
 
   /* ---------- Field ---------- */
-  .sf-field { display: grid; gap: calc(var(--spacing) * 2); max-width: 360px; }
+  /* align-content: start · stretched by a grid row (a neighbour with help or error text), the label and the control
+     stay on top instead of spreading out, so the controls of a row line up. */
+  .sf-field { display: grid; align-content: start; gap: calc(var(--spacing) * 2); max-width: 360px; }
   .sf-field__label { font-size: 13px; line-height: 16px; font-weight: 600; color: var(--color-ink); }
   .sf-field__help { font-size: 13px; line-height: 18px; color: var(--color-ink-muted); }
   .sf-field__error { display: flex; gap: calc(var(--spacing) * 1); align-items: flex-start; font-size: 13px; line-height: 18px; color: var(--color-danger); }
@@ -145,6 +147,17 @@
   .sf-input[aria-invalid="true"] { border-color: var(--color-danger); }
   .sf-input[aria-invalid="true"]:focus { box-shadow: 0 0 0 1px var(--color-danger); }
   .sf-input--search { padding-left: 40px; }
+  .sf-input:disabled { background: var(--color-sunken); color: var(--color-ink-muted); cursor: not-allowed; }
+  /* Choice list (HU-16 · "Mis direcciones"): native radios, arrows move between them; the whole card is the hit area. */
+  .sf-choices { display: grid; gap: calc(var(--spacing) * 2); min-width: 0; margin: 0; padding: 0; border: 0; }
+  .sf-choices legend { padding: 0; margin-bottom: calc(var(--spacing) * 2); }
+  .sf-choice { display: flex; align-items: flex-start; gap: calc(var(--spacing) * 3); padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4); border: 1px solid var(--color-line); border-radius: var(--radius); background: var(--color-surface); cursor: pointer; font-size: 14px; line-height: 20px; }
+  .sf-choice:hover { background: var(--color-canvas); }
+  .sf-choice:has(input:checked) { border-color: var(--color-ink); box-shadow: inset 0 0 0 1px var(--color-ink); }
+  .sf-choice:has(input:focus-visible) { box-shadow: var(--shadow-focus); }
+  .sf-choice input { flex: none; width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--color-ink); }
+  .sf-choice input:focus-visible { box-shadow: none; }
+  .sf-choice__text { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
   /* Alert: one message about the whole form or page (field errors go under the field). */
   .sf-alert { display: flex; gap: calc(var(--spacing) * 3); align-items: center; padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4); border-radius: var(--radius); border-left: 3px solid; color: var(--color-ink); font-size: 14px; line-height: 20px; }
   .sf-alert > lucide-icon { flex-shrink: 0; }

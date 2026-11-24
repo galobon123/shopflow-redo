@@ -10,6 +10,8 @@ import { environment } from '../environments/environment';
 import { aCartItem, aProduct, aWishItem, testProviders } from './testing/test-providers';
 
 const api = environment.apiUrl;
+const NEW_ADDRESS = { firstName: 'Lucía', lastName: 'Pérez', address: 'San Martín 123', stateId: 82, cityId: 1, zipCode: '2000' };
+const SAVED = { ...NEW_ADDRESS, id: 9, cityName: 'Rosario', stateName: 'Santa Fe' };
 
 describe('EcommerceStore', () => {
   let store: InstanceType<typeof EcommerceStore>;
@@ -263,7 +265,7 @@ describe('EcommerceStore', () => {
     setup(true);
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
 
-    store.placeOrder({ firstName: 'Lucía', lastName: 'Pérez', address: 'San Martín 123', cityId: 1, zipCode: '2000' });
+    store.placeOrder(NEW_ADDRESS);
     backend.expectOne({ method: 'POST', url: `${api}/addresses` }).flush({ id: 9 });
     const order = { id: 1, total: 97800, items: [] };
     const req = backend.expectOne({ method: 'POST', url: `${api}/orders` });
@@ -274,11 +276,48 @@ describe('EcommerceStore', () => {
     expect(navigate).toHaveBeenCalledWith(['/order-success'], { state: { order } });
   });
 
+  /** HU-16 · One of "Mis direcciones": nothing new is saved. */
+  it('places the order to a saved address by its id', () => {
+    setup(true);
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+    store.placeOrder(9);
+    const req = backend.expectOne({ method: 'POST', url: `${api}/orders` });
+    expect(req.request.body).toEqual({ addressId: 9 });
+    req.flush({ id: 1, total: 97800, items: [] });
+
+    backend.expectNone(`${api}/addresses`);
+  });
+
+  /** HU-16 · The new address is saved even if the order fails: trying again must not save it twice. */
+  it('puts a new address at the top of "Mis direcciones" as soon as it is saved', () => {
+    setup(true);
+    store.loadAddresses();
+    backend.expectOne({ method: 'GET', url: `${api}/addresses` }).flush([{ ...SAVED, id: 3, address: 'Otra 1' }]);
+
+    store.placeOrder(NEW_ADDRESS);
+    backend.expectOne({ method: 'POST', url: `${api}/addresses` }).flush(SAVED);
+    backend.expectOne(`${api}/orders`).flush({ status: 503 }, { status: 503, statusText: 'Service Unavailable' });
+
+    expect(store.addresses().map((address) => address.id)).toEqual([9, 3]);
+    expect(store.loading()).toBe(false);
+  });
+
+  it('keeps the error of "Mis direcciones" to show it with a retry', () => {
+    setup(true);
+    store.loadAddresses();
+    expect(store.addressesLoading()).toBe(true);
+    backend.expectOne(`${api}/addresses`).flush({ status: 503 }, { status: 503, statusText: 'Service Unavailable' });
+
+    expect(store.addressesLoading()).toBe(false);
+    expect(store.addressesError()).toBe('Algo falló de nuestro lado.');
+  });
+
   it('keeps the cart, shows why and goes back to the cart when the order fails with 409 (HU-13)', () => {
     setup(true);
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
 
-    store.placeOrder({ firstName: 'Lucía', lastName: 'Pérez', address: 'San Martín 123', cityId: 1, zipCode: '2000' });
+    store.placeOrder(NEW_ADDRESS);
     backend.expectOne(`${api}/addresses`).flush({ id: 9 });
     backend.expectOne(`${api}/orders`).flush(
       { status: 409, detail: 'Sin stock de Remera lino.' },

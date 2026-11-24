@@ -1,6 +1,7 @@
 package com.Proyect.Ecommerce.dto.address;
 
-import jakarta.validation.constraints.Digits;
+import com.Proyect.Ecommerce.model.PostalCodes;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -23,10 +24,19 @@ public class AddressRequestDTO {
     @Size(max = 255, message = "La dirección no puede superar los 255 caracteres")
     private String address;
 
+    /** HU-16 · The city has to be one of this province's (AddressService checks it). */
+    @NotNull(message = "Elegí una provincia")
+    private Integer stateId;
+
     @NotNull(message = "Elegí una ciudad")
     private Integer cityId;
 
     @NotBlank(message = "Ingresá el código postal")
-    @Digits(integer = 4, fraction = 0, message = "El código postal no es válido")
+    @Pattern(regexp = PostalCodes.PATTERN, message = PostalCodes.INVALID)
     private String zipCode;
+
+    /** HU-16 · Validated already normalized: "x5152 abc" is a valid CPA. */
+    public void setZipCode(String zipCode) {
+        this.zipCode = PostalCodes.normalize(zipCode);
+    }
 }

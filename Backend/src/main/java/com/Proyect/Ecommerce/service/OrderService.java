@@ -76,13 +76,10 @@ public class OrderService {
             throw new ForbiddenException("Confirmá tu email para comprar. Te mandamos un enlace al registrarte.");
         }
 
-        Address address = addressRepository.findById(dto.getAddressId())
-                .orElseThrow(() -> new NotFoundException("Dirección no encontrada: " + dto.getAddressId()));
-
         // Someone else's address answers like a missing one, so address ids don't leak (as in AddressService).
-        if (!address.getCreatedBy().getId().equals(userId)) {
-            throw new NotFoundException("Dirección no encontrada: " + dto.getAddressId());
-        }
+        // HU-16 · A deleted one too: it stays only for the orders already sent there.
+        Address address = addressRepository.findByIdAndCreatedBy_IdAndDeletedAtIsNull(dto.getAddressId(), userId)
+                .orElseThrow(() -> new NotFoundException("Dirección no encontrada: " + dto.getAddressId()));
 
         Order order = new Order();
         order.setUser(user);
