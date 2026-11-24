@@ -3,6 +3,10 @@ import { HttpTestingController, TestRequest } from '@angular/common/http/testing
 import { ViewportScroller } from '@angular/common';
 import { NavigationEnd, Event as RouterEvent, Router, Scroll } from '@angular/router';
 import { Subject } from 'rxjs';
+import { patchState } from '@ngrx/signals';
+import { unprotected } from '@ngrx/signals/testing';
+import { EcommerceStore } from '../../ecommerce-store';
+import { RecommendationsResponse } from '../../core/models/recommendation.model';
 import { ProductsGrid } from './products-grid';
 import { aProduct, testProviders } from '../../testing/test-providers';
 import { environment } from '../../../environments/environment';
@@ -91,6 +95,48 @@ describe('ProductsGrid (HU-10)', () => {
     retry.click();
     TestBed.tick(); // starts the new request; it stays pending until answered
     backend.expectOne((r) => r.url === `${api}/products`);
+  });
+
+  describe('recommendations (HU-15)', () => {
+    /** What GET /recommendations brought in after login (EcommerceStore.loadRecommendations). */
+    function recommendations(recs: RecommendationsResponse) {
+      patchState(unprotected(TestBed.inject(EcommerceStore)), { recommendations: recs });
+    }
+    const titles = (el: HTMLElement) => [...el.querySelectorAll('h2.text-title')].map((h) => h.textContent?.trim());
+
+    it('a customer without history sees "Más vendidos" instead of personalized blocks', async () => {
+      const { catalogRequest, update } = render();
+      catalogRequest().flush(page([aProduct({ id: 1 })]));
+      recommendations({ sections: [{ type: 'BEST_SELLERS', products: [aProduct({ id: 20, name: 'Taza' })] }] });
+      const el = await update();
+
+      expect(titles(el)).toEqual(['Más vendidos']);
+      expect(el.querySelector('[aria-labelledby="recs-BEST_SELLERS"]')?.textContent).toContain('Taza');
+    });
+
+    it('a customer with history sees "Recomendados para vos" and "Por tus favoritos", in the order the API sends', async () => {
+      const { catalogRequest, update } = render();
+      catalogRequest().flush(page([aProduct({ id: 1 })]));
+      recommendations({
+        sections: [
+          { type: 'FOR_YOU', products: [aProduct({ id: 20, name: 'Plato' })] },
+          { type: 'WISHLIST', products: [aProduct({ id: 21, name: 'Termo' }), aProduct({ id: 22, name: 'Mate' })] },
+        ],
+      });
+      const el = await update();
+
+      expect(titles(el)).toEqual(['Recomendados para vos', 'Por tus favoritos']);
+      expect(el.querySelectorAll('[aria-labelledby="recs-WISHLIST"] app-product-card')).toHaveLength(2);
+      expect(el.textContent).not.toContain('Más vendidos');
+    });
+
+    it('a guest, or a failed request, shows no block', async () => {
+      const { catalogRequest, update } = render();
+      catalogRequest().flush(page([aProduct({ id: 1 })]));
+      const el = await update();
+
+      expect(titles(el)).toEqual([]);
+    });
   });
 
   describe('"Atrás" from a product (HU-11)', () => {

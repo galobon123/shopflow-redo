@@ -652,18 +652,18 @@ Escenario: Falla al vaciar la wishlist
 ---
 
 ### HU-15 · Recomendaciones por compras y wishlist
-**Prioridad:** Should
+**Prioridad:** Should · **Estado:** Hecha (falta que el webhook de la HU-18 llame a `markPaid` y que la edición de la HU-21 publique `ProductChanged`)
 
 > Como **cliente** quiero ver productos relacionados con lo que compré y guardé para descubrir cosas que me pueden gustar.
 
 **Tareas**
-- [ ] BE (Neo4j): al pasar una orden a PAGADA, crear `(:User)-[:PURCHASED {qty, at}]->(:Product)`.
-- [ ] BE (Neo4j): "Otros también compraron" sobre `PURCHASED`; "Por tu wishlist" sobre `WISHLISTED` + `BELONGS_TO`.
-- [ ] BE: excluir productos inactivos, sin stock o ya comprados.
-- [ ] BE (Redis): cachear el resultado en `recs:{userId}` con TTL de 10 minutos e invalidarlo al comprar o cambiar la wishlist.
-- [ ] BE: sincronizar los nodos de producto al editar nombre o precio (HU-21).
-- [ ] OPS: comando de backfill que cargue en Neo4j las órdenes y wishlists existentes.
-- [ ] BE: fallback "Más vendidos" con SQL si no hay historial o Neo4j falla.
+- [x] BE (Neo4j): al pasar una orden a PAGADA, crear `(:User)-[:PURCHASED {qty, at}]->(:Product)`.
+- [x] BE (Neo4j): "Otros también compraron" sobre `PURCHASED`; "Por tu wishlist" sobre `WISHLISTED` + `BELONGS_TO`.
+- [x] BE: excluir productos inactivos, sin stock o ya comprados.
+- [x] BE (Redis): cachear el resultado en `recs:{userId}` con TTL de 10 minutos e invalidarlo al comprar o cambiar la wishlist.
+- [x] BE: sincronizar los nodos de producto al editar nombre o precio (HU-21).
+- [x] OPS: comando de backfill que cargue en Neo4j las órdenes y wishlists existentes.
+- [x] BE: fallback "Más vendidos" con SQL si no hay historial o Neo4j falla.
 
 **Escenarios**
 ```gherkin

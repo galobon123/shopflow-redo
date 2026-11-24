@@ -45,7 +45,7 @@ import com.Proyect.Ecommerce.repository.ProductRepository;
 import com.Proyect.Ecommerce.repository.UserRepository;
 import com.Proyect.Ecommerce.search.ProductSearchIndex;
 import com.Proyect.Ecommerce.service.RecommendationService;
-import com.Proyect.Ecommerce.service.WishlistGraphSync;
+import com.Proyect.Ecommerce.service.GraphSync;
 
 /**
  * HU-14 · Wishlist que no depende de Neo4j, against real Postgres, Redis and Neo4j.
@@ -66,7 +66,7 @@ class WishlistIntegrationTest {
     @Autowired private UserRepository users;
     @Autowired private StringRedisTemplate redis;
     @Autowired private Driver neo4j;
-    @Autowired private WishlistGraphSync sync;
+    @Autowired private GraphSync sync;
     @MockitoSpyBean private RecommendationService recommendations;
 
     private Category bazar;

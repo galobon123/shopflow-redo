@@ -9,6 +9,7 @@ import { ProductCard } from '../../components/product-card/product-card';
 import { ToggleWishlistButton } from '../../components/toggle-wishlist-button/toggle-wishlist-button';
 import { EcommerceStore } from '../../ecommerce-store';
 import { ProductService, ProductSort } from '../../core/services/product.service';
+import { RecommendationType } from '../../core/models/recommendation.model';
 import { errorMessage } from '../../core/util/error-message';
 import { SfButton, SfEmptyState, SfErrorState, SfField, SfInput, SfPagination, SfSkeleton } from '../../ui';
 
@@ -19,6 +20,12 @@ const SORTS: { value: ProductSort; label: string }[] = [
   { value: 'price_desc', label: 'Mayor precio' },
   { value: 'name', label: 'Nombre (A-Z)' },
 ];
+/** HU-15 · The title of each recommendations block, by what the API says it is. */
+const SECTION_TITLES: Record<RecommendationType, string> = {
+  FOR_YOU: 'Recomendados para vos',
+  WISHLIST: 'Por tus favoritos',
+  BEST_SELLERS: 'Más vendidos',
+};
 
 /**
  * HU-10 · Catalog. Everything that defines the list lives in the URL, so a link can be shared:
@@ -46,6 +53,7 @@ export class ProductsGrid {
   readonly page = input<string>();
 
   protected readonly sorts = SORTS;
+  protected readonly sectionTitles = SECTION_TITLES;
   protected readonly icons = { noResults: SearchX, empty: PackageOpen };
   protected readonly skeletons = Array.from({ length: 8 }, (_, i) => i);
 

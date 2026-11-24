@@ -28,6 +28,7 @@ import com.Proyect.Ecommerce.controller.UserController;
 import com.Proyect.Ecommerce.exception.GlobalExceptionHandler;
 import com.Proyect.Ecommerce.service.CategoryService;
 import com.Proyect.Ecommerce.service.ProductService;
+import com.Proyect.Ecommerce.service.RecommendedProducts;
 import com.Proyect.Ecommerce.service.ReviewService;
 import com.Proyect.Ecommerce.service.UserService;
 
@@ -44,6 +45,7 @@ class AdminEndpointsSecurityTest {
     @Autowired private MockMvc mvc;
 
     @MockitoBean private ProductService productService;
+    @MockitoBean private RecommendedProducts recommendedProducts;
     @MockitoBean private ReviewService reviewService;
     @MockitoBean private CategoryService categoryService;
     @MockitoBean private UserService userService;

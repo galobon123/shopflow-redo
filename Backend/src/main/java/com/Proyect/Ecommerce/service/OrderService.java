@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ import com.Proyect.Ecommerce.exception.NotFoundException;
 import com.Proyect.Ecommerce.model.Address;
 import com.Proyect.Ecommerce.model.Order;
 import com.Proyect.Ecommerce.model.OrderItem;
+import com.Proyect.Ecommerce.model.OrderStatus;
 import com.Proyect.Ecommerce.model.Product;
 import com.Proyect.Ecommerce.model.User;
 import com.Proyect.Ecommerce.repository.AddressRepository;
@@ -34,17 +36,20 @@ public class OrderService {
     private final AddressRepository addressRepository;
     private final UserRepository userRepository;
     private final CartService cartService;
+    private final ApplicationEventPublisher events;
 
     public OrderService(OrderRepository orderRepository,
                         ProductRepository productRepository,
                         AddressRepository addressRepository,
                         UserRepository userRepository,
-                        CartService cartService) {
+                        CartService cartService,
+                        ApplicationEventPublisher events) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
         this.addressRepository = addressRepository;
         this.userRepository = userRepository;
         this.cartService = cartService;
+        this.events = events;
     }
 
     @Transactional
@@ -114,6 +119,22 @@ public class OrderService {
         cartService.clearCart(CartService.customer(userId));
 
         return toResponseDTO(savedOrder);
+    }
+
+    /**
+     * HU-15 · An order waiting for its payment becomes PAGADA. HU-18's approved-payment webhook is meant to call
+     * this; nothing else does yet. After the commit its purchases go to Neo4j (GraphSync), which also forgets
+     * the customer's cached recommendations.
+     */
+    @Transactional
+    public void markPaid(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new NotFoundException("Orden no encontrada: " + orderId));
+        if (order.getStatus() != OrderStatus.PENDIENTE_PAGO) {
+            throw new ConflictException("Esta orden ya no está esperando el pago.");
+        }
+        order.setStatus(OrderStatus.PAGADA);
+        events.publishEvent(new OrderStatusChanged(orderId));
     }
 
     public List<OrderResponseDTO> findByUserId(Long userId) {

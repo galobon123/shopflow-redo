@@ -53,7 +53,7 @@ public class WishListService {
         wishList.setUser(user);
         wishList.setProduct(product);
         wishListRepository.save(wishList);
-        // HU-14 · Neo4j is synced after the commit (WishlistGraphSync): if it's down, the wishlist still saves.
+        // HU-14 · Neo4j is synced after the commit (GraphSync): if it's down, the wishlist still saves.
         events.publishEvent(new WishlistChanged(userId, productId));
     }
 

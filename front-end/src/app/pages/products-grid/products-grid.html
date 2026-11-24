@@ -70,30 +70,20 @@
       }
     }
 
-    @if (store.recommendations().recommended.length > 0) {
-      <section class="mt-16" aria-labelledby="recs-title">
-        <h2 id="recs-title" class="text-title mb-4">Quizá te interese</h2>
-        <div class="responsive-grid">
-          @for (product of store.recommendations().recommended; track product.id) {
-            <app-product-card [product]="product">
-              <app-toggle-wishlist-button [product]="product" />
-            </app-product-card>
-          }
-        </div>
-      </section>
-    }
-
-    @if (store.recommendations().othersBought.length > 0) {
-      <section class="mt-16" aria-labelledby="others-title">
-        <h2 id="others-title" class="text-title mb-4">Otros también compraron</h2>
-        <div class="responsive-grid">
-          @for (product of store.recommendations().othersBought; track product.id) {
-            <app-product-card [product]="product">
-              <app-toggle-wishlist-button [product]="product" />
-            </app-product-card>
-          }
-        </div>
-      </section>
+    <!-- HU-15 · Personalized blocks or "Más vendidos", as the API says; none for guests or if it failed. -->
+    @for (section of store.recommendations().sections; track section.type) {
+      @if (section.products.length > 0) {
+        <section class="mt-16" [attr.aria-labelledby]="'recs-' + section.type">
+          <h2 [id]="'recs-' + section.type" class="text-title mb-4">{{ sectionTitles[section.type] }}</h2>
+          <div class="responsive-grid">
+            @for (product of section.products; track product.id) {
+              <app-product-card [product]="product">
+                <app-toggle-wishlist-button [product]="product" />
+              </app-product-card>
+            }
+          </div>
+        </section>
+      }
     }
   </section>
 </div>

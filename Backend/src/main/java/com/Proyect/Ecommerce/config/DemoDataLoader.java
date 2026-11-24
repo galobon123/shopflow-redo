@@ -1,7 +1,5 @@
 package com.Proyect.Ecommerce.config;
 
-import java.math.BigDecimal;
-
 import javax.sql.DataSource;
 
 import org.slf4j.Logger;
@@ -17,10 +15,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import com.Proyect.Ecommerce.dto.builder.RecommendationBuilderDTO;
 import com.Proyect.Ecommerce.repository.ProductRepository;
 import com.Proyect.Ecommerce.search.ProductSearchIndex;
-import com.Proyect.Ecommerce.service.RecommendationService;
+import com.Proyect.Ecommerce.service.GraphBackfill;
 
 /**
  * Local development only (app.demo-data.enabled, on in the dev profile): fills the store so every page
@@ -29,7 +26,8 @@ import com.Proyect.Ecommerce.service.RecommendationService;
  * <li>db/demo/productos.sql: categories and products, when the catalog is empty;</li>
  * <li>db/demo/fotos.sql: photos, for the sample products that have none;</li>
  * <li>db/demo/uso.sql: customers (password {@value #PASSWORD}), orders, reviews and favourites, when the
- * demo customers don't exist yet. Their favourites also go to Neo4j for the recommendations.</li>
+ * demo customers don't exist yet. Then the whole store goes to Neo4j for the recommendations (HU-15,
+ * GraphBackfill); a database loaded before that needs it once with {@code app.neo4j.backfill=true}.</li>
  * </ul>
  * Not a migration on purpose: it never reaches production and leaves no trace in Flyway's history, which the
  * Docker backend validates against the same database.
@@ -50,17 +48,17 @@ public class DemoDataLoader implements ApplicationRunner {
     private final JdbcTemplate jdbc;
     private final PasswordEncoder passwordEncoder;
     private final TransactionTemplate transaction;
-    private final RecommendationService recommendations;
+    private final GraphBackfill graphBackfill;
 
     public DemoDataLoader(ProductRepository productRepository, DataSource dataSource, JdbcTemplate jdbc,
                           PasswordEncoder passwordEncoder, PlatformTransactionManager transactionManager,
-                          RecommendationService recommendations) {
+                          GraphBackfill graphBackfill) {
         this.productRepository = productRepository;
         this.dataSource = dataSource;
         this.jdbc = jdbc;
         this.passwordEncoder = passwordEncoder;
         this.transaction = new TransactionTemplate(transactionManager);
-        this.recommendations = recommendations;
+        this.graphBackfill = graphBackfill;
     }
 
     @Override
@@ -81,8 +79,9 @@ public class DemoDataLoader implements ApplicationRunner {
                 jdbc.update("UPDATE users SET password = ? WHERE email LIKE ?",
                         passwordEncoder.encode(PASSWORD), DEMO_EMAILS);
             });
-            syncFavouritesToNeo4j();
             log.info("Se cargaron clientes de demo con pedidos, reseñas y favoritos (contraseña {}).", PASSWORD);
+            // Without Neo4j the store still works: the backfill only warns, and can be run again later.
+            graphBackfill.backfill();
         }
     }
 
@@ -90,33 +89,5 @@ public class DemoDataLoader implements ApplicationRunner {
         ResourceDatabasePopulator populator = new ResourceDatabasePopulator(new ClassPathResource(path));
         populator.setSqlScriptEncoding("UTF-8");
         populator.execute(dataSource);
-    }
-
-    /** Recommendations read favourites from Neo4j; without it the store still works, so it only warns. */
-    private void syncFavouritesToNeo4j() {
-        try {
-            jdbc.query("""
-                    SELECT u.id AS user_id, u.email, p.id AS product_id, p.name, p.price, c.id AS category_id,
-                           c.name AS category_name,
-                           (SELECT url FROM product_images i WHERE i.product_id = p.id AND i.position = 0) AS image_url
-                    FROM wishlist w
-                    JOIN users u ON u.id = w.user_id
-                    JOIN products p ON p.id = w.product_id
-                    JOIN categories c ON c.id = p.category_id
-                    WHERE u.email LIKE ?
-                    """, (rs, row) -> RecommendationBuilderDTO.builder()
-                            .userId(rs.getLong("user_id"))
-                            .userEmail(rs.getString("email"))
-                            .productId(rs.getLong("product_id"))
-                            .productName(rs.getString("name"))
-                            .price(rs.getObject("price", BigDecimal.class))
-                            .imageUrl(rs.getString("image_url"))
-                            .categoryId(rs.getLong("category_id"))
-                            .categoryName(rs.getString("category_name"))
-                            .build(), DEMO_EMAILS)
-                    .forEach(recommendations::recommendationAdd);
-        } catch (RuntimeException e) {
-            log.warn("Favoritos de demo no sincronizados con Neo4j: {}", e.getMessage());
-        }
     }
 }

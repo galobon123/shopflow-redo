@@ -55,10 +55,15 @@ export class ProductDetail {
   /** Starts at 1 for each product; the stepper never goes past its stock. */
   protected readonly quantity = linkedSignal({ source: () => this.detail()?.id, computation: () => 1 });
 
-  /** HU-11 · "Otros también compraron", minus the product on screen. */
-  protected readonly othersBought = computed(() =>
-    this.store.recommendations().othersBought.filter((other) => other.id !== this.detail()?.id),
-  );
+  /**
+   * HU-15 · "Otros también compraron" for this product, guests included (the API leaves this one, inactive and
+   * sold-out ones out). Secondary: while it loads, when it's empty or if it fails the block just isn't there.
+   */
+  private readonly alsoBought = rxResource({
+    params: () => this.productId() ?? undefined,
+    stream: ({ params: id }) => this.productService.alsoBought(id),
+  });
+  protected readonly othersBought = computed(() => (this.alsoBought.hasValue() ? this.alsoBought.value() : []));
 
   protected readonly notFound = computed(() => {
     const error = this.product.error();

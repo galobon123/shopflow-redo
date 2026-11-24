@@ -37,7 +37,7 @@ describe('EcommerceStore', () => {
     if (authenticated) {
       backend.expectOne(`${api}/wishlist`).flush([]);
       backend.expectOne({ method: 'POST', url: `${api}/cart/merge` }).flush({ items: cart, notices: [] });
-      backend.match((r) => r.url.includes('/recommendations')).forEach((r) => r.flush({ recommended: [], othersBought: [] }));
+      backend.match((r) => r.url.includes('/recommendations')).forEach((r) => r.flush({ sections: [] }));
     } else {
       backend.expectOne({ method: 'GET', url: `${api}/cart` }).flush(cart);
     }
@@ -48,7 +48,7 @@ describe('EcommerceStore', () => {
     loggedIn.set(true);
     TestBed.tick();
     backend.expectOne(`${api}/wishlist`).flush([]);
-    backend.match((r) => r.url.includes('/recommendations')).forEach((r) => r.flush({ recommended: [], othersBought: [] }));
+    backend.match((r) => r.url.includes('/recommendations')).forEach((r) => r.flush({ sections: [] }));
   }
 
   afterEach(() => backend.verify());

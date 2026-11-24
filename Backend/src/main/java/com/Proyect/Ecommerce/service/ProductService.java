@@ -8,7 +8,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.Proyect.Ecommerce.dto.PageResponse;
 import com.Proyect.Ecommerce.dto.product.ProductDetailDTO;
@@ -32,15 +34,18 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final ProductSearchIndex searchIndex;
     private final ReviewService reviewService;
+    private final ApplicationEventPublisher events;
 
     public ProductService(ProductRepository productRepository,
                           CategoryRepository categoryRepository,
                           ProductSearchIndex searchIndex,
-                          ReviewService reviewService) {
+                          ReviewService reviewService,
+                          ApplicationEventPublisher events) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.searchIndex = searchIndex;
         this.reviewService = reviewService;
+        this.events = events;
     }
 
     /** HU-10 · The ways the catalog can be sorted; anything else is a 400. */
@@ -125,6 +130,8 @@ public class ProductService {
         dto.setReviewCount(summary.total());
     }
 
+    /** HU-15 · Its Neo4j node is created after the commit (GraphSync); HU-21's edit has to publish the same event. */
+    @Transactional
     public ProductResponseDTO save(ProductRequestDTO dto) {
         Category category = categoryRepository.findById(dto.getCategoryId())
                 .orElseThrow(() -> new NotFoundException("Categoría no encontrada: " + dto.getCategoryId()));
@@ -134,7 +141,9 @@ public class ProductService {
         product.setPrice(dto.getPrice());
         product.setStock(dto.getStock());
         product.setCategory(category);
-        return toResponseDTO(productRepository.save(product));
+        Product saved = productRepository.save(product);
+        events.publishEvent(new ProductChanged(saved.getId()));
+        return toResponseDTO(saved);
     }
 
     public void deactivateById(Long id) {

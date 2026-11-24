@@ -25,4 +25,13 @@ public interface WishListRepository extends JpaRepository<WishList, Long> {
     /** HU-14 · Empties it in one statement and says what it removed, so each one can be synced to Neo4j. */
     @Query(value = "DELETE FROM wishlist WHERE user_id = :userId RETURNING product_id", nativeQuery = true)
     List<Long> deleteAllOfUser(@Param("userId") Long userId);
+
+    /** HU-15 · Every (customer, product) pair, for the Neo4j backfill. */
+    @Query("SELECT w.user.id AS userId, w.product.id AS productId FROM WishList w")
+    List<Pair> findAllPairs();
+
+    interface Pair {
+        Long getUserId();
+        Long getProductId();
+    }
 }

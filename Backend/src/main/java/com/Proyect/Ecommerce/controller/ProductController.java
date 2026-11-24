@@ -15,14 +15,17 @@ import com.Proyect.Ecommerce.dto.product.ProductRequestDTO;
 import com.Proyect.Ecommerce.dto.product.ProductResponseDTO;
 import com.Proyect.Ecommerce.search.ProductSearchIndex;
 import com.Proyect.Ecommerce.service.ProductService;
+import com.Proyect.Ecommerce.service.RecommendedProducts;
 
 @RestController
 @RequestMapping("/api/products")
 public class ProductController {
     private final ProductService productService;
+    private final RecommendedProducts recommendedProducts;
 
-    public ProductController(ProductService productService) {
+    public ProductController(ProductService productService, RecommendedProducts recommendedProducts) {
         this.productService = productService;
+        this.recommendedProducts = recommendedProducts;
     }
 
     /**
@@ -54,6 +57,15 @@ public class ProductController {
         boolean admin = auth != null && auth.getAuthorities().stream()
                 .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
         return ResponseEntity.ok(productService.findById(id, admin));
+    }
+
+    /**
+     * HU-15 · "Otros también compraron": what the buyers of this product also bought, active and in stock, this
+     * one left out. Public (guests see it too) and empty when there's nothing, or Neo4j didn't answer.
+     */
+    @GetMapping("/{id}/also-bought")
+    public ResponseEntity<List<ProductResponseDTO>> alsoBought(@PathVariable Long id) {
+        return ResponseEntity.ok(recommendedProducts.alsoBought(id));
     }
 
     @PutMapping("/{id}/deactivate")

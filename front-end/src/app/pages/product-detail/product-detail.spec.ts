@@ -2,8 +2,6 @@ import { Component, input, output } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { HttpTestingController } from '@angular/common/http/testing';
 import { Title } from '@angular/platform-browser';
-import { patchState } from '@ngrx/signals';
-import { unprotected } from '@ngrx/signals/testing';
 import { ProductDetail } from './product-detail';
 import { ProductReviews } from '../../components/product-reviews/product-reviews';
 import { EcommerceStore } from '../../ecommerce-store';
@@ -37,17 +35,20 @@ describe('ProductDetail (HU-11)', () => {
     const backend = TestBed.inject(HttpTestingController);
     backend.match(`${api}/categories`).forEach((r) => r.flush([]));
     const el = fixture.nativeElement as HTMLElement;
-    /** The resource settles asynchronously after the response. */
+    /**
+     * The resource settles asynchronously after the response. HU-15 · A "Otros también compraron" request the test
+     * didn't answer gets an empty list, or the page would never be stable.
+     */
     const update = async () => {
+      backend.match((r) => r.url.endsWith('/also-bought')).forEach((r) => r.flush([]));
       await fixture.whenStable();
       fixture.detectChanges();
       return el;
     };
     const button = (text: string) => [...el.querySelectorAll('button')].find((b) => b.textContent?.includes(text))!;
-    /** What GET /recommendations brought in after login (EcommerceStore.loadRecommendations). */
-    const othersBought = (products: ReturnType<typeof aProduct>[]) =>
-      patchState(unprotected(store), { recommendations: { recommended: [], othersBought: products } });
-    return { fixture, backend, el, update, button, addToCart, othersBought };
+    /** HU-15 · GET /products/15/also-bought, asked for together with the product. */
+    const alsoBought = () => backend.expectOne(`${api}/products/15/also-bought`);
+    return { fixture, backend, el, update, button, addToCart, alsoBought };
   }
 
   it('shows a skeleton while it loads', () => {
@@ -130,17 +131,17 @@ describe('ProductDetail (HU-11)', () => {
     backend.expectOne(`${api}/products/15`);
   });
 
-  it('shows "Otros también compraron" without the product being viewed', async () => {
-    const { backend, update, othersBought } = render();
-    othersBought([aProduct(), aProduct({ id: 16, name: 'Short denim' }), aProduct({ id: 17, name: 'Gorra' })]);
+  it('HU-15 · shows "Otros también compraron" for this product, for guests too', async () => {
+    const { backend, update, alsoBought } = render();
 
     backend.expectOne(`${api}/products/15`).flush(aDetail());
+    alsoBought().flush([aProduct({ id: 16, name: 'Short denim' }), aProduct({ id: 17, name: 'Gorra' })]);
     const el = await update();
 
     const section = el.querySelector('[aria-labelledby="others-title"]');
     expect(section?.textContent).toContain('Otros también compraron');
     expect(section?.querySelectorAll('app-product-card')).toHaveLength(2);
-    expect(section?.textContent).not.toContain('Remera lino');
+    expect(section?.textContent).toContain('Short denim');
     expect(section?.querySelectorAll('app-toggle-wishlist-button')).toHaveLength(2);
   });
 
@@ -180,15 +181,25 @@ describe('ProductDetail (HU-11)', () => {
     expect(el.querySelector('.sf-pdp__rating sf-stars')?.getAttribute('aria-label')).toBe('4 de 5 estrellas');
   });
 
-  it('hides "Otros también compraron" when there is nothing else to show', async () => {
-    const { backend, update, othersBought } = render();
+  it('HU-15 · hides "Otros también compraron" when nobody else bought it', async () => {
+    const { backend, update, alsoBought } = render();
 
     backend.expectOne(`${api}/products/15`).flush(aDetail());
-    let el = await update();
-    expect(el.textContent).not.toContain('Otros también compraron'); // guest, or the request failed
-
-    othersBought([aProduct()]); // only the product being viewed
-    el = await update();
+    alsoBought().flush([]);
+    const el = await update();
     expect(el.textContent).not.toContain('Otros también compraron');
+    expect(el.querySelector('h1')?.textContent).toContain('Remera lino');
+  });
+
+  it('HU-15 · if "Otros también compraron" fails, the product is still there without the block', async () => {
+    const { backend, update, alsoBought } = render();
+
+    backend.expectOne(`${api}/products/15`).flush(aDetail());
+    alsoBought().flush({ status: 500, title: 'Error' }, { status: 500, statusText: 'Server Error' });
+    const el = await update();
+
+    expect(el.textContent).not.toContain('Otros también compraron');
+    expect(el.querySelector('sf-error-state')).toBeNull();
+    expect(el.querySelector('h1')?.textContent).toContain('Remera lino');
   });
 });

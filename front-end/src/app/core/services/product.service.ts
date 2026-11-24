@@ -44,6 +44,11 @@ export class ProductService {
     return this.http.get<ProductDetail>(`${this.url}/${id}`);
   }
 
+  /** HU-15 · "Otros también compraron": what this product's buyers also bought (empty when there's nothing). */
+  alsoBought(id: number): Observable<ProductResponse[]> {
+    return this.http.get<ProductResponse[]>(`${this.url}/${id}/also-bought`);
+  }
+
   create(product: ProductRequest): Observable<ProductResponse> {
     return this.http.post<ProductResponse>(this.url, product);
   }

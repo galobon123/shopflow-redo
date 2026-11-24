@@ -1,61 +1,44 @@
 package com.Proyect.Ecommerce.service;
 
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import org.neo4j.driver.Driver;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.Proyect.Ecommerce.dto.builder.RecommendationBuilderDTO;
-import com.Proyect.Ecommerce.dto.product.ProductResponseDTO;
-import com.Proyect.Ecommerce.dto.recommendation.RecommendationResponseDTO;
+import com.Proyect.Ecommerce.model.Order;
 import com.Proyect.Ecommerce.model.Product;
-import com.Proyect.Ecommerce.model.nodes.ProductNode;
-import com.Proyect.Ecommerce.repository.ProductRepository;
 import com.Proyect.Ecommerce.repository.RecommendationRepository;
 
 import lombok.RequiredArgsConstructor;
 
+/**
+ * HU-14/HU-15 · The only way to Neo4j: what goes into the graph and the ranked product ids it answers.
+ * Turning those ids into what the customer sees (cache, stock, best sellers) is {@link RecommendedProducts}'.
+ */
 @Service
 @RequiredArgsConstructor
 public class RecommendationService {
 
     private final RecommendationRepository recommendationRepository;
-    private final ProductRepository productRepository;
     private final Driver neo4j;
 
-    @Transactional(readOnly = true)
-    public RecommendationResponseDTO getRecommendations(Long userId) {
-        List<ProductNode> byCategory = recommendationRepository.recommendByCategory(userId);
-        List<ProductNode> collaborative = recommendationRepository.recommendCollaborative(userId);
+    /** HU-15 · Product ids the buyers of this product also bought, best first. */
+    public List<Long> alsoBought(Long productId, int limit) {
+        return recommendationRepository.alsoBought(productId, limit);
+    }
 
-        Set<Long> allIds = new HashSet<>();
-        byCategory.forEach(n -> allIds.add(n.getId()));
-        collaborative.forEach(n -> allIds.add(n.getId()));
+    /** HU-15 · From the customers who bought what this one bought. */
+    public List<Long> boughtByBuyersLikeYou(Long userId, int limit) {
+        return recommendationRepository.boughtByBuyersLikeYou(userId, limit);
+    }
 
-        Map<Long, Product> productMap = allIds.isEmpty()
-                ? Map.of()
-                : productRepository.findAllById(allIds).stream()
-                        .collect(Collectors.toMap(Product::getId, Function.identity()));
-
-        RecommendationResponseDTO response = new RecommendationResponseDTO();
-        response.setRecommended(byCategory.stream()
-                .map(n -> productMap.get(n.getId()))
-                .filter(Objects::nonNull)
-                .map(this::toProductResponseDTO)
-                .toList());
-        response.setOthersBought(collaborative.stream()
-                .map(n -> productMap.get(n.getId()))
-                .filter(Objects::nonNull)
-                .map(this::toProductResponseDTO)
-                .toList());
-        return response;
+    /** HU-15 · From the categories of this customer's wishlist. */
+    public List<Long> likeYourWishlist(Long userId, int limit) {
+        return recommendationRepository.likeYourWishlist(userId, limit);
     }
 
     @Transactional("neo4jTransactionManager")
@@ -73,6 +56,38 @@ public class RecommendationService {
         recommendationRepository.syncWishlistRemove(userId, productId);
     }
 
+    /** HU-15 · The order's items as PURCHASED, with their quantity and when it was bought. Loaded with findForGraph. */
+    @Transactional("neo4jTransactionManager")
+    public void syncPurchases(Order order) {
+        List<Map<String, Object>> items = order.getItems().stream().map(item -> {
+            Product product = item.getProduct();
+            Map<String, Object> graph = new HashMap<>();
+            graph.put("productId", product.getId());
+            graph.put("name", product.getName());
+            graph.put("price", product.getPrice().doubleValue());
+            graph.put("imageUrl", product.getImageUrl() != null ? product.getImageUrl() : "");
+            graph.put("categoryId", product.getCategory().getId());
+            graph.put("categoryName", product.getCategory().getName());
+            graph.put("qty", item.getQuantity().longValue());
+            return graph;
+        }).toList();
+        recommendationRepository.syncPurchases(order.getUser().getId(), order.getUser().getEmail(), order.getId(),
+                order.getCreatedAt(), items);
+    }
+
+    @Transactional("neo4jTransactionManager")
+    public void removePurchases(Long orderId) {
+        recommendationRepository.removePurchases(orderId);
+    }
+
+    /** HU-15 · Name, price, cover and category of the node, as in Postgres. Loaded with findForGraph. */
+    @Transactional("neo4jTransactionManager")
+    public void syncProduct(Product product) {
+        recommendationRepository.syncProduct(product.getId(), product.getName(), product.getPrice().doubleValue(),
+                product.getImageUrl() != null ? product.getImageUrl() : "",
+                product.getCategory().getId(), product.getCategory().getName());
+    }
+
     /** HU-14 · Whether Neo4j answers now; the retry job waits for it instead of spending attempts. */
     public boolean isAvailable() {
         try {
@@ -81,24 +96,5 @@ public class RecommendationService {
         } catch (RuntimeException e) {
             return false;
         }
-    }
-
-
-    private ProductResponseDTO toProductResponseDTO(Product product) {
-        ProductResponseDTO dto = new ProductResponseDTO();
-        dto.setId(product.getId());
-        dto.setName(product.getName());
-        dto.setDescription(product.getDescription());
-        dto.setPrice(product.getPrice());
-        dto.setStock(product.getStock());
-
-        if (product.getCategory() != null) {
-            dto.setCategoryName(product.getCategory().getName());
-        }
-
-        dto.setActive(product.isActive());
-        dto.setCreatedAt(product.getCreatedAt());
-        dto.setImageUrl(product.getImageUrl());
-        return dto;
     }
 }

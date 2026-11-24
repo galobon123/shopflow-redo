@@ -1,7 +1,9 @@
 package com.Proyect.Ecommerce.repository;
 
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -41,4 +43,31 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     @Modifying
     @Query("UPDATE Product p SET p.stock = p.stock - :quantity WHERE p.id = :id AND p.stock >= :quantity")
     int decrementStock(@Param("id") Long id, @Param("quantity") int quantity);
+
+    /** HU-15 · Recommended products with their category (no N+1); the caller puts them back in ranking order. */
+    @EntityGraph(attributePaths = "category")
+    List<Product> findByIdIn(Collection<Long> ids);
+
+    /** HU-15 · The product with its category, for its Neo4j node. */
+    @Query("SELECT p FROM Product p JOIN FETCH p.category WHERE p.id = :id")
+    Optional<Product> findForGraph(@Param("id") Long id);
+
+    @Query("SELECT p.id FROM Product p")
+    List<Long> findAllIds();
+
+    /**
+     * HU-15 · "Más vendidos": active products with stock, by units sold in orders paid or later
+     * (OrderStatus.isPaid); unsold ones after them, newest first, so a store without sales still shows something.
+     */
+    @Query(value = """
+            SELECT p.id FROM products p
+            LEFT JOIN (SELECT i.product_id, sum(i.quantity) AS units
+                       FROM order_items i JOIN orders o ON o.id = i.order_id
+                       WHERE o.status IN ('PAGADA', 'ENVIADA', 'ENTREGADA')
+                       GROUP BY i.product_id) sold ON sold.product_id = p.id
+            WHERE p.active AND p.stock > 0
+            ORDER BY coalesce(sold.units, 0) DESC, p.created_at DESC, p.id DESC
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<Long> findBestSellerIds(@Param("limit") int limit);
 }

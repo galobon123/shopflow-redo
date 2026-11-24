@@ -71,7 +71,7 @@
 
     <app-product-reviews class="sf-pdp__full" [productId]="p.id" (reviewed)="product.reload()" />
 
-    <!-- HU-15 · Loaded by the store at login and empty for guests or if it failed: hidden then. -->
+    <!-- HU-15 · Per product, for everyone; hidden while loading, when empty or if it failed. -->
     @if (othersBought().length > 0) {
       <section class="sf-pdp__full" aria-labelledby="others-title">
         <h2 id="others-title" class="text-title mb-4">Otros también compraron</h2>

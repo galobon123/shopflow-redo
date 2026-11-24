@@ -59,7 +59,7 @@ const initialState: EcommerceState = {
   cartMerging: false,
   cartRequest: 0,
   cartNotices: [],
-  recommendations: { recommended: [], othersBought: [] },
+  recommendations: { sections: [] },
   loading: false,
   error: null,
 };
@@ -499,7 +499,7 @@ export const EcommerceStore = signalStore(
               cartNotices: [],
               wishListItems: [],
               wishListError: null,
-              recommendations: { recommended: [], othersBought: [] },
+              recommendations: { sections: [] },
             });
             store.loadCart();
           });

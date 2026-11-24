@@ -14,18 +14,23 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import com.Proyect.Ecommerce.IntegrationTest;
+import com.Proyect.Ecommerce.repository.OrderRepository;
+import com.Proyect.Ecommerce.repository.ProductRepository;
 import com.Proyect.Ecommerce.repository.WishListRepository;
 
 /** HU-14 · A restart while Neo4j is slow doesn't lose the syncs waiting in memory, against real Postgres and Redis. */
 @IntegrationTest
-class WishlistGraphSyncShutdownTest {
+class GraphSyncShutdownTest {
 
     @Autowired private WishListRepository wishListRepository;
+    @Autowired private OrderRepository orderRepository;
+    @Autowired private ProductRepository productRepository;
+    @Autowired private RecommendedProducts recommendedProducts;
     @Autowired private StringRedisTemplate redis;
 
     @BeforeEach
     void emptyQueues() {
-        redis.delete(WishlistGraphSync.PENDING);
+        redis.delete(GraphSync.PENDING);
     }
 
     @Test
@@ -42,7 +47,7 @@ class WishlistGraphSyncShutdownTest {
             }
             return null;
         }).when(hungNeo4j).syncWishlistRemove(anyLong(), anyLong());
-        WishlistGraphSync sync = new WishlistGraphSync(wishListRepository, hungNeo4j, redis);
+        GraphSync sync = new GraphSync(wishListRepository, orderRepository, productRepository, hungNeo4j, recommendedProducts, redis);
 
         sync.onWishlistChanged(new WishlistChanged(7L, 1L));
         assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
@@ -51,7 +56,7 @@ class WishlistGraphSyncShutdownTest {
 
         sync.stop();
 
-        assertThat(redis.opsForList().range(WishlistGraphSync.PENDING, 0, -1))
+        assertThat(redis.opsForList().range(GraphSync.PENDING, 0, -1))
                 .containsExactlyInAnyOrder("7:1:0", "7:2:0", "7:3:0");
     }
 }

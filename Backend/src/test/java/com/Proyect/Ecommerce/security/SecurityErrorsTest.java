@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.Proyect.Ecommerce.controller.ProductController;
 import com.Proyect.Ecommerce.exception.GlobalExceptionHandler;
 import com.Proyect.Ecommerce.service.ProductService;
+import com.Proyect.Ecommerce.service.RecommendedProducts;
 
 /** HU-03 · 401/403 from the security filters use the same ProblemDetail format. */
 @WebMvcTest(ProductController.class)
@@ -30,6 +31,8 @@ class SecurityErrorsTest {
 
     @MockitoBean
     private ProductService productService;
+    @MockitoBean
+    private RecommendedProducts recommendedProducts;
     @MockitoBean
     private JwtService jwtService;
     @MockitoBean
