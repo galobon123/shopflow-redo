@@ -289,6 +289,73 @@ describe('EcommerceStore', () => {
     backend.expectNone(`${api}/addresses`);
   });
 
+  /** HU-17 · Escenario: Confirmo dos veces la misma compra (the connection drops and it's tried again). */
+  it('sends every retry of the same purchase with the same Idempotency-Key, and a new one after buying', () => {
+    setup(true);
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    store.startCheckout();
+
+    store.placeOrder(9);
+    const first = backend.expectOne({ method: 'POST', url: `${api}/orders` });
+    const key = first.request.headers.get('Idempotency-Key')!;
+    expect(key).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    first.flush(null, { status: 0, statusText: 'Unknown Error' });
+
+    store.placeOrder(9);
+    const retry = backend.expectOne({ method: 'POST', url: `${api}/orders` });
+    expect(retry.request.headers.get('Idempotency-Key')).toBe(key);
+    retry.flush({ id: 1, total: 97800, items: [] });
+
+    store.placeOrder(9);
+    const next = backend.expectOne({ method: 'POST', url: `${api}/orders` });
+    expect(next.request.headers.get('Idempotency-Key')).not.toBe(key);
+    next.flush({ id: 2, total: 97800, items: [] });
+  });
+
+  it('starts a new purchase when the checkout opens again or the cart is another one', () => {
+    setup(true);
+    store.startCheckout();
+    const keyOf = () => {
+      store.placeOrder(9);
+      const req = backend.expectOne({ method: 'POST', url: `${api}/orders` });
+      req.flush({ status: 503 }, { status: 503, statusText: 'Service Unavailable' });
+      return req.request.headers.get('Idempotency-Key');
+    };
+
+    const first = keyOf();
+    store.startCheckout();
+    const reopened = keyOf();
+    expect(reopened).not.toBe(first);
+
+    store.addToCart(aProduct({ id: 20 }));
+    backend.expectOne({ method: 'POST', url: `${api}/cart/20?qty=1` }).flush(null);
+    expect(keyOf()).not.toBe(reopened);
+  });
+
+  /** HU-17 · The first click is still being bought: stay on the checkout, keep the key and say so. */
+  it('waits on the checkout, with the same key, while the purchase is still being made', () => {
+    setup(true);
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    store.startCheckout();
+
+    store.placeOrder(9);
+    const first = backend.expectOne({ method: 'POST', url: `${api}/orders` });
+    first.flush(
+      { status: 409, detail: 'Tu compra se está procesando.', reason: 'order-in-progress' },
+      { status: 409, statusText: 'Conflict' },
+    );
+
+    expect(navigate).not.toHaveBeenCalled();
+    expect(toaster.info).toHaveBeenCalledWith(expect.stringContaining('Tu compra se está procesando.'));
+    expect(store.cartItems()).toHaveLength(1);
+    expect(store.loading()).toBe(false);
+
+    store.placeOrder(9);
+    const retry = backend.expectOne({ method: 'POST', url: `${api}/orders` });
+    expect(retry.request.headers.get('Idempotency-Key')).toBe(first.request.headers.get('Idempotency-Key'));
+    retry.flush({ id: 1, total: 97800, items: [] });
+  });
+
   /** HU-16 · The new address is saved even if the order fails: trying again must not save it twice. */
   it('puts a new address at the top of "Mis direcciones" as soon as it is saved', () => {
     setup(true);

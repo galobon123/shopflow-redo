@@ -98,6 +98,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.NOT_FOUND, "No encontrado", ex.getMessage());
     }
 
+    /** HU-17 · `reason` tells the checkout to stay and wait, not to send the customer back to the cart. */
+    @ExceptionHandler(PurchaseInProgressException.class)
+    public ProblemDetail handlePurchaseInProgress(PurchaseInProgressException ex) {
+        ProblemDetail problem = problem(HttpStatus.CONFLICT, "Conflicto", ex.getMessage());
+        problem.setProperty("reason", "order-in-progress");
+        return problem;
+    }
+
     @ExceptionHandler(ConflictException.class)
     public ProblemDetail handleConflict(ConflictException ex) {
         return problem(HttpStatus.CONFLICT, "Conflicto", ex.getMessage());

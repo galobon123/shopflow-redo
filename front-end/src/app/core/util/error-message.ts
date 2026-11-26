@@ -8,6 +8,8 @@ export interface Problem {
   detail?: string;
   errors?: Record<string, string>;
   errorId?: string;
+  /** Why, when the browser has to react to it: 'session-replaced', 'order-in-progress' (HU-17). */
+  reason?: string;
 }
 
 export const OFFLINE_MESSAGE = 'No pudimos conectar con el servidor. Revisá tu conexión y probá de nuevo.';

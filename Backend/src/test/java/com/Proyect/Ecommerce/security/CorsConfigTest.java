@@ -34,6 +34,13 @@ class CorsConfigTest {
                 configFor(List.of("https://mitienda.com")).checkHeaders(List.of("X-Cart-Id")));
     }
 
+    /** HU-17 · Each purchase attempt is named by its own header. */
+    @Test
+    void allowsTheIdempotencyKeyHeader() {
+        assertEquals(List.of("Idempotency-Key"),
+                configFor(List.of("https://mitienda.com")).checkHeaders(List.of("Idempotency-Key")));
+    }
+
     @Test
     void trimsAndIgnoresEmptyEntries() {
         CorsConfiguration config = configFor(List.of(" https://mitienda.com", " https://admin.mitienda.com ", ""));

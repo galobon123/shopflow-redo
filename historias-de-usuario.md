@@ -723,21 +723,21 @@ Escenario: Dirección de otro cliente
 ---
 
 ### HU-17 · Crear la orden sin vender stock que no existe
-**Prioridad:** Must · **Auditoría:** #1, #3, #10
+**Prioridad:** Must · **Auditoría:** #1, #3, #10 · **Estado:** Hecha
 
 > Como **cliente** quiero confirmar mi compra con un total claro y la seguridad de que el producto está reservado para mí.
 
 **Tareas**
 - [x] BE: descontar stock de forma atómica: `UPDATE products SET stock = stock - :q WHERE id = :id AND stock >= :q`; si afecta 0 filas → 409 "Sin stock de X". Todo en una transacción. *(Adelantado en la HU-27.)*
-- [ ] BE: la orden nace en estado `PENDIENTE_PAGO` con `expires_at = now + 30 min`.
-- [ ] BE: el total lo calcula **solo** el backend; los precios ya incluyen IVA.
-- [ ] BE: `OrderService` lee el carrito vía `CartService` y lo borra en `afterCommit`.
-- [ ] FE: quitar el cálculo del 21% del resumen y mostrar "IVA incluido".
-- [ ] BE (Redis): compra idempotente. `POST /api/orders` exige el header `Idempotency-Key`. `SET order:idem:{userId}:{key} NX EX 86400`: la primera vez crea la orden y guarda su id; si la clave ya existe, devuelve la misma orden (200) sin descontar stock de nuevo, o 409 "Tu compra se está procesando" si la primera todavía no terminó.
-- [ ] BE (Redis): un solo checkout a la vez por cliente: lock `order:lock:{userId}` (`SET NX EX 30`) mientras se crea la orden, para que dos pestañas no compren el mismo carrito.
-- [ ] FE: el checkout genera una `Idempotency-Key` (UUID) al entrar y la reusa en cada reintento de esa compra; el botón queda deshabilitado mientras espera. La dirección se guarda una sola vez aunque se reintente.
+- [x] BE: la orden nace en estado `PENDIENTE_PAGO` con `expires_at = now + 30 min`.
+- [x] BE: el total lo calcula **solo** el backend; los precios ya incluyen IVA.
+- [x] BE: `OrderService` lee el carrito vía `CartService` y lo borra en `afterCommit`.
+- [x] FE: quitar el cálculo del 21% del resumen y mostrar "IVA incluido".
+- [x] BE (Redis): compra idempotente. `POST /api/orders` exige el header `Idempotency-Key`. `SET order:idem:{userId}:{key} NX EX 86400`: la primera vez crea la orden y guarda su id; si la clave ya existe, devuelve la misma orden (200) sin descontar stock de nuevo, o 409 "Tu compra se está procesando" si la primera todavía no terminó.
+- [x] BE (Redis): un solo checkout a la vez por cliente: lock `order:lock:{userId}` (`SET NX EX 30`) mientras se crea la orden, para que dos pestañas no compren el mismo carrito.
+- [x] FE: el checkout genera una `Idempotency-Key` (UUID) al entrar y la reusa en cada reintento de esa compra; el botón queda deshabilitado mientras espera. La dirección se guarda una sola vez aunque se reintente.
 - [x] QA: test de concurrencia: 2 hilos compran la última unidad → 1 orden y 1 rechazo. *(Adelantado en la HU-27.)*
-- [ ] QA: la misma compra enviada 2 veces (seguidas y en paralelo) con la misma clave → 1 orden, el stock baja una sola vez y las dos respuestas traen la misma orden.
+- [x] QA: la misma compra enviada 2 veces (seguidas y en paralelo) con la misma clave → 1 orden, el stock baja una sola vez y las dos respuestas traen la misma orden. *(En paralelo, la segunda puede recibir 409 "Tu compra se está procesando"; su reintento trae la misma orden.)*
 
 **Escenarios**
 ```gherkin

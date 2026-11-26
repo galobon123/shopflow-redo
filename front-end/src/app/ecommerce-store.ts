@@ -1,4 +1,4 @@
-import { errorMessage } from './core/util/error-message';
+import { errorMessage, problemOf } from './core/util/error-message';
 import { signalStore, withState, withMethods, withComputed, patchState, withHooks } from '@ngrx/signals';
 import { computed, inject, untracked, effect } from '@angular/core';
 import { ProductResponse } from './core/models/product.model';
@@ -46,6 +46,10 @@ type EcommerceState = {
   addresses: AddressResponse[];
   addressesLoading: boolean;
   addressesError: string | null;
+  /** HU-17 · Names the purchase being confirmed (Idempotency-Key): made on entering the checkout, kept on retries. */
+  checkoutKey: string;
+  /** HU-17 · The cart the key was first sent with: another cart is another purchase, with a new key. */
+  checkoutCart: string | null;
   loading: boolean;
   error: string | null;
 };
@@ -67,6 +71,8 @@ const initialState: EcommerceState = {
   addresses: [],
   addressesLoading: false,
   addressesError: null,
+  checkoutKey: '',
+  checkoutCart: null,
   loading: false,
   error: null,
 };
@@ -95,6 +101,10 @@ function fitToStock(items: CartItem[], cartService: CartService) {
   });
   return { items: fitted, notices };
 }
+
+/** HU-17 · What a purchase is buying, to tell when the cart is no longer the one a key was used with. */
+const cartSignature = (items: CartItem[]) =>
+  items.map(item => `${item.productId}x${item.quantity}`).sort().join(',');
 
 /** HU-13 · Unavailable items stay listed but don't count towards units or total. */
 const purchasable = (items: CartItem[]) => items.filter(item => item.available);
@@ -134,6 +144,8 @@ export const EcommerceStore = signalStore(
     if ((changed || store.cartBlocked()) && router.url.startsWith('/checkout')) router.navigate(['/cart']);
     return changed;
   };
+  /** HU-17 · A new purchase attempt: a fresh Idempotency-Key, not yet tied to a cart. */
+  const newCheckoutKey = () => patchState(store, { checkoutKey: crypto.randomUUID(), checkoutCart: null });
 
   return {
   /** The catalog itself is paged by the server (HU-10, products-grid); only categories live here. */
@@ -397,26 +409,42 @@ export const EcommerceStore = signalStore(
       error: (err) => patchState(store, { addressesError: errorMessage(err) }),
     });
   },
+  /** HU-17 · Entering the checkout starts a new purchase attempt. */
+  startCheckout(): void {
+    newCheckoutKey();
+  },
   /**
    * HU-16 · Ships to a saved address (its id) or to a new one, saved first. The new one joins "Mis direcciones"
    * at the top right away, so if the order fails, trying again reuses it instead of saving it twice.
+   * HU-17 · Every retry of the same purchase sends the same Idempotency-Key, so the server never buys twice;
+   * a new key comes after an order is made or when the cart is not the one the key was used with.
    */
   placeOrder(shipTo: number | AddressRequest): void {
-    patchState(store, { loading: true, error: null });
+    const cart = cartSignature(store.cartItems());
+    if (!store.checkoutKey() || (store.checkoutCart() !== null && store.checkoutCart() !== cart)) newCheckoutKey();
+    const key = store.checkoutKey();
+    patchState(store, { loading: true, error: null, checkoutCart: cart });
     const addressId: Observable<number> = typeof shipTo === 'number' ? of(shipTo) : addressService.createAddress(shipTo).pipe(
       tap((created) => patchState(store, { addresses: [created, ...store.addresses()] })),
       map((created) => created.id),
     );
     addressId.pipe(
-      switchMap((id) => orderService.createOrder(id)),
+      switchMap((id) => orderService.createOrder(id, key)),
     ).subscribe({
       next: (order) => {
         patchState(store, { cartItems: [], loading: false });
+        newCheckoutKey();
         router.navigate(['/order-success'], { state: { order } });
         toaster.success('¡Listo! Recibimos tu pedido.');
       },
       error: (err) => {
         patchState(store, { loading: false, error: errorMessage(err) });
+        // HU-17 · The same purchase is still being made (another click or tab): stay, and the next try with this
+        // key answers that order.
+        if (problemOf(err)?.reason === 'order-in-progress') {
+          toaster.info(`${errorMessage(err)} Esperá unos segundos y confirmá de nuevo: no vas a comprar dos veces.`);
+          return;
+        }
         toaster.error(err);
         // HU-13 · A 409 means a product went unavailable or short: back to the cart, read again so it shows which one.
         if (err?.status === 409) {

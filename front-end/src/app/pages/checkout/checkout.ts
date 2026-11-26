@@ -24,8 +24,10 @@ export class Checkout {
   /**
    * HU-13 · Same as the cart page: the checkout decides on a fresh cart, not on the one read at login.
    * HU-16 · "Mis direcciones" too: the last used comes chosen.
+   * HU-17 · And a new Idempotency-Key for the purchase about to be confirmed.
    */
   constructor() {
+    this.store.startCheckout();
     this.store.loadCart();
     this.store.loadAddresses();
   }

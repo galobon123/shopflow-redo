@@ -15,6 +15,8 @@ import com.Proyect.Ecommerce.model.OrderStatus;
 public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findByUserIdOrderByCreatedAtDesc(Long userId);
 
+    Optional<Order> findByIdAndUserId(Long id, Long userId);
+
     /** HU-30 · The customer's latest order in that status that has the product. */
     Optional<Order> findFirstByUserIdAndStatusAndItemsProductIdOrderByCreatedAtDesc(Long userId, OrderStatus status,
                                                                                     Long productId);

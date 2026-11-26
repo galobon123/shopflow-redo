@@ -76,11 +76,13 @@ describe('Checkout shipping', () => {
     const backend = TestBed.inject(HttpTestingController);
     const fixture = TestBed.createComponent(Checkout);
     fixture.detectChanges();
-    backend.match((r) => r.url.endsWith('/cart/merge')).forEach((r) => r.flush({ items: [aCartItem()], notices: [] }));
+    // The store joins the cart from an effect when the session starts: let it run so the request is out.
+    TestBed.tick();
+    backend.expectOne({ method: 'POST', url: `${api}/cart/merge` }).flush({ items: [aCartItem()], notices: [] });
     backend.expectOne(`${api}/addresses`).flush(addresses);
     backend.match((r) => r.url.endsWith('/states')).forEach((r) => r.flush([{ id: 14, name: 'Córdoba' }]));
     backend.match((r) => !r.url.endsWith('/cart')).forEach((r) => r.flush([]));
-    backend.match(`${api}/cart`).forEach((r) => r.flush([aCartItem()]));
+    backend.expectOne({ method: 'GET', url: `${api}/cart` }).flush([aCartItem()]);
     await fixture.whenStable();
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
@@ -105,6 +107,24 @@ describe('Checkout shipping', () => {
     const order = backend.expectOne({ method: 'POST', url: `${api}/orders` });
     expect(order.request.body).toEqual({ addressId: 7 });
     backend.expectNone({ method: 'POST', url: `${api}/addresses` });
+  });
+
+  /** HU-17 · Escenario: Confirmo dos veces la misma compra (double click). */
+  it('sends the purchase once, with its key, and waits with the button disabled', async () => {
+    const { backend, fixture, confirm } = await open([saved]);
+
+    confirm.click();
+    fixture.detectChanges();
+    confirm.click();
+
+    const order = backend.expectOne({ method: 'POST', url: `${api}/orders` });
+    expect(order.request.headers.get('Idempotency-Key')).toBeTruthy();
+    expect(confirm.disabled).toBe(true);
+    expect(confirm.getAttribute('aria-busy')).toBe('true');
+
+    order.flush({ status: 503 }, { status: 503, statusText: 'Service Unavailable' });
+    fixture.detectChanges();
+    expect(confirm.disabled).toBe(false);
   });
 
   it('with a wrong form sends nothing and marks the fields', async () => {

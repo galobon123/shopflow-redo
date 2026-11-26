@@ -1,10 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { EcommerceStore } from '../../ecommerce-store';
 import { ArsPipe } from '../../ui';
 
 /**
  * Order summary (UI Kit › OrderSummary).
- * shortcut: totals are still computed here; HU-17 moves them to the backend (and Argentine prices already include IVA).
+ * HU-17 · Prices already include IVA, so the total is what the products add up to; the backend works out the
+ * order's own total again when it's confirmed.
  */
 @Component({
   selector: 'app-summarize-order',
@@ -19,9 +20,5 @@ export class SummarizeOrder {
   /** HU-13 · From the store, which leaves unavailable items out. */
   itemCount = this.store.cartCount;
 
-  subtotal = this.store.cartTotal;
-
-  tax = computed(() => this.subtotal() * 0.21);
-
-  total = computed(() => this.subtotal() + this.tax());
+  total = this.store.cartTotal;
 }

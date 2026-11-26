@@ -38,7 +38,8 @@
                     @if (!authStore.emailVerified()) {
                         <sf-alert tone="warning" class="mt-6">Confirmá tu email para comprar. El enlace está en tu bandeja de entrada.</sf-alert>
                     }
-                    <!-- HU-16 · Not disabled for wrong fields: the click shows them and focuses the first one. -->
+                    <!-- HU-16 · Not disabled for wrong fields: the click shows them and focuses the first one.
+                         HU-17 · Disabled while the order is on its way, so a double click sends it once. -->
                     <button
                         sfButton="primary"
                         size="lg"
@@ -46,7 +47,7 @@
                         type="button"
                         class="mt-6"
                         [loading]="store.loading()"
-                        [disabled]="!authStore.emailVerified() || store.cartBlocked() || store.addressesLoading() || !!store.addressesError()"
+                        [disabled]="store.loading() || !authStore.emailVerified() || store.cartBlocked() || store.addressesLoading() || !!store.addressesError()"
                         (click)="placeOrder()"
                     >
                         Confirmar compra
