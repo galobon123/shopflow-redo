@@ -1,26 +1,35 @@
-<div class="grid grid-cols-3 grid-cols-[3fr_1fr_1fr]">
-    <div class="flex items-center gap-4">
-        <img [src]="item().productImageUrl" (error)="item().productImageUrl = 'https://i.pinimg.com/1200x/0d/84/16/0d8416d15a838293cabd8e13f91aadac.jpg'" class="w-24 h-24 object-cover rounded" [alt]="item().productName" />
-        <div>
-            <div class="text-ink text-body font-semibold"> {{ item().productName }}</div>
-            <div class="text-ink-muted text-body"> ${{ item().productPrice | number:'1.2-2' }}</div>
+<!-- Below sm: product on one line; quantity (or its notice), total and actions on the next. From sm: one row of three columns. -->
+<div class="flex flex-col gap-3 sm:grid sm:grid-cols-[3fr_1fr_1fr] sm:gap-4">
+    <!-- HU-13 · An unavailable product is dimmed, but the badge and the buttons to take it out keep full contrast. -->
+    <div class="flex items-center gap-4 min-w-0" [class.opacity-45]="!item().available">
+        <img [src]="item().productImageUrl" (error)="item().productImageUrl = 'https://i.pinimg.com/1200x/0d/84/16/0d8416d15a838293cabd8e13f91aadac.jpg'" class="size-16 sm:size-24 shrink-0 object-cover rounded" [alt]="item().productName" />
+        <div class="min-w-0">
+            <div class="text-ink text-body font-semibold break-words"> {{ item().productName }}</div>
+            <div class="text-ink-muted text-body"> {{ item().productPrice | ars }}</div>
         </div>
     </div>
-    <sf-qty-stepper [value]="item().quantity" (valueChange)="store.updateCartQty(item().productId, $event)" />
 
-    <div class="flex flex-col items-end">
-        <div class="text-right font-semibold text-body">
-            {{ total() }}
-        </div>
-        <div class="flex -me-3">
-            <button matIconButton (click)="store.moveToWishlist(item())">
-                <mat-icon>favorite_border</mat-icon>
-            </button>
-            <button matIconButton class="danger" (click)="store.removeFromCart(item().productId)">
-                <mat-icon>delete</mat-icon>
-            </button>
-
+    <div class="grid grid-cols-[1fr_auto] items-center gap-3 sm:contents">
+        <div class="min-w-0">
+            @if (!item().available) {
+                <sf-badge tone="out">No disponible</sf-badge>
+            } @else {
+                <sf-qty-stepper [value]="item().quantity" [max]="item().stock" (valueChange)="store.updateCartQty(item().productId, $event)" />
+            }
         </div>
 
+        <div class="flex flex-col items-end">
+            <div class="text-right font-semibold text-body" [class.opacity-45]="!item().available">
+                {{ total() | ars }}
+            </div>
+            <div class="flex -me-3">
+                <button matIconButton type="button" [attr.aria-label]="'Mover ' + item().productName + ' a favoritos'" (click)="moveToWishlist()">
+                    <mat-icon aria-hidden="true">favorite_border</mat-icon>
+                </button>
+                <button matIconButton type="button" class="danger" [attr.aria-label]="'Quitar ' + item().productName + ' del carrito'" (click)="remove()">
+                    <mat-icon aria-hidden="true">delete</mat-icon>
+                </button>
+            </div>
+        </div>
     </div>
 </div>

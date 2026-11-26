@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, numberAttribute } from '@angular/core';
 import { Check, LucideAngularModule } from 'lucide-angular';
 
-export type SfBadgeTone = 'stock' | 'low' | 'out' | 'promo' | 'new';
+export type SfBadgeTone = 'stock' | 'low' | 'out' | 'promo' | 'new' | 'info';
 
 /** Low stock threshold: at or below this, the badge says how many are left. */
 export const LOW_STOCK = 5;

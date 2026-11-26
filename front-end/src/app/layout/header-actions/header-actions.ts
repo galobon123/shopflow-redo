@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { Router, RouterLink } from '@angular/router';
 import { CdkMenu, CdkMenuItem, CdkMenuTrigger } from '@angular/cdk/menu';
 import { ConnectedPosition } from '@angular/cdk/overlay';
-import { ChevronDown, Heart, LogOut, LucideAngularModule, ShieldCheck, ShoppingBag } from 'lucide-angular';
+import { ChevronDown, Heart, LogOut, LucideAngularModule, Package, ShieldCheck, ShoppingBag } from 'lucide-angular';
 import { EcommerceStore } from '../../ecommerce-store';
 import { AuthStore } from '../../auth-store';
 import { Toaster } from '../../core/services/toaster.service';
@@ -27,6 +27,7 @@ export class HeaderActions {
     chevronDown: ChevronDown,
     shield: ShieldCheck,
     logout: LogOut,
+    orders: Package,
   };
 
   /** Profile menu opens under the button, aligned to its right edge. */

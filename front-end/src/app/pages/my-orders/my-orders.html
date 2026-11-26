@@ -1,0 +1,48 @@
+<div class="mx-auto max-w-page px-4 py-6">
+    <h1 id="orders-title" class="font-display text-display-l mb-6">Mis pedidos</h1>
+
+    @if (orders.isLoading()) {
+        <div class="grid gap-3" aria-busy="true" aria-label="Cargando pedidos">
+            @for (i of skeletons; track i) {
+                <div sfSkeleton class="h-24 w-full rounded-card"></div>
+            }
+        </div>
+    } @else if (error(); as message) {
+        <sf-error-state class="py-16" [message]="message" (retry)="orders.reload()" />
+    } @else if (data(); as d) {
+        @if (d.totalItems === 0) {
+            <sf-empty-state [icon]="icons.empty" title="Todavía no hiciste compras"
+                text="Cuando compres algo, acá vas a ver tus pedidos y en qué estado está cada uno.">
+                <a sfButton="secondary" routerLink="/products/all">Ver el catálogo</a>
+            </sf-empty-state>
+        } @else if (d.items.length === 0) {
+            <!-- A page past the last one (an old link): no orders here, but there are on the first. -->
+            <p class="text-ink-muted mb-4">Esta página no tiene pedidos.</p>
+            <a sfButton="secondary" routerLink="/account/orders">Ver los más recientes</a>
+        } @else {
+            <ol class="grid gap-3" aria-labelledby="orders-title">
+                @for (order of d.items; track order.id) {
+                    <li class="sf-order" data-order>
+                        <div class="min-w-0">
+                            <h2 class="text-title">
+                                <a class="sf-order__link" [routerLink]="['/account/orders', order.id]">Pedido #{{ order.id }}</a>
+                            </h2>
+                            <p class="text-body-s text-ink-muted">
+                                <time [attr.datetime]="order.createdAt">{{ orderDate(order.createdAt) }}</time>
+                                · <span class="whitespace-nowrap">{{ unitsText(orderUnits(order)) }}</span>
+                            </p>
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            <span class="sf-price">{{ order.total | ars }}</span>
+                            <app-order-status [status]="order.status" />
+                        </div>
+                    </li>
+                }
+            </ol>
+        }
+
+        @if (d.totalPages > 1) {
+            <sf-pagination class="mt-8 block" label="Páginas de pedidos" [page]="pageNumber()" [totalPages]="d.totalPages" />
+        }
+    }
+</div>

@@ -43,6 +43,14 @@ public class WishListController {
         return ResponseEntity.ok().build();
     }
 
+    /** HU-14 · Empties the wishlist in one transaction. */
+    @DeleteMapping
+    public ResponseEntity<Void> clearWishlist(Authentication auth) {
+        Long userId = (Long) auth.getCredentials();
+        wishListService.clearWishlist(userId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/check/{productId}")
     public ResponseEntity<Boolean> isInWishlist(@PathVariable Long productId, Authentication auth) {
         Long userId = (Long) auth.getCredentials();

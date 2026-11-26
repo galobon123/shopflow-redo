@@ -15,4 +15,8 @@ public class CartItemDTO {
     private String productImageUrl;
     @NotNull @Min(1)
     private Integer quantity;
+    /** HU-13 · Units left now; the quantity is never trimmed to it, so it can be lower. */
+    private Integer stock;
+    /** HU-13 · False when the product was deactivated or ran out: shown, not silently dropped. */
+    private boolean available;
 }

@@ -1,5 +1,7 @@
-<button sfIconButton="float" type="button"
+<button sfIconButton="float" type="button" class="sf-fav"
     [pressed]="isInWishlist()"
+    [attr.aria-disabled]="saving() || null"
+    [attr.aria-busy]="saving()"
     [attr.aria-label]="isInWishlist() ? 'Quitar de favoritos' : 'Agregar a favoritos'"
     (click)="toggleWishlist()">
     <lucide-icon [img]="heartIcon" />

@@ -1,9 +1,8 @@
-import { errorMessage } from './core/util/error-message';
+import { errorMessage, problemOf } from './core/util/error-message';
 import { signalStore, withState, withMethods, withComputed, patchState, withHooks } from '@ngrx/signals';
 import { computed, inject, untracked, effect } from '@angular/core';
 import { ProductResponse } from './core/models/product.model';
 import { CategoryResponse } from './core/models/category.model';
-import { ProductService } from './core/services/product.service';
 import { CategoryService } from './core/services/category.service';
 import { WishListService } from './core/services/wishlist.service';
 import { AuthStore } from './auth-store';
@@ -15,52 +14,120 @@ import { CartItem } from './core/models/cart.model';
 import { CartService } from './core/services/cart.service';
 import { OrderService } from './core/services/order.service';
 import { AddressService } from './core/services/address.service';
-import { AddressRequest } from './core/models/address.model';
+import { paymentErrorMessage, PaymentService } from './core/services/payment.service';
+import { AddressRequest, AddressResponse } from './core/models/address.model';
 import { OrderResponse } from './core/models/order.model';
-import { forkJoin, of } from 'rxjs';
-import { map, catchError, switchMap } from 'rxjs/operators';
+import { forkJoin, Observable, of } from 'rxjs';
+import { map, catchError, switchMap, finalize, tap } from 'rxjs/operators';
 import { Router } from '@angular/router';
+import { onPageRestored } from './core/util/page-restored';
 
 type EcommerceState = {
-  products: ProductResponse[];
   categories: CategoryResponse[];
   wishListItems: WishListResponse[];
+  wishListLoading: boolean;
+  wishListError: string | null;
+  /**
+   * Products whose favourite is being saved or removed right now. HU-14 · The heart already shows the new state
+   * (optimistic) but ignores taps until the server answers, so an add and a remove can't cross.
+   */
+  wishListSaving: number[];
+  /** HU-14 · "Vaciar favoritos" is waiting for the server; the list stays until it answers. */
+  wishListClearing: boolean;
   cartItems: CartItem[];
+  cartLoading: boolean;
+  cartError: string | null;
+  /** HU-12 · The guest cart is joining the account's; a plain read meanwhile could arrive late and stale. */
+  cartMerging: boolean;
+  /** HU-12 · Numbers the cart reads and merges: only the latest answer is kept (a read sent before the merge loses). */
+  cartRequest: number;
+  /** HU-13 · What changed in the cart because the stock moved; shown on top of the cart page until dismissed. */
+  cartNotices: string[];
   recommendations: RecommendationsResponse;
-  selectedCategory: string | null;
+  /** HU-16 · "Mis direcciones", the last used first (the checkout preselects it). */
+  addresses: AddressResponse[];
+  addressesLoading: boolean;
+  addressesError: string | null;
+  /** HU-17 · Names the purchase being confirmed (Idempotency-Key): made on entering the checkout, kept on retries. */
+  checkoutKey: string;
+  /** HU-17 · The cart the key was first sent with: another cart is another purchase, with a new key. */
+  checkoutCart: string | null;
+  /** HU-18 · The order just made, while the page leaves for Mercado Pago to pay it. */
+  payingOrder: number | null;
   loading: boolean;
   error: string | null;
 };
 
 const initialState: EcommerceState = {
-  products: [],
   categories: [],
   wishListItems: [],
+  wishListLoading: false,
+  wishListError: null,
+  wishListSaving: [],
+  wishListClearing: false,
   cartItems: [],
-  recommendations: { recommended: [], othersBought: [] },
-  selectedCategory: null,
+  cartLoading: false,
+  cartError: null,
+  cartMerging: false,
+  cartRequest: 0,
+  cartNotices: [],
+  recommendations: { sections: [] },
+  addresses: [],
+  addressesLoading: false,
+  addressesError: null,
+  checkoutKey: '',
+  checkoutCart: null,
+  payingOrder: null,
   loading: false,
   error: null,
 };
+
+/**
+ * HU-13 · The cart follows the stock as soon as it's read: a quantity above what's left drops to it, and a
+ * sold-out product leaves the cart, each with a notice to show. The server is told too (fire and forget: if it fails,
+ * the next read fits it again). A deactivated product that still has stock stays, as "No disponible".
+ */
+function fitToStock(items: CartItem[], cartService: CartService) {
+  const notices: string[] = [];
+  const fitted = items.flatMap((item) => {
+    if (!item.available && item.stock === 0) {
+      cartService.remove(item.productId).subscribe({ error: () => {} });
+      notices.push(`Se agotó ${item.productName}: lo sacamos de tu carrito.`);
+      return [];
+    }
+    if (item.available && item.quantity > item.stock) {
+      cartService.updateQty(item.productId, item.stock).subscribe({ error: () => {} });
+      notices.push(item.stock === 1
+        ? `De ${item.productName} queda solo 1: ajustamos tu carrito.`
+        : `De ${item.productName} quedan solo ${item.stock}: ajustamos tu carrito.`);
+      return [{ ...item, quantity: item.stock }];
+    }
+    return [item];
+  });
+  return { items: fitted, notices };
+}
+
+/** HU-17 · What a purchase is buying, to tell when the cart is no longer the one a key was used with. */
+const cartSignature = (items: CartItem[]) =>
+  items.map(item => `${item.productId}x${item.quantity}`).sort().join(',');
+
+/** HU-13 · Unavailable items stay listed but don't count towards units or total. */
+const purchasable = (items: CartItem[]) => items.filter(item => item.available);
 
 export const EcommerceStore = signalStore(
   { providedIn: 'root' },
   withState(initialState),
 
   withComputed((store) => ({
-  filteredProducts: computed(() => {
-    const category = store.selectedCategory();
-    if (!category) return store.products();
-    return store.products().filter((p) => p.categoryName === category);
-  }),
   wishListCount: computed(() => store.wishListItems().length),
-  cartCount: computed(() => store.cartItems().reduce((sum, item) => sum + item.quantity, 0)),
-  cartTotal: computed(() => store.cartItems().reduce((sum, item) => 
+  cartCount: computed(() => purchasable(store.cartItems()).reduce((sum, item) => sum + item.quantity, 0)),
+  cartTotal: computed(() => purchasable(store.cartItems()).reduce((sum, item) =>
     sum + item.productPrice * item.quantity, 0)),
+  /** HU-13 · Checkout waits until unavailable items are removed and no quantity is above the stock left. */
+  cartBlocked: computed(() => store.cartItems().some(item => !item.available || item.quantity > item.stock)),
 })),
 
   withMethods((store,
-    productService = inject(ProductService), 
     categoryService = inject(CategoryService), 
     wishListService = inject(WishListService),
     authStore = inject(AuthStore),
@@ -68,17 +135,30 @@ export const EcommerceStore = signalStore(
     cartService = inject(CartService),
     orderService = inject(OrderService),
     addressService = inject(AddressService),
+    paymentService = inject(PaymentService),
     router = inject(Router),
-    toaster = inject(Toaster)) => ({
-  loadAll(): void {
-    patchState(store, { loading: true, error: null });
-    productService.getAll().subscribe({
-      next: (products) => patchState(store, { products, loading: false }),
-      error: (err) => patchState(store, { error: errorMessage(err), loading: false }),
-    });
+    toaster = inject(Toaster)) => {
+  /**
+   * A cart just read from the server, fitted to the stock. If something changed or can't be bought while paying,
+   * back to the cart, where the notices make sense: never pay for something that's no longer there.
+   */
+  const setCart = (items: CartItem[]): boolean => {
+    const { items: fitted, notices } = fitToStock(items, cartService);
+    const changed = notices.length > 0;
+    patchState(store, { cartItems: fitted });
+    if (changed) patchState(store, { cartNotices: notices });
+    if ((changed || store.cartBlocked()) && router.url.startsWith('/checkout')) router.navigate(['/cart']);
+    return changed;
+  };
+  /** HU-17 · A new purchase attempt: a fresh Idempotency-Key, not yet tied to a cart. */
+  const newCheckoutKey = () => patchState(store, { checkoutKey: crypto.randomUUID(), checkoutCart: null });
 
+  return {
+  /** The catalog itself is paged by the server (HU-10, products-grid); only categories live here. */
+  loadCategories(): void {
     categoryService.getAll().subscribe({
       next: (categories) => patchState(store, { categories }),
+      error: () => { /* the catalog still works without the category list */ },
     });
   },
   loadRecommendations(): void {
@@ -90,73 +170,107 @@ export const EcommerceStore = signalStore(
   },
   loadWishlist(): void {
   if (!authStore.isAuthenticated()) return;
-    wishListService.getWishlist().subscribe({
+    patchState(store, { wishListLoading: true, wishListError: null });
+    wishListService.getWishlist().pipe(
+      finalize(() => patchState(store, { wishListLoading: false })),
+    ).subscribe({
       next: (items) => patchState(store, { wishListItems: items }),
-      error: () => { /* silencioso, no bloquea la app */ },
+      // Only the favourites page shows it; everywhere else the hearts just start empty.
+      error: (err) => patchState(store, { wishListError: errorMessage(err) }),
     });
   },
-  filterBy(categoryName: string | null): void {
-    patchState(store, { selectedCategory: categoryName });
-  },
+  /** HU-14 · Optimistic: the heart is marked right away; if the server says no, it goes back and says why. */
   addToWishList : (product: ProductResponse) => { 
     if (!authStore.isAuthenticated()) {
     toaster.info('Iniciá sesión para guardar favoritos.');
     return;
   }
-  wishListService.add(product.id).subscribe({
-      next: () => {
-        const item: WishListResponse = {
-          id: 0,
-          productId: product.id,
-          productName: product.name,
-          productPrice: product.price,
-          productImageUrl: product.imageUrl ?? '',
-          productStock: product.stock,
-          createdAt: new Date().toISOString(),
-        };
-        patchState(store, { wishListItems: [...store.wishListItems(), item] });
-        toaster.success('Agregado a favoritos.');
+  if (store.wishListSaving().includes(product.id)) return;
+  if (store.wishListItems().some(item => item.productId === product.id)) return;
+  const item: WishListResponse = {
+    id: 0,
+    productId: product.id,
+    productName: product.name,
+    productPrice: product.price,
+    productImageUrl: product.imageUrl ?? '',
+    productStock: product.stock,
+    createdAt: new Date().toISOString(),
+  };
+  patchState(store, {
+    wishListItems: [...store.wishListItems(), item],
+    wishListSaving: [...store.wishListSaving(), product.id],
+  });
+  wishListService.add(product.id).pipe(
+    finalize(() => patchState(store, { wishListSaving: store.wishListSaving().filter(id => id !== product.id) })),
+  ).subscribe({
+      next: () => toaster.success('Agregado a favoritos.'),
+      error: (err) => {
+        patchState(store, { wishListItems: store.wishListItems().filter(p => p.productId !== product.id) });
+        toaster.error(err);
       },
-      error: (err) => toaster.error(err),
     });
   },
+  /** HU-14 · Optimistic too: it leaves the list right away and comes back to its place if the server fails. */
   removeFromWishList : (productId: number) => {
-      wishListService.remove(productId).subscribe({
-      next: () => {
-        patchState(store, { 
-          wishListItems: store.wishListItems().filter(p => p.productId !== productId) 
-        });
-        toaster.success('Quitado de favoritos.');
+      if (store.wishListSaving().includes(productId)) return;
+      const index = store.wishListItems().findIndex(p => p.productId === productId);
+      if (index === -1) return;
+      const removed = store.wishListItems()[index];
+      patchState(store, {
+        wishListItems: store.wishListItems().filter(p => p.productId !== productId),
+        wishListSaving: [...store.wishListSaving(), productId],
+      });
+      wishListService.remove(productId).pipe(
+        finalize(() => patchState(store, { wishListSaving: store.wishListSaving().filter(id => id !== productId) })),
+      ).subscribe({
+      next: () => toaster.success('Quitado de favoritos.'),
+      error: (err) => {
+        const items = [...store.wishListItems()];
+        items.splice(Math.min(index, items.length), 0, removed);
+        patchState(store, { wishListItems: items });
+        toaster.error(err);
       },
-      error: (err) => toaster.error(err),
     });
   },
+  /**
+   * HU-14 · One request, all or nothing. Not optimistic: emptying everything and bringing it back on an error
+   * would flash the empty page, so the list stays until the server answers.
+   */
   clearWishlist: () => {
-      store.wishListItems().forEach(item => {
-      wishListService.remove(item.productId).subscribe();
+    if (store.wishListClearing()) return;
+    patchState(store, { wishListClearing: true });
+    wishListService.clear().pipe(
+      finalize(() => patchState(store, { wishListClearing: false })),
+    ).subscribe({
+      next: () => {
+        patchState(store, { wishListItems: [] });
+        toaster.success('Vaciaste tus favoritos.');
+      },
+      error: () => toaster.error('No pudimos vaciar tus favoritos, probá de nuevo.'),
     });
-    patchState(store, { wishListItems: [] });
   },
+  /** HU-12 · Signed in it's the account's cart; otherwise this browser's guest cart. */
   loadCart(): void {
-  if (!authStore.isAuthenticated()) return;
-  cartService.getCart().subscribe({
-    next: (items) => patchState(store, { cartItems: items }),
-    error: () => { /* silencioso */ },
+  if (store.cartMerging()) return;
+  const request = store.cartRequest() + 1;
+  patchState(store, { cartLoading: true, cartError: null, cartRequest: request });
+  cartService.getCart().pipe(
+    finalize(() => patchState(store, { cartLoading: false })),
+  ).subscribe({
+    next: (items) => { if (request === store.cartRequest()) setCart(items); },
+    error: (err) => { if (request === store.cartRequest()) patchState(store, { cartError: errorMessage(err) }); },
   });
   },
-  addToCart(product: ProductResponse): void {
-    if (!authStore.isAuthenticated()) {
-      toaster.info('Iniciá sesión para agregar productos al carrito.');
-      return;
-    }
-    cartService.add(product.id).subscribe({
+  /** `quantity` comes from the product page's selector (HU-11); the cards add one. */
+  addToCart(product: ProductResponse, quantity = 1): void {
+    cartService.add(product.id, quantity).subscribe({
       next: () => {
         const existing = store.cartItems().find(item => item.productId === product.id);
         if (existing) {
           patchState(store, {
             cartItems: store.cartItems().map(item =>
               item.productId === product.id
-                ? { ...item, quantity: item.quantity + 1 }
+                ? { ...item, quantity: item.quantity + quantity }
                 : item
             )
           });
@@ -166,7 +280,9 @@ export const EcommerceStore = signalStore(
             productName: product.name,
             productPrice: product.price,
             productImageUrl: product.imageUrl ?? '',
-            quantity: 1,
+            quantity,
+            stock: product.stock,
+            available: true,
           };
           patchState(store, { cartItems: [...store.cartItems(), newItem] });
         }
@@ -197,7 +313,13 @@ export const EcommerceStore = signalStore(
           });
         }
       },
-      error: (err) => toaster.error(err),
+      // HU-13 · The quantity stays as it was; a 409 means the stock moved, so the cart is read again.
+      error: (err) => {
+        toaster.error(err);
+        if (err?.status === 409) {
+          cartService.getCart().subscribe({ next: (items) => setCart(items) });
+        }
+      },
     });
   },
   clearCart(): void {
@@ -254,6 +376,8 @@ export const EcommerceStore = signalStore(
               productPrice: item.productPrice,
               productImageUrl: item.productImageUrl,
               quantity: 1,
+              stock: item.productStock,
+              available: true,
             });
           }
         });
@@ -281,25 +405,84 @@ export const EcommerceStore = signalStore(
       }
     });
   },
-  placeOrder(address: AddressRequest): void {
-    patchState(store, { loading: true, error: null });
-    addressService.createAddress(address).pipe(
-      switchMap((createdAddress) =>
-        orderService.createOrder(createdAddress.id).pipe(
-          map((order) => ({ order, error: null as string | null }))
-        )
-      )
+  /** HU-16 · Read when the checkout opens: they change only there, and a session may never need them. */
+  loadAddresses(): void {
+    patchState(store, { addressesLoading: true, addressesError: null });
+    addressService.getAddresses().pipe(
+      finalize(() => patchState(store, { addressesLoading: false })),
     ).subscribe({
-      next: ({ order }) => {
-        patchState(store, { cartItems: [], loading: false });
-        router.navigate(['/order-success'], { state: { order } });
-        toaster.success('¡Listo! Recibimos tu pedido.');
+      next: (addresses) => patchState(store, { addresses }),
+      error: (err) => patchState(store, { addressesError: errorMessage(err) }),
+    });
+  },
+  /** HU-17 · Entering the checkout starts a new purchase attempt. */
+  startCheckout(): void {
+    newCheckoutKey();
+  },
+  /**
+   * HU-16 · Ships to a saved address (its id) or to a new one, saved first. The new one joins "Mis direcciones"
+   * at the top right away, so if the order fails, trying again reuses it instead of saving it twice.
+   * HU-17 · Every retry of the same purchase sends the same Idempotency-Key, so the server never buys twice;
+   * a new key comes after an order is made or when the cart is not the one the key was used with.
+   */
+  placeOrder(shipTo: number | AddressRequest): void {
+    const cart = cartSignature(store.cartItems());
+    if (!store.checkoutKey() || (store.checkoutCart() !== null && store.checkoutCart() !== cart)) newCheckoutKey();
+    const key = store.checkoutKey();
+    patchState(store, { loading: true, error: null, checkoutCart: cart });
+    const addressId: Observable<number> = typeof shipTo === 'number' ? of(shipTo) : addressService.createAddress(shipTo).pipe(
+      tap((created) => patchState(store, { addresses: [created, ...store.addresses()] })),
+      map((created) => created.id),
+    );
+    addressId.pipe(
+      switchMap((id) => orderService.createOrder(id, key)),
+    ).subscribe({
+      next: (order) => {
+        newCheckoutKey();
+        patchState(store, { payingOrder: order.id });
+        // HU-18 · Then to Mercado Pago, still loading until the page leaves. The summary keeps the products and
+        // total meanwhile (the server already emptied the cart; it's read again on the way back). The order exists
+        // from here on: if Mercado Pago can't be opened, its page in "Mis pedidos" pays it, so no second order is
+        // ever made.
+        paymentService.checkout(order.id).subscribe({
+          next: ({ checkoutUrl }) => paymentService.goTo(checkoutUrl),
+          error: (err) => {
+            patchState(store, { cartItems: [], loading: false, payingOrder: null });
+            toaster.error(`Guardamos tu pedido #${order.id}, pero no pudimos abrir Mercado Pago: ${paymentErrorMessage(err)} Podés pagarlo desde acá.`);
+            router.navigate(['/account/orders', order.id]);
+          },
+        });
       },
       error: (err) => {
         patchState(store, { loading: false, error: errorMessage(err) });
+        // HU-17 · The same purchase is still being made (another click or tab): stay, and the next try with this
+        // key answers that order.
+        if (problemOf(err)?.reason === 'order-in-progress') {
+          toaster.info(`${errorMessage(err)} Esperá unos segundos y confirmá de nuevo: no vas a comprar dos veces.`);
+          return;
+        }
         toaster.error(err);
+        // HU-13 · A 409 means a product went unavailable or short: back to the cart, read again so it shows which one.
+        if (err?.status === 409) {
+          router.navigate(['/cart']);
+          cartService.getCart().subscribe({ next: (items) => setCart(items) });
+        }
       },
     });
+  },
+  /**
+   * HU-18 · Back from Mercado Pago without paying, with the checkout restored as it left (busy, the old summary).
+   * Its order already exists: buying again would make another. So the button lets go, the cart is read again (the
+   * server emptied it) and the customer goes to the order's page, which pays that same order. The next purchase
+   * gets a new Idempotency-Key (made when this order was).
+   */
+  pageRestored(): void {
+    const orderId = store.payingOrder();
+    if (orderId === null) return;
+    patchState(store, { payingOrder: null, loading: false, cartItems: [] });
+    router.navigate(['/account/orders', orderId], { replaceUrl: true });
+    toaster.info(`Tu pedido #${orderId} sigue esperando el pago. Podés pagarlo desde acá.`);
+    cartService.getCart().subscribe({ next: (items) => setCart(items), error: () => { /* the next read fixes it */ } });
   },
   moveToWishlist(item: CartItem): void {
     if (!authStore.isAuthenticated()) {
@@ -340,30 +523,68 @@ export const EcommerceStore = signalStore(
       },
     });
   },
+  /**
+   * HU-12 · Runs every time a session starts, whatever the way in (password, Google, new-device code,
+   * email link): the guest cart joins the account's, and the browser starts a new, empty guest cart.
+   */
+  mergeCart(): void {
+    patchState(store, { cartMerging: true, cartLoading: true, cartError: null, cartRequest: store.cartRequest() + 1 });
+    cartService.merge().pipe(
+      finalize(() => patchState(store, { cartMerging: false, cartLoading: false })),
+    ).subscribe({
+      next: ({ items, notices }) => {
+        cartService.newGuestCart();
+        setCart(items);
+        notices.forEach((notice) => toaster.info(notice));
+      },
+      error: (err) => patchState(store, { cartError: errorMessage(err) }),
+    });
+  },
+  /**
+   * Checkout needs a session: a guest goes through the login (authGuard) and comes back with the cart joined.
+   * HU-13 · The stock is read again first: if it moved since the cart page loaded, the cart is fitted and stays.
+   */
+  dismissCartNotices(): void {
+    patchState(store, { cartNotices: [] });
+  },
   proceedToCheckout(): void {
-    router.navigate(['/checkout']);
+    cartService.getCart().subscribe({
+      next: (items) => {
+        if (!setCart(items) && !store.cartBlocked()) router.navigate(['/checkout']);
+      },
+      error: (err) => toaster.error(err),
+    });
   }
-})),
+  };
+}),
   withHooks({
     onInit(store) {
       const authStore = inject(AuthStore);
 
-      store.loadAll();
+      onPageRestored(() => store.pageRestored());
+
+      store.loadCategories();
 
       effect(() => {
         if (authStore.isAuthenticated()) {
           untracked(() => {
             store.loadWishlist();
-            store.loadCart();
+            store.mergeCart();
             store.loadRecommendations();
           });
         } else {
           untracked(() => {
             patchState(store, {
               cartItems: [],
+              cartError: null,
+              cartNotices: [],
               wishListItems: [],
-              recommendations: { recommended: [], othersBought: [] },
+              wishListError: null,
+              recommendations: { sections: [] },
+              addresses: [],
+              addressesError: null,
             });
+            store.loadCart();
           });
         }
       });

@@ -45,6 +45,15 @@
                 <input sfInput inputmode="numeric" autocomplete="postal-code" [formControl]="zip" />
             </sf-field>
         </div>
+        <div class="grid gap-3 max-w-md">
+            <sf-alert>Email o contraseña incorrectos.</sf-alert>
+            <sf-alert tone="warning">Confirmá tu email para poder comprar.</sf-alert>
+            <sf-alert tone="info">Tu sesión venció. Volvé a ingresar para seguir.</sf-alert>
+            <sf-alert tone="warning">
+                Te mandamos un enlace a lucia.ferreyra&#64;gmail.com.
+                <button sfAlertAction sfButton="ghost" size="sm" type="button">Reenviar email</button>
+            </sf-alert>
+        </div>
         <sf-qty-stepper [value]="qty()" [max]="3" (valueChange)="qty.set($event)" />
     </section>
 
@@ -63,7 +72,7 @@
         <div class="responsive-grid">
             <app-product-card [product]="sample" />
             <div class="grid content-start gap-3" aria-busy="true" aria-label="Cargando producto">
-                <div sfSkeleton class="aspect-4/5"></div>
+                <div sfSkeleton class="aspect-square rounded-card"></div>
                 <div sfSkeleton class="h-3 w-2/5"></div>
                 <div sfSkeleton class="h-4 w-11/12"></div>
                 <div sfSkeleton class="h-5 w-1/3"></div>

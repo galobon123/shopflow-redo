@@ -28,6 +28,7 @@
   --color-warning-soft: #fbefd9;
   --color-danger: #b42318;
   --color-danger-soft: #fbe7e5;
+  --color-heart: #e11d48;
   --color-transparent: transparent;
   --color-current: currentColor;
 
@@ -70,10 +71,13 @@
 
   --radius-*: initial;
   --radius: 4px;
+  --radius-card: 12px;
   --radius-full: 9999px;
 
   --shadow-*: initial;
   --shadow-overlay: 0 1px 2px rgba(20, 22, 26, 0.06), 0 12px 32px rgba(20, 22, 26, 0.14);
+  --shadow-card: 0 1px 2px rgba(20, 22, 26, 0.05), 0 4px 14px rgba(20, 22, 26, 0.06);
+  --shadow-card-hover: 0 2px 4px rgba(20, 22, 26, 0.06), 0 12px 28px rgba(20, 22, 26, 0.12);
   --shadow-focus: 0 0 0 2px #ffffff, 0 0 0 4px #2440b8;
 
   --container-page: 1200px;
@@ -81,15 +85,36 @@
 }
 
 :root {
-  --header-height: 64px;
+  --header-row-height: 64px;
+  --header-height: var(--header-row-height);
   --sidebar-width: 280px;
   --control-height: 44px;
-  --card-min: 232px;
+  --card-min: 160px;
+}
+
+/* Small phones: the header grows a second row for the search (see .sf-header__inner). */
+@media (max-width: 639px) {
+  :root {
+    --header-height: calc(var(--header-row-height) + var(--control-height) + var(--spacing) * 3);
+  }
 }
 
 html,
 body {
   height: 100%;
+}
+
+/* No visible scrollbars anywhere (page, category chips, menus); scrolling still works with wheel, touch and keys. */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+/* A block, so the sticky header is held by the whole page and not by an inline box. */
+app-root {
+  display: block;
 }
 
 body {
@@ -113,15 +138,16 @@ h3 {
   box-shadow: var(--shadow-focus);
 }
 
-/* Product grid: auto-fill columns of at least --card-min. */
+/* Product grid: as many columns of at least --card-min as fit, never more than 4. */
 .responsive-grid {
+  --grid-gap: calc(var(--spacing) * 4);
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(var(--card-min), 1fr));
-  gap: calc(var(--spacing) * 4);
+  grid-template-columns: repeat(auto-fill, minmax(max(var(--card-min), (100% - 3 * var(--grid-gap)) / 4), 1fr));
+  gap: var(--grid-gap);
 }
 @media (min-width: 768px) {
   .responsive-grid {
-    gap: calc(var(--spacing) * 6);
+    --grid-gap: calc(var(--spacing) * 5);
   }
 }
 

@@ -1,0 +1,55 @@
+<div class="sf-gallery__stage" (touchstart)="onTouchStart($event)" (touchmove)="onTouchMove($event)"
+  (touchend)="onTouchEnd($event)" (touchcancel)="dragX.set(null)">
+  <!-- Every photo side by side, slid to the current one: it travels there like a carousel and follows the finger. -->
+  <div class="sf-gallery__track" [class.sf-gallery__track--dragging]="dragX() !== null" [style.transform]="offset()">
+    @for (url of images(); track $index) {
+      <!-- Only the current one is reachable: the others are off screen. -->
+      <div #slide class="sf-gallery__slide" [attr.inert]="$index === index() ? null : ''">
+        @if (!failed().has($index)) {
+          <button type="button" class="sf-gallery__main" (click)="openZoom()"
+            [attr.aria-label]="'Ampliar foto ' + ($index + 1) + ' de ' + images().length">
+            <img [src]="url" [alt]="name()" (error)="onImageError($index)" />
+          </button>
+        } @else {
+          <span class="sf-gallery__main sf-gallery__main--empty"><span class="line-clamp-4">{{ name() }}</span></span>
+        }
+      </div>
+    } @empty {
+      <span class="sf-gallery__main sf-gallery__main--empty"><span class="line-clamp-4">{{ name() }}</span></span>
+    }
+  </div>
+
+  @if (images().length > 1) {
+    <button sfIconButton="outlined" type="button" class="sf-gallery__arrow sf-gallery__arrow--prev"
+      aria-label="Foto anterior" [attr.aria-disabled]="index() === 0 ? 'true' : null" (click)="show(index() - 1)">
+      <lucide-icon [img]="icons.prev" />
+    </button>
+    <button sfIconButton="outlined" type="button" class="sf-gallery__arrow sf-gallery__arrow--next"
+      aria-label="Foto siguiente" [attr.aria-disabled]="index() === images().length - 1 ? 'true' : null" (click)="show(index() + 1)">
+      <lucide-icon [img]="icons.next" />
+    </button>
+  }
+</div>
+
+@if (images().length > 1) {
+  <p class="sf-gallery__count" aria-live="polite">Foto {{ index() + 1 }} de {{ images().length }}</p>
+  <ul class="sf-gallery__thumbs" aria-label="Fotos del producto">
+    @for (url of images(); track $index) {
+      <li>
+        <button #thumb type="button" class="sf-gallery__thumb" [attr.aria-current]="$index === index() ? 'true' : null"
+          [attr.aria-label]="'Ver foto ' + ($index + 1)" (click)="show($index)">
+          <img [src]="url" alt="" loading="lazy" />
+        </button>
+      </li>
+    }
+  </ul>
+}
+
+<dialog #zoom class="sf-zoom" aria-label="Foto ampliada" (close)="onZoomClosed()" (click)="onZoomClick($event)">
+  <button sfIconButton="float" type="button" class="sf-zoom__close" aria-label="Cerrar" (click)="closeZoom()">
+    <lucide-icon [img]="icons.close" />
+  </button>
+  @if (current(); as url) {
+    <img #zoomPhoto class="sf-zoom__photo" [src]="url" [alt]="name()" (load)="centerZoom()" />
+  }
+</dialog>

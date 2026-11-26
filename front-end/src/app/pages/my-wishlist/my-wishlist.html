@@ -2,28 +2,60 @@
 
     <app-back-button navigateTo="/products/all">Seguir comprando</app-back-button>
 
-    @if (store.wishListCount() > 0) {
+    <!-- HU-14 · The title stays while loading and on an error, so the grid doesn't jump when the list arrives. -->
+    @if (store.wishListCount() > 0 || store.wishListLoading() || store.wishListError()) {
         <div class="mb-8 mt-4 flex items-baseline justify-between gap-4">
             <h1 class="font-display text-display-l">Mis favoritos</h1>
-            <span class="text-body-s text-ink-muted">{{ store.wishListCount() }} productos</span>
+            @if (store.wishListCount() > 0) {
+                <span class="text-body-s text-ink-muted">{{ productCount(store.wishListCount()) }}</span>
+            }
         </div>
+    }
 
+    @if (store.wishListCount() > 0) {
         <div class="responsive-grid">
             @for (item of store.wishListItems(); track item.productId) {
                 <app-product-card [product]="mapToProduct(item)">
-                    <button sfIconButton="float" type="button" aria-label="Quitar de favoritos"
-                        (click)="store.removeFromWishList(item.productId)">
+                    <!-- aria-disabled, not disabled: a disabled button would drop the keyboard focus to the page. -->
+                    <button sfIconButton="float" type="button" class="sf-fav"
+                        aria-label="Quitar de favoritos"
+                        [attr.data-remove]="item.productId"
+                        [attr.aria-disabled]="store.wishListSaving().includes(item.productId) || null"
+                        [attr.aria-busy]="store.wishListSaving().includes(item.productId)"
+                        (click)="remove(item.productId)">
                         <lucide-icon [img]="trashIcon" />
                     </button>
                 </app-product-card>
             }
         </div>
 
-        <div class="mt-12">
-            <button sfButton="danger" type="button" (click)="store.clearWishlist()">
-                <lucide-icon [img]="trashIcon" />Vaciar favoritos
-            </button>
+        <!-- HU-14 · Emptying asks first; the list stays until the server answers. -->
+        <div class="mt-12 flex flex-wrap items-center gap-3">
+            @if (confirmingClear()) {
+                <p class="text-body">¿Vaciar tus favoritos? Se {{ store.wishListCount() === 1 ? 'quita' : 'quitan los' }} {{ productCount(store.wishListCount()) }}.</p>
+                <button #confirmClear sfButton="danger" type="button"
+                    [loading]="store.wishListClearing()" [attr.aria-disabled]="store.wishListClearing() || null"
+                    (click)="store.clearWishlist()">Sí, vaciar</button>
+                <button sfButton="ghost" type="button" [attr.aria-disabled]="store.wishListClearing() || null"
+                    (click)="cancelClear()">Cancelar</button>
+            } @else {
+                <button #askClear sfButton="danger" type="button" (click)="askToClear()">
+                    <lucide-icon [img]="trashIcon" />Vaciar favoritos
+                </button>
+            }
         </div>
+    } @else if (store.wishListLoading()) {
+        <div class="responsive-grid" aria-busy="true" aria-label="Cargando favoritos">
+            @for (i of [0, 1, 2, 3]; track i) {
+                <div class="grid content-start gap-3">
+                    <div sfSkeleton class="aspect-square rounded-card"></div>
+                    <div sfSkeleton class="h-4 w-11/12"></div>
+                    <div sfSkeleton class="h-5 w-1/3"></div>
+                </div>
+            }
+        </div>
+    } @else if (store.wishListError(); as message) {
+        <sf-error-state class="py-16" [message]="message" (retry)="store.loadWishlist()" />
     } @else {
         <app-empty-wishlist />
     }

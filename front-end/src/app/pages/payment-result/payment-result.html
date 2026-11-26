@@ -1,0 +1,92 @@
+<div class="mx-auto max-w-page px-4 py-6">
+    @if (notFound()) {
+        <sf-empty-state [icon]="icons.gone" title="Pedido no encontrado"
+            text="Puede que el link esté mal o que el pedido sea de otra cuenta. Tus compras están en «Mis pedidos».">
+            <a sfButton="secondary" routerLink="/account/orders">Ver mis pedidos</a>
+        </sf-empty-state>
+    } @else if (detail(); as o) {
+        <!-- HU-18 · Announced when it changes: "Estamos confirmando tu pago…" becomes "¡Pago aprobado!" by itself.
+             Every state's indicator fills the same 40 × 40 box, so the change moves nothing. -->
+        <div data-payment-status aria-live="polite" class="mb-6 grid justify-items-start gap-2">
+            @switch (view()) {
+                @case ('paid') {
+                    <span data-status-indicator class="grid size-10 place-items-center text-success" aria-hidden="true">
+                        <lucide-icon [img]="icons.paid" [size]="40" />
+                    </span>
+                    <h1 #heading tabindex="-1" class="font-display text-display-l focus:outline-none">¡Pago aprobado!</h1>
+                    <p class="text-ink-muted">Tu pedido #{{ o.id }} está pagado. Te mandamos la confirmación por email.</p>
+                }
+                @case ('confirming') {
+                    <span data-status-indicator class="grid size-10 place-items-center" aria-hidden="true">
+                        <span class="sf-spinner size-8"></span>
+                    </span>
+                    <h1 #heading tabindex="-1" class="font-display text-display-l focus:outline-none">Estamos confirmando tu pago…</h1>
+                    <p class="text-ink-muted">Mercado Pago nos está avisando. Suele tardar unos segundos.</p>
+                }
+                @case ('unconfirmed') {
+                    <span data-status-indicator class="grid size-10 place-items-center text-ink-muted" aria-hidden="true">
+                        <lucide-icon [img]="icons.waiting" [size]="40" />
+                    </span>
+                    <h1 #heading tabindex="-1" class="font-display text-display-l focus:outline-none">Tu pago todavía no se confirmó</h1>
+                    <p class="text-ink-muted">
+                        Puede tardar unos minutos más. Te avisamos por email apenas se acredite, y lo ves en «Mis pedidos».
+                    </p>
+                }
+                @case ('pending') {
+                    <span data-status-indicator class="grid size-10 place-items-center text-ink-muted" aria-hidden="true">
+                        <lucide-icon [img]="icons.waiting" [size]="40" />
+                    </span>
+                    <h1 #heading tabindex="-1" class="font-display text-display-l focus:outline-none">Tu pago está pendiente</h1>
+                    <p class="text-ink-muted">Mercado Pago lo está procesando. Te avisamos por email cuando se acredite.</p>
+                }
+                @case ('rejected') {
+                    <span data-status-indicator class="grid size-10 place-items-center text-danger" aria-hidden="true">
+                        <lucide-icon [img]="icons.rejected" [size]="40" />
+                    </span>
+                    <h1 #heading tabindex="-1" class="font-display text-display-l focus:outline-none">Tu pago fue rechazado</h1>
+                    <p class="text-ink-muted">
+                        No se te cobró nada. Podés reintentarlo con otro medio de pago@if (o.expiresAt) {
+                            hasta el <time [attr.datetime]="o.expiresAt">{{ orderDateTime(o.expiresAt) }}</time>}.
+                    </p>
+                    <app-pay-button class="mt-2" [orderId]="o.id" label="Reintentar el pago" (refused)="refusedPayment()" (restored)="order.reload()" />
+                }
+                @case ('expired') {
+                    <span data-status-indicator class="grid size-10 place-items-center text-ink-muted" aria-hidden="true">
+                        <lucide-icon [img]="icons.gone" [size]="40" />
+                    </span>
+                    <h1 #heading tabindex="-1" class="font-display text-display-l focus:outline-none">Se venció el plazo para pagar</h1>
+                    <p class="text-ink-muted">El pedido #{{ o.id }} se va a cancelar y los productos vuelven a estar disponibles.</p>
+                    <a sfButton="secondary" class="mt-2" routerLink="/products/all">Volver al catálogo</a>
+                }
+                @case ('cancelled') {
+                    <span data-status-indicator class="grid size-10 place-items-center text-ink-muted" aria-hidden="true">
+                        <lucide-icon [img]="icons.gone" [size]="40" />
+                    </span>
+                    <h1 #heading tabindex="-1" class="font-display text-display-l focus:outline-none">Este pedido está cancelado</h1>
+                    <p class="text-ink-muted">
+                        El pedido #{{ o.id }} se canceló y sus productos volvieron a estar disponibles.
+                        @if (paymentOutcome() === 'approved') {
+                            Si Mercado Pago te cobró, lo revisamos y te devolvemos el dinero.
+                        }
+                    </p>
+                    <a sfButton="secondary" class="mt-2" routerLink="/products/all">Volver al catálogo</a>
+                }
+            }
+        </div>
+
+        <app-order-receipt [order]="o" />
+
+        <div class="mt-8 flex flex-wrap gap-3">
+            <a sfButton="secondary" [routerLink]="['/account/orders', o.id]">Ver el pedido</a>
+            <a sfButton="ghost" routerLink="/products/all">Seguir comprando</a>
+        </div>
+    } @else if (order.isLoading()) {
+        <div class="grid gap-4" aria-busy="true" aria-label="Cargando pedido">
+            <div sfSkeleton class="h-10 w-1/2"></div>
+            <div sfSkeleton class="h-5 w-1/3"></div>
+            <div sfSkeleton class="h-48 w-full rounded-card"></div>
+        </div>
+    } @else if (error(); as message) {
+        <sf-error-state class="py-16" [message]="message" (retry)="order.reload()" />
+    }
+</div>

@@ -28,7 +28,8 @@ public class CorsConfig {
 
         config.setAllowedOrigins(allowedOrigins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        // HU-12 · X-Cart-Id names a guest's cart. HU-17 · Idempotency-Key names a purchase attempt.
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Cart-Id", "Idempotency-Key"));
         config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

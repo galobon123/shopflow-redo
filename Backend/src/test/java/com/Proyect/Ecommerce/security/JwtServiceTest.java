@@ -33,17 +33,18 @@ class JwtServiceTest {
         JwtService jwt = new JwtService(VALID_SECRET, 60_000);
         UserDetails user = new User("lucia@example.com", "x", List.of(new SimpleGrantedAuthority("ROLE_USER")));
 
-        String token = jwt.generateToken(user, 7L, "Lucía");
+        String token = jwt.generateToken(user, 7L, "Lucía", true, "s1");
 
         assertEquals("lucia@example.com", jwt.extractUsername(token));
         assertEquals(7L, jwt.extractUserId(token));
+        assertEquals("s1", jwt.extractSessionId(token));
         assertTrue(jwt.isTokenValid(token, user));
     }
 
     @Test
     void rejectsTokensSignedWithAnotherSecret() {
         UserDetails user = new User("lucia@example.com", "x", List.of(new SimpleGrantedAuthority("ROLE_USER")));
-        String foreign = new JwtService("ffffffffffffffffffffffffffffffff", 60_000).generateToken(user, 7L, "Lucía");
+        String foreign = new JwtService("ffffffffffffffffffffffffffffffff", 60_000).generateToken(user, 7L, "Lucía", true, "s1");
 
         JwtService jwt = new JwtService(VALID_SECRET, 60_000);
         assertThrows(io.jsonwebtoken.security.SignatureException.class, () -> jwt.extractUsername(foreign));

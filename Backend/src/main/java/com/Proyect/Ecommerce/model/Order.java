@@ -16,6 +16,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Data;
@@ -51,7 +52,18 @@ public class Order {
     /** Until when an unpaid order holds its stock (set by HU-17). */
     private LocalDateTime expiresAt;
 
+    /** HU-18 · Where the customer pays in Mercado Pago: one preference per order, reused on every attempt. */
+    private String mpCheckoutUrl;
+
+    /** HU-18 · The Mercado Pago payment that paid it. */
+    private String mpPaymentId;
+
+    /** HU-18 · Why its payment needs someone to look at it (e.g. approved after it was cancelled); null if nothing. */
+    private String paymentIssue;
+
+    /** HU-19 · In the order they were bought, so the receipt and "Mis pedidos" list them the same way every time. */
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
+    @OrderBy("id")
     private List<OrderItem> items;
 
     @PrePersist

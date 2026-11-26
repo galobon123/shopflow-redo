@@ -1,38 +1,90 @@
-<div appViewPanel>
-    <h2 class="font-display text-heading mb-6 flex items-center gap-2">
-    <mat-icon>local_shipping</mat-icon>
-    Shipping Information
+<section appViewPanel aria-labelledby="shipping-title">
+    <h2 id="shipping-title" class="font-display text-heading mb-6 flex items-center gap-2">
+        <mat-icon aria-hidden="true">local_shipping</mat-icon>
+        Envío
     </h2>
-    <form [formGroup]="form" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <mat-form-field>
-            <input matInput type="text" placeholder="First Name" formControlName="firstName">
-            @if (form.get('firstName')?.touched && form.get('firstName')?.invalid) {
-                <mat-error>First name is required</mat-error>
-            }
-        </mat-form-field>
-        <mat-form-field>
-            <input matInput type="text" placeholder="Last Name" formControlName="lastName">
-            @if (form.get('lastName')?.touched && form.get('lastName')?.invalid) {
-                <mat-error>Last name is required</mat-error>
-            }
-        </mat-form-field>
-        <mat-form-field class="col-span-2">
-            <textarea matInput placeholder="Address" formControlName="address"></textarea>
-            @if (form.get('address')?.touched && form.get('address')?.invalid) {
-                <mat-error>Address is required</mat-error>
-            }
-        </mat-form-field>
-        <mat-form-field>
-            <input matInput type="number" placeholder="City ID" formControlName="cityId">
-            @if (form.get('cityId')?.touched && form.get('cityId')?.invalid) {
-                <mat-error>City ID is required</mat-error>
-            }
-        </mat-form-field>
-        <mat-form-field>
-            <input matInput type="text" placeholder="Zip Code" formControlName="zipCode">
-            @if (form.get('zipCode')?.touched && form.get('zipCode')?.invalid) {
-                <mat-error>Valid zip code required (1-4 digits)</mat-error>
-            }
-        </mat-form-field>
-    </form>
-</div>
+
+    @if (store.addressesLoading()) {
+        <div class="grid gap-3" aria-busy="true" aria-label="Cargando tus direcciones">
+            <div sfSkeleton class="h-4 w-1/3"></div>
+            <div sfSkeleton class="h-20"></div>
+            <div sfSkeleton class="h-20"></div>
+        </div>
+    } @else if (store.addressesError(); as error) {
+        <sf-error-state [message]="error" (retry)="store.loadAddresses()" />
+    } @else {
+        @if (store.addresses().length) {
+            <fieldset class="sf-choices">
+                <legend class="sf-field__label">Mis direcciones</legend>
+                @for (saved of store.addresses(); track saved.id) {
+                    <label class="sf-choice">
+                        <input type="radio" name="shipTo" [checked]="choice() === saved.id" (change)="choose(saved.id)" />
+                        <span class="sf-choice__text">
+                            <strong>{{ saved.firstName }} {{ saved.lastName }}</strong>
+                            <span>{{ saved.address }}</span>
+                            <span class="text-ink-muted">{{ saved.cityName }}, {{ saved.stateName }} · <span class="whitespace-nowrap">CP {{ saved.zipCode }}</span></span>
+                        </span>
+                    </label>
+                }
+                <label class="sf-choice">
+                    <input type="radio" name="shipTo" [checked]="choice() === NEW" (change)="choose(NEW)" />
+                    <span class="sf-choice__text"><strong>Agregar nueva</strong></span>
+                </label>
+            </fieldset>
+        }
+
+        @if (showForm()) {
+            <form [formGroup]="form" class="grid grid-cols-1 sm:grid-cols-2 gap-5" [class.mt-6]="store.addresses().length"
+                novalidate aria-label="Nueva dirección">
+                <sf-field class="max-w-none" label="Nombre"
+                    [errors]="{ required: 'Ingresá el nombre.', maxlength: 'Máximo 100 caracteres.' }">
+                    <input sfInput type="text" formControlName="firstName" autocomplete="given-name" />
+                </sf-field>
+
+                <sf-field class="max-w-none" label="Apellido"
+                    [errors]="{ required: 'Ingresá el apellido.', maxlength: 'Máximo 100 caracteres.' }">
+                    <input sfInput type="text" formControlName="lastName" autocomplete="family-name" />
+                </sf-field>
+
+                <sf-field class="max-w-none sm:col-span-2" label="Calle y altura" hint="Si tenés piso o departamento, agregalo: Gorriti 4520, 3° B."
+                    [errors]="{ required: 'Ingresá la dirección.', pattern: 'Incluí la altura de la calle.', maxlength: 'Máximo 255 caracteres.' }">
+                    <input sfInput type="text" formControlName="address" autocomplete="street-address" />
+                </sf-field>
+
+                <sf-field class="max-w-none" label="Provincia"
+                    [hint]="states.error() ? 'No pudimos cargar las provincias.' : undefined"
+                    [errors]="{ required: 'Elegí la provincia.' }">
+                    <select sfInput formControlName="stateId" autocomplete="address-level1">
+                        <option [ngValue]="null" disabled>{{ states.isLoading() ? 'Cargando provincias…' : 'Elegí una provincia' }}</option>
+                        @for (state of states.hasValue() ? states.value() : []; track state.id) {
+                            <option [ngValue]="state.id">{{ state.name }}</option>
+                        }
+                    </select>
+                </sf-field>
+
+                <sf-field class="max-w-none" label="Ciudad" [hint]="cityHint()"
+                    [errors]="{ required: 'Elegí la ciudad.' }">
+                    <select sfInput formControlName="cityId" autocomplete="address-level2">
+                        <option [ngValue]="null" disabled>Elegí una ciudad</option>
+                        @for (city of cities.hasValue() ? cities.value() : []; track city.id) {
+                            <option [ngValue]="city.id">{{ city.name }}</option>
+                        }
+                    </select>
+                </sf-field>
+
+                @if (states.error() || cities.error()) {
+                    <div class="sm:col-span-2">
+                        <button sfButton="secondary" size="sm" type="button"
+                            (click)="states.error() ? states.reload() : cities.reload()">Reintentar</button>
+                    </div>
+                }
+
+                <sf-field class="max-w-none" label="Código postal" hint="El CPA (X5152ABC) o los 4 números (5152)."
+                    [errors]="{ required: 'Ingresá el código postal.', postalCode: 'Código postal inválido.' }">
+                    <input sfInput type="text" formControlName="zipCode" autocomplete="postal-code"
+                        autocapitalize="characters" spellcheck="false" maxlength="12" (blur)="normalizeZip()" />
+                </sf-field>
+            </form>
+        }
+    }
+</section>

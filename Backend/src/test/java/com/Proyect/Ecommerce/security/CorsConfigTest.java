@@ -27,6 +27,20 @@ class CorsConfigTest {
         assertNull(configFor(List.of("https://mitienda.com")).checkOrigin("https://otro-sitio.com"));
     }
 
+    /** HU-12 · The guest cart travels in its own header. */
+    @Test
+    void allowsTheGuestCartHeader() {
+        assertEquals(List.of("X-Cart-Id"),
+                configFor(List.of("https://mitienda.com")).checkHeaders(List.of("X-Cart-Id")));
+    }
+
+    /** HU-17 · Each purchase attempt is named by its own header. */
+    @Test
+    void allowsTheIdempotencyKeyHeader() {
+        assertEquals(List.of("Idempotency-Key"),
+                configFor(List.of("https://mitienda.com")).checkHeaders(List.of("Idempotency-Key")));
+    }
+
     @Test
     void trimsAndIgnoresEmptyEntries() {
         CorsConfiguration config = configFor(List.of(" https://mitienda.com", " https://admin.mitienda.com ", ""));

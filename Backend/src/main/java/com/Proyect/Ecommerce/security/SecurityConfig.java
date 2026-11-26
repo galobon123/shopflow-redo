@@ -17,6 +17,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
 
+import jakarta.servlet.DispatcherType;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -48,10 +50,21 @@ public class SecurityConfig {
                 .authenticationEntryPoint(restAuthenticationHandlers)
                 .accessDeniedHandler(restAuthenticationHandlers))
             .authorizeHttpRequests(auth -> auth
+                // The session stream (SseEmitter) is checked when it opens; its later async dispatches carry no token.
+                .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                 .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                .requestMatchers("/api/auth/verify-email/resend").authenticated()
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                // HU-18 · Mercado Pago's webhook: no session, PaymentService checks its x-signature.
+                .requestMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
+                // HU-16 · Provinces and cities for the address form.
+                .requestMatchers(HttpMethod.GET, "/api/states", "/api/cities").permitAll()
+                // HU-30 · Any customer can send a review; ReviewService checks they received the product.
+                .requestMatchers(HttpMethod.POST, "/api/products/*/reviews").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/products/*/reviews/mine").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/products/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/products/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasRole("ADMIN")
@@ -59,6 +72,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.DELETE, "/api/categories/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/users/me").authenticated()
                 .requestMatchers("/api/users/**").hasRole("ADMIN")
+                // HU-12 · Guests use the cart with X-Cart-Id (CartController decides whose it is); merging needs a session.
+                .requestMatchers("/api/cart/merge").authenticated()
+                .requestMatchers("/api/cart", "/api/cart/**").permitAll()
                 .anyRequest().authenticated()
 
             )

@@ -29,7 +29,7 @@ let nextId = 0;
 export class SfField {
   readonly label = input.required<string>();
   readonly hint = input<string>();
-  /** Message per validator key, e.g. `{ required: 'Ingresá tu email.' }`. */
+  /** Message per validator key, e.g. `{ required: 'Ingresá tu email.' }`. Errors whose value is a text show that text. */
   readonly errors = input<Record<string, string>>({});
 
   readonly id = `sf-field-${nextId++}`;
@@ -42,6 +42,9 @@ export class SfField {
     const control = this.control();
     if (!control?.invalid || !control.touched || !control.errors) return null;
     const key = Object.keys(control.errors)[0];
+    const value = control.errors[key];
+    // A text error is already the message (e.g. `{ server: 'Ya existe…' }` from applyServerErrors).
+    if (typeof value === 'string') return value;
     return this.errors()[key] ?? 'Revisá este campo.';
   }
 

@@ -1,8 +1,20 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ProductRequest, ProductResponse } from '../models/product.model';
+import { ProductDetail, ProductRequest, ProductResponse, ProductSuggestion } from '../models/product.model';
+import { Page } from '../models/page.model';
+
+export type ProductSort = 'newest' | 'price_asc' | 'price_desc' | 'name';
+
+/** HU-10 · Catalog query. `page` starts at 0, like the API. */
+export interface CatalogQuery {
+  category?: string | null;
+  q?: string | null;
+  sort?: ProductSort;
+  page?: number;
+  size?: number;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -13,12 +25,28 @@ export class ProductService {
 
   constructor(private http: HttpClient) {}
 
-  getAll(): Observable<ProductResponse[]> {
-    return this.http.get<ProductResponse[]>(this.url);
+  /** Active products only, one page at a time. Empty filters are left out of the URL. */
+  search(query: CatalogQuery): Observable<Page<ProductResponse>> {
+    let params = new HttpParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== null && value !== undefined && value !== '') params = params.set(key, String(value));
+    }
+    return this.http.get<Page<ProductResponse>>(this.url, { params });
   }
 
-  getById(id: number): Observable<ProductResponse> {
-    return this.http.get<ProductResponse>(`${this.url}/${id}`);
+  /** The closest active products to what is being typed (accents and small typos don't matter). */
+  suggest(q: string): Observable<ProductSuggestion[]> {
+    return this.http.get<ProductSuggestion[]>(`${this.url}/suggestions`, { params: { q } });
+  }
+
+  /** HU-11 · 404 when it doesn't exist or is no longer active. */
+  getById(id: number): Observable<ProductDetail> {
+    return this.http.get<ProductDetail>(`${this.url}/${id}`);
+  }
+
+  /** HU-15 · "Otros también compraron": what this product's buyers also bought (empty when there's nothing). */
+  alsoBought(id: number): Observable<ProductResponse[]> {
+    return this.http.get<ProductResponse[]>(`${this.url}/${id}/also-bought`);
   }
 
   create(product: ProductRequest): Observable<ProductResponse> {

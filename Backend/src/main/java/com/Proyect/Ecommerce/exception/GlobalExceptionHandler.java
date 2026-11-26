@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import com.Proyect.Ecommerce.security.SessionReplacedException;
+
 import jakarta.validation.ConstraintViolationException;
 
 /**
@@ -63,6 +65,19 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.UNAUTHORIZED, "No autenticado", "Email o contraseña incorrectos.");
     }
 
+    /** `reason` lets the browser explain why it was signed out. */
+    @ExceptionHandler(SessionReplacedException.class)
+    public ProblemDetail handleSessionReplaced(SessionReplacedException ex) {
+        ProblemDetail problem = problem(HttpStatus.UNAUTHORIZED, "Sesión cerrada", ex.getMessage());
+        problem.setProperty("reason", "session-replaced");
+        return problem;
+    }
+
+    @ExceptionHandler(InvalidSignatureException.class)
+    public ProblemDetail handleInvalidSignature(InvalidSignatureException ex) {
+        return problem(HttpStatus.UNAUTHORIZED, "Firma inválida", ex.getMessage());
+    }
+
     @ExceptionHandler(AuthenticationException.class)
     public ProblemDetail handleAuthentication(AuthenticationException ex) {
         return problem(HttpStatus.UNAUTHORIZED, "No autenticado", "Tenés que iniciar sesión para continuar.");
@@ -73,14 +88,41 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.FORBIDDEN, "Sin permiso", "No tenés permiso para hacer esto.");
     }
 
+    @ExceptionHandler(ForbiddenException.class)
+    public ProblemDetail handleForbidden(ForbiddenException ex) {
+        return problem(HttpStatus.FORBIDDEN, "Sin permiso", ex.getMessage());
+    }
+
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ProblemDetail handleServiceUnavailable(ServiceUnavailableException ex) {
+        return problem(HttpStatus.SERVICE_UNAVAILABLE, "Servicio no disponible", ex.getMessage());
+    }
+
     @ExceptionHandler(NotFoundException.class)
     public ProblemDetail handleNotFound(NotFoundException ex) {
         return problem(HttpStatus.NOT_FOUND, "No encontrado", ex.getMessage());
     }
 
+    /** HU-17 · `reason` tells the checkout to stay and wait, not to send the customer back to the cart. */
+    @ExceptionHandler(PurchaseInProgressException.class)
+    public ProblemDetail handlePurchaseInProgress(PurchaseInProgressException ex) {
+        ProblemDetail problem = problem(HttpStatus.CONFLICT, "Conflicto", ex.getMessage());
+        problem.setProperty("reason", "order-in-progress");
+        return problem;
+    }
+
     @ExceptionHandler(ConflictException.class)
     public ProblemDetail handleConflict(ConflictException ex) {
         return problem(HttpStatus.CONFLICT, "Conflicto", ex.getMessage());
+    }
+
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ProblemDetail> handleTooManyRequests(TooManyRequestsException ex) {
+        ProblemDetail problem = problem(HttpStatus.TOO_MANY_REQUESTS, "Demasiados intentos", ex.getMessage());
+        problem.setProperty("retryAfterSeconds", ex.getRetryAfterSeconds());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfterSeconds()))
+                .body(problem);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

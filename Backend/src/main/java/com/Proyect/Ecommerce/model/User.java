@@ -27,9 +27,16 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @NotBlank(message = "Ingresá la contraseña")
-    @Column(nullable = false)
+    /** BCrypt hash; null for accounts created with Google (HU-32). */
     private String password;
+
+    /** HU-31 · Needed to buy. Set by the link in the email, a sign-in code (HU-33) or Google. */
+    @Column(nullable = false)
+    private boolean emailVerified;
+
+    /** HU-32 · Google's id for the person ("sub"), once they signed in with Google. */
+    @Column(unique = true)
+    private String googleSub;
 
     @NotNull(message = "Elegí un rol")
     @Enumerated(EnumType.STRING)

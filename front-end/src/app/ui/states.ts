@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, Directive, input, output } from '@angular/core';
-import { CircleAlert, LucideAngularModule, LucideIconData, RotateCw } from 'lucide-angular';
+import { LucideAngularModule, LucideIconData, RotateCw } from 'lucide-angular';
+import { SfAlert } from './alert';
 import { SfButton } from './button';
 
 /** Empty view: what is missing, why, and one action (projected) to get out of it. */
@@ -24,14 +25,11 @@ export class SfEmptyState {
 /** Error in place of the content that failed, with a retry button. */
 @Component({
   selector: 'sf-error-state',
-  imports: [LucideAngularModule, SfButton],
+  imports: [LucideAngularModule, SfAlert, SfButton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'sf-error' },
   template: `
-    <div class="sf-error__msg" role="alert">
-      <lucide-icon [img]="alertIcon" />
-      <span>{{ message() }}</span>
-    </div>
+    <sf-alert>{{ message() }}</sf-alert>
     <button sfButton="secondary" type="button" (click)="retry.emit()">
       <lucide-icon [img]="retryIcon" />Reintentar
     </button>
@@ -41,7 +39,6 @@ export class SfErrorState {
   readonly message = input.required<string>();
   readonly retry = output<void>();
 
-  protected readonly alertIcon = CircleAlert;
   protected readonly retryIcon = RotateCw;
 }
 

@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.Proyect.Ecommerce.controller.ProductController;
 import com.Proyect.Ecommerce.service.ProductService;
+import com.Proyect.Ecommerce.service.RecommendedProducts;
 
 /** HU-03 · Formato de error único. */
 @ExtendWith(OutputCaptureExtension.class)
@@ -60,7 +61,7 @@ class GlobalExceptionHandlerTest {
     }
 
     private final MockMvc mvc = MockMvcBuilders
-            .standaloneSetup(new FailingController(), new ProductController(mock(ProductService.class)))
+            .standaloneSetup(new FailingController(), new ProductController(mock(ProductService.class), mock(RecommendedProducts.class)))
             .setControllerAdvice(new GlobalExceptionHandler())
             .build();
 

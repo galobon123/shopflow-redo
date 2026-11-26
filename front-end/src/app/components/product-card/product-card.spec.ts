@@ -1,23 +1,37 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-
+import { TestBed } from '@angular/core/testing';
 import { ProductCard } from './product-card';
+import { aProduct, testProviders } from '../../testing/test-providers';
+import { ProductResponse } from '../../core/models/product.model';
 
 describe('ProductCard', () => {
-  let component: ProductCard;
-  let fixture: ComponentFixture<ProductCard>;
+  function render(product: ProductResponse) {
+    TestBed.configureTestingModule({ imports: [ProductCard], providers: testProviders() });
+    const fixture = TestBed.createComponent(ProductCard);
+    fixture.componentRef.setInput('product', product);
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
 
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [ProductCard]
-    })
-    .compileComponents();
+  it('shows name, price in pesos and low stock, without the category', () => {
+    const el = render(aProduct({ stock: 3 }));
 
-    fixture = TestBed.createComponent(ProductCard);
-    component = fixture.componentInstance;
-    await fixture.whenStable();
+    expect(el.textContent).toContain('Remera lino');
+    expect(el.textContent).not.toContain('Remeras');
+    expect(el.textContent).toMatch(/\$\s?48\.900/);
+    expect(el.textContent).toContain('Quedan 3');
   });
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
+  it('opens the product page (HU-11)', () => {
+    const el = render(aProduct({ id: 15 }));
+
+    expect(el.querySelector('a.sf-card__link')?.getAttribute('href')).toBe('/product/15');
+  });
+
+  it('disables "Agregar" when there is no stock', () => {
+    const el = render(aProduct({ stock: 0 }));
+    const add = [...el.querySelectorAll('button')].find((b) => b.textContent?.includes('Agregar'));
+
+    expect(el.textContent).toContain('Sin stock');
+    expect(add?.disabled).toBe(true);
   });
 });

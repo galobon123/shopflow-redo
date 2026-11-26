@@ -50,15 +50,16 @@
   }
   .sf-btn:active { transform: scale(0.98); }
   .sf-btn:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-  .sf-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+  /* aria-disabled looks the same but keeps the keyboard focus on the button (HU-14). */
+  .sf-btn:is(:disabled, [aria-disabled="true"]) { opacity: 0.45; cursor: not-allowed; transform: none; }
   .sf-btn--primary { background: var(--color-ink); color: var(--color-on-ink); }
-  .sf-btn--primary:hover:not(:disabled) { background: var(--color-ink-soft); }
+  .sf-btn--primary:hover:not(:disabled, [aria-disabled="true"]) { background: var(--color-ink-soft); }
   .sf-btn--secondary { background: var(--color-surface); color: var(--color-ink); border-color: var(--color-line-strong); }
-  .sf-btn--secondary:hover:not(:disabled) { background: var(--color-canvas); }
+  .sf-btn--secondary:hover:not(:disabled, [aria-disabled="true"]) { background: var(--color-canvas); }
   .sf-btn--ghost { background: transparent; color: var(--color-ink); }
-  .sf-btn--ghost:hover:not(:disabled) { background: var(--color-sunken); }
+  .sf-btn--ghost:hover:not(:disabled, [aria-disabled="true"]) { background: var(--color-sunken); }
   .sf-btn--danger { background: var(--color-surface); color: var(--color-danger); border-color: var(--color-danger); }
-  .sf-btn--danger:hover:not(:disabled) { background: var(--color-danger-soft); }
+  .sf-btn--danger:hover:not(:disabled, [aria-disabled="true"]) { background: var(--color-danger-soft); }
   .sf-btn--sm { height: 32px; padding: 0 calc(var(--spacing) * 3); font-size: 13px; }
   .sf-btn--lg { height: var(--control-height); padding: 0 calc(var(--spacing) * 6); font-size: 15px; }
   .sf-btn--block { width: 100%; }
@@ -96,6 +97,15 @@
   .sf-icon-btn--float:hover { background: var(--color-surface); color: var(--color-accent); }
   .sf-icon-btn[aria-pressed="true"] { color: var(--color-accent); }
   .sf-icon-btn[aria-pressed="true"] svg { fill: currentColor; }
+  /* Favourite heart (and the wishlist's trash): red when saved, grows on hover, pulses while the server saves it
+     (and ignores taps: aria-disabled, so the keyboard focus stays on it). */
+  .sf-fav, .sf-fav:hover { color: var(--color-ink); }
+  .sf-fav svg { transition: transform 160ms var(--ease-out), fill 160ms var(--ease-out), color 160ms var(--ease-out); }
+  .sf-fav:hover svg { transform: scale(1.2); }
+  .sf-fav[aria-pressed="true"] { color: var(--color-heart); }
+  .sf-fav:is(:disabled, [aria-disabled="true"]) { cursor: progress; }
+  .sf-fav[aria-busy="true"] svg { animation: sf-fav-saving 700ms ease-in-out infinite; }
+  @keyframes sf-fav-saving { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.25); opacity: 0.55; } }
   .sf-icon-btn--danger { color: var(--color-danger); }
   .sf-icon-btn--danger:hover { background: var(--color-danger-soft); }
   .sf-count {
@@ -115,7 +125,9 @@
   }
 
   /* ---------- Field ---------- */
-  .sf-field { display: grid; gap: calc(var(--spacing) * 2); max-width: 360px; }
+  /* align-content: start · stretched by a grid row (a neighbour with help or error text), the label and the control
+     stay on top instead of spreading out, so the controls of a row line up. */
+  .sf-field { display: grid; align-content: start; gap: calc(var(--spacing) * 2); max-width: 360px; }
   .sf-field__label { font-size: 13px; line-height: 16px; font-weight: 600; color: var(--color-ink); }
   .sf-field__help { font-size: 13px; line-height: 18px; color: var(--color-ink-muted); }
   .sf-field__error { display: flex; gap: calc(var(--spacing) * 1); align-items: flex-start; font-size: 13px; line-height: 18px; color: var(--color-danger); }
@@ -135,8 +147,41 @@
   .sf-input[aria-invalid="true"] { border-color: var(--color-danger); }
   .sf-input[aria-invalid="true"]:focus { box-shadow: 0 0 0 1px var(--color-danger); }
   .sf-input--search { padding-left: 40px; }
+  .sf-input:disabled { background: var(--color-sunken); color: var(--color-ink-muted); cursor: not-allowed; }
+  /* Choice list (HU-16 · "Mis direcciones"): native radios, arrows move between them; the whole card is the hit area. */
+  .sf-choices { display: grid; gap: calc(var(--spacing) * 2); min-width: 0; margin: 0; padding: 0; border: 0; }
+  .sf-choices legend { padding: 0; margin-bottom: calc(var(--spacing) * 2); }
+  .sf-choice { display: flex; align-items: flex-start; gap: calc(var(--spacing) * 3); padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4); border: 1px solid var(--color-line); border-radius: var(--radius); background: var(--color-surface); cursor: pointer; font-size: 14px; line-height: 20px; }
+  .sf-choice:hover { background: var(--color-canvas); }
+  .sf-choice:has(input:checked) { border-color: var(--color-ink); box-shadow: inset 0 0 0 1px var(--color-ink); }
+  .sf-choice:has(input:focus-visible) { box-shadow: var(--shadow-focus); }
+  .sf-choice input { flex: none; width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--color-ink); }
+  .sf-choice input:focus-visible { box-shadow: none; }
+  .sf-choice__text { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+  /* Alert: one message about the whole form or page (field errors go under the field). */
+  .sf-alert { display: flex; gap: calc(var(--spacing) * 3); align-items: center; padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4); border-radius: var(--radius); border-left: 3px solid; color: var(--color-ink); font-size: 14px; line-height: 20px; }
+  .sf-alert > lucide-icon { flex-shrink: 0; }
+  .sf-alert__body { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: calc(var(--spacing) * 2) calc(var(--spacing) * 4); }
+  .sf-alert__text { flex: 1 1 240px; min-width: 0; }
+  .sf-alert__action { flex-shrink: 0; }
+  .sf-alert--danger { background: var(--color-danger-soft); border-color: var(--color-danger); }
+  .sf-alert--danger > lucide-icon { color: var(--color-danger); }
+  .sf-alert--warning { background: var(--color-warning-soft); border-color: var(--color-warning); }
+  .sf-alert--warning > lucide-icon { color: var(--color-warning); }
+  .sf-alert--info { background: var(--color-accent-soft); border-color: var(--color-accent); }
+  .sf-alert--info > lucide-icon { color: var(--color-accent); }
   .sf-search { position: relative; }
   .sf-search > lucide-icon { position: absolute; left: calc(var(--spacing) * 3); top: 50%; transform: translateY(-50%); color: var(--color-ink-muted); pointer-events: none; }
+  /* Suggestions under the search box: small photo, name (one line, "…" if long) and price. */
+  .sf-suggest { position: absolute; top: calc(100% + var(--spacing) * 1); left: 0; right: 0; z-index: 20; margin: 0; padding: calc(var(--spacing) * 1) 0; list-style: none; border: 1px solid var(--color-line); border-radius: var(--radius-card); background: var(--color-surface); box-shadow: var(--shadow-overlay); }
+  .sf-suggest__option { display: flex; align-items: center; gap: calc(var(--spacing) * 3); padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3); cursor: pointer; font-size: 14px; line-height: 20px; }
+  .sf-suggest__option[aria-selected="true"] { background: var(--color-canvas); }
+  .sf-suggest__thumb { display: grid; place-items: center; flex-shrink: 0; width: 40px; height: 40px; overflow: hidden; border-radius: var(--radius); background: var(--color-sunken); color: var(--color-ink-muted); }
+  .sf-suggest__thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .sf-suggest__name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .sf-suggest__price { flex-shrink: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .sf-suggest__empty { display: flex; padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4); color: var(--color-ink-muted); font-size: 14px; line-height: 20px; white-space: nowrap; }
+  .sf-suggest__query { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
   /* ---------- QtyStepper ---------- */
   .sf-stepper {
@@ -159,10 +204,14 @@
     color: var(--color-ink);
     cursor: pointer;
   }
-  .sf-stepper button:hover:not(:disabled) { background: var(--color-sunken); }
+  .sf-stepper button:hover:not([aria-disabled="true"]) { background: var(--color-sunken); }
   .sf-stepper button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-  .sf-stepper button:disabled { color: var(--color-line-strong); cursor: not-allowed; }
-  .sf-stepper output { min-width: 32px; text-align: center; font: 600 15px/1 var(--font-sans); font-variant-numeric: tabular-nums; }
+  .sf-stepper button[aria-disabled="true"] { color: var(--color-line-strong); cursor: not-allowed; }
+  .sf-stepper input { box-sizing: border-box; width: 40px; height: 32px; padding: 0; border: 0; border-radius: var(--radius); background: transparent; color: var(--color-ink); text-align: center; font: 600 15px/1 var(--font-sans); font-variant-numeric: tabular-nums; }
+  .sf-stepper input:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+  /* More than the stock: the number shakes no. */
+  .sf-stepper__shake { animation: sf-shake 320ms var(--ease-out); }
+  @keyframes sf-shake { 20% { transform: translateX(-4px); } 40% { transform: translateX(4px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
 
   /* ---------- Badge ---------- */
   .sf-badge {
@@ -180,22 +229,33 @@
   .sf-badge--out { background: var(--color-sunken); color: var(--color-ink-muted); }
   .sf-badge--promo { background: var(--color-accent); color: var(--color-on-accent); }
   .sf-badge--new { background: var(--color-surface); color: var(--color-ink); box-shadow: inset 0 0 0 1px var(--color-ink); }
+  /* HU-19 · An order on its way (paid, shipped). */
+  .sf-badge--info { background: var(--color-accent-soft); color: var(--color-accent); }
 
   /* ---------- ProductCard ---------- */
-  .sf-card { display: grid; gap: calc(var(--spacing) * 3); width: 100%; max-width: 280px; color: var(--color-ink); text-decoration: none; }
-  .sf-card__media { position: relative; aspect-ratio: 4 / 5; max-width: 100%; border-radius: var(--radius); background: var(--color-sunken); overflow: hidden; }
+  .sf-card { display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; border-radius: var(--radius-card); background: var(--color-surface); box-shadow: var(--shadow-card); color: var(--color-ink); text-decoration: none; transition: box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out); }
+  .sf-card:hover { box-shadow: var(--shadow-card-hover); transform: translateY(-2px); }
+  .sf-card__media { position: relative; aspect-ratio: 1 / 1; background: var(--color-sunken); overflow: hidden; }
   .sf-card__media img, .sf-card__photo { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 280ms var(--ease-out); }
   .sf-card:hover .sf-card__photo { transform: scale(1.03); }
   .sf-card__fav { position: absolute; top: calc(var(--spacing) * 2); right: calc(var(--spacing) * 2); }
   .sf-card__flag { position: absolute; top: calc(var(--spacing) * 3); left: calc(var(--spacing) * 3); }
-  .sf-card__body { display: grid; gap: calc(var(--spacing) * 1); }
-  .sf-card__name { margin: 0; font-size: 16px; line-height: 22px; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .sf-card__body { display: grid; gap: calc(var(--spacing) * 1); padding: calc(var(--spacing) * 4) calc(var(--spacing) * 4) 0; }
+  /* Always two lines tall, so every card is the same size; longer names end in "…". */
+  .sf-card__name { margin: 0; min-height: 40px; font-size: 15px; line-height: 20px; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .sf-card:hover .sf-card__name { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+  /* HU-11 · The name links to the product page and its hit area covers the card; the heart and "Agregar" sit above it. */
+  .sf-card { position: relative; }
+  .sf-card__link { color: inherit; text-decoration: none; }
+  .sf-card__link::after { content: ""; position: absolute; inset: 0; }
+  .sf-card:has(.sf-card__link:focus-visible) { box-shadow: var(--shadow-focus); }
+  .sf-card__fav, .sf-card__foot { z-index: 1; }
+  .sf-card__foot { position: relative; }
   .sf-price-row { display: flex; align-items: baseline; gap: calc(var(--spacing) * 2); flex-wrap: wrap; }
   .sf-price { font-size: 20px; line-height: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
   .sf-price--promo { color: var(--color-accent); }
   .sf-price-old { font-size: 14px; line-height: 20px; color: var(--color-ink-muted); text-decoration: line-through; font-variant-numeric: tabular-nums; }
-  .sf-card__foot { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--spacing) * 2); margin-top: calc(var(--spacing) * 1); }
+  .sf-card__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: calc(var(--spacing) * 2); margin-top: auto; padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4) calc(var(--spacing) * 4); }
 
   /* ---------- Header ---------- */
   .sf-header { background: var(--color-surface); border-bottom: 1px solid var(--color-line); }
@@ -212,6 +272,19 @@
   .sf-brand { font-family: var(--font-display); font-size: 26px; line-height: 1; letter-spacing: -0.02em; color: var(--color-ink); text-decoration: none; }
   .sf-header__search { flex: 1; max-width: 520px; margin-inline: auto; }
   .sf-header__actions { display: flex; align-items: center; gap: calc(var(--spacing) * 1); }
+  /* Small phones: the search drops to its own full-width row under the brand and the actions. */
+  @media (max-width: 639px) {
+    .sf-header__inner {
+      height: auto;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-template-rows: var(--header-row-height) auto;
+      row-gap: 0;
+      padding-bottom: calc(var(--spacing) * 3);
+    }
+    .sf-header__search { grid-row: 2; grid-column: 1 / -1; max-width: none; margin: 0; }
+    .sf-brand { font-size: 22px; }
+  }
   .sf-profile-btn {
     display: inline-flex;
     align-items: center;
@@ -300,6 +373,143 @@
   .sf-nav small { font-size: 13px; color: var(--color-ink-muted); font-variant-numeric: tabular-nums; }
   .sf-nav a[aria-current="page"] small { color: var(--color-accent); }
 
+  /* ---------- Catalog layout: categories + results ---------- */
+  .sf-catalog { box-sizing: border-box; max-width: var(--container-page); margin: 0 auto; padding: calc(var(--spacing) * 8) calc(var(--spacing) * 4) calc(var(--spacing) * 16); display: grid; gap: calc(var(--spacing) * 8); }
+  .sf-catalog__nav { align-self: start; min-width: 0; }
+  @media (min-width: 768px) {
+    .sf-catalog { grid-template-columns: 220px minmax(0, 1fr); padding-inline: calc(var(--spacing) * 6); }
+    /* Sticky but never taller than the screen: on a phone held sideways the list scrolls on its own. */
+    .sf-catalog__nav {
+      position: sticky; top: calc(var(--header-height) + var(--spacing) * 6);
+      display: flex; flex-direction: column; max-height: calc(100dvh - var(--header-height) - var(--spacing) * 12);
+    }
+    /* contain: a swipe that reaches the end of the list stays there instead of moving the page. */
+    .sf-catalog__nav .sf-nav { min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; padding: 3px; margin: -3px; }
+  }
+  /* Phones: the category list becomes one scrollable row. */
+  @media (max-width: 767px) {
+    .sf-catalog__nav .sf-nav { grid-auto-flow: column; grid-auto-columns: max-content; overflow-x: auto; padding-bottom: calc(var(--spacing) * 1); }
+  }
+  .sf-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: calc(var(--spacing) * 4); margin-bottom: calc(var(--spacing) * 6); }
+  .sf-toolbar .sf-field { min-width: 200px; }
+
+  /* ---------- Product page (HU-11): gallery + info ---------- */
+  .sf-pdp { box-sizing: border-box; max-width: var(--container-page); margin: 0 auto; padding: calc(var(--spacing) * 8) calc(var(--spacing) * 4) calc(var(--spacing) * 16); display: grid; gap: calc(var(--spacing) * 8); align-items: start; }
+  .sf-pdp__full { grid-column: 1 / -1; }
+  @media (min-width: 768px) {
+    .sf-pdp { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: calc(var(--spacing) * 12); padding-inline: calc(var(--spacing) * 6); }
+  }
+  .sf-pdp__info { display: grid; gap: calc(var(--spacing) * 5); align-content: start; }
+  .sf-pdp__info h1 { margin: 0; text-wrap: balance; overflow-wrap: anywhere; }
+  .sf-pdp__info .sf-price-row { margin: 0; }
+  .sf-pdp__category { text-decoration: none; }
+  .sf-pdp__category:hover { color: var(--color-ink); }
+  .sf-pdp__buy { display: flex; flex-wrap: wrap; align-items: center; gap: calc(var(--spacing) * 4); }
+  .sf-pdp__about { display: grid; gap: calc(var(--spacing) * 2); padding-top: calc(var(--spacing) * 5); border-top: 1px solid var(--color-line); }
+  .sf-pdp__about h2, .sf-pdp__about p { margin: 0; }
+  .sf-pdp__about p { color: var(--color-ink-soft); white-space: pre-line; text-wrap: pretty; overflow-wrap: anywhere; }
+  .sf-pdp__about-text { max-height: 10lh; overflow-y: auto; border-radius: var(--radius); }
+  .sf-pdp__about-text:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+  .sf-pdp__rating { display: flex; flex-wrap: wrap; align-items: center; gap: calc(var(--spacing) * 2); margin: 0; font-size: 14px; line-height: 20px; }
+
+  /* ---------- Stars (HU-30): empty row, and the filled row on top cut at the rating ---------- */
+  /* Its own width in any container (a grid would stretch it, and the fill is a share of that width). */
+  .sf-stars { position: relative; display: inline-flex; width: max-content; vertical-align: middle; color: var(--color-line-strong); }
+  .sf-stars__fill { position: absolute; inset: 0 auto 0 0; display: inline-flex; overflow: hidden; color: var(--color-ink); }
+  .sf-stars__fill svg { fill: currentColor; }
+
+  /* Star picker: native radios (arrows move between them), drawn as stars filled up to the chosen one. */
+  .sf-rate { display: grid; gap: calc(var(--spacing) * 2); margin: 0; padding: 0; border: 0; min-width: 0; }
+  .sf-rate legend { padding: 0; margin-bottom: calc(var(--spacing) * 2); }
+  .sf-rate__stars { display: flex; gap: calc(var(--spacing) * 1); }
+  .sf-rate__star { display: grid; place-items: center; width: var(--control-height); height: var(--control-height); border-radius: var(--radius); color: var(--color-line-strong); cursor: pointer; }
+  .sf-rate__star:is(:has(input:checked), :has(~ .sf-rate__star input:checked)) { color: var(--color-ink); }
+  .sf-rate__star:is(:has(input:checked), :has(~ .sf-rate__star input:checked)) svg { fill: currentColor; }
+  .sf-rate__star:hover { background: var(--color-sunken); }
+  .sf-rate__star:has(input:focus-visible) { box-shadow: var(--shadow-focus); }
+
+  /* ---------- Reviews panel (HU-30) ---------- */
+  .sf-reviews { display: grid; gap: calc(var(--spacing) * 6); padding-top: calc(var(--spacing) * 8); border-top: 1px solid var(--color-line); }
+  .sf-reviews h2 { margin: 0; }
+  .sf-reviews > p { margin: 0; }
+  .sf-reviews__body { display: grid; gap: calc(var(--spacing) * 8); align-items: start; }
+  @media (min-width: 768px) {
+    .sf-reviews__body { grid-template-columns: 300px minmax(0, 1fr); gap: calc(var(--spacing) * 12); }
+  }
+  .sf-reviews__summary { display: grid; gap: calc(var(--spacing) * 4); }
+  .sf-reviews__average { display: flex; flex-wrap: wrap; align-items: center; gap: calc(var(--spacing) * 3); margin: 0; }
+  .sf-reviews__filters { display: grid; gap: calc(var(--spacing) * 1); }
+  .sf-reviews__filter { display: grid; grid-template-columns: 88px minmax(0, 1fr) 32px; align-items: center; gap: calc(var(--spacing) * 3); min-height: 36px; padding: 0 calc(var(--spacing) * 2); border: 0; border-radius: var(--radius); background: transparent; color: var(--color-ink); font: 400 14px/20px var(--font-sans); text-align: left; cursor: pointer; }
+  .sf-reviews__filter:hover { background: var(--color-sunken); }
+  .sf-reviews__filter[aria-pressed="true"] { background: var(--color-sunken); font-weight: 600; }
+  .sf-reviews__bar { height: 8px; border-radius: var(--radius-full); background: var(--color-sunken); overflow: hidden; }
+  .sf-reviews__filter:is(:hover, [aria-pressed="true"]) .sf-reviews__bar { background: var(--color-surface); }
+  .sf-reviews__bar > span { display: block; height: 100%; background: var(--color-ink); }
+  .sf-reviews__count { text-align: right; color: var(--color-ink-muted); font-variant-numeric: tabular-nums; }
+  .sf-reviews__list { display: grid; margin: 0; padding: 0; list-style: none; }
+  .sf-review { display: grid; gap: calc(var(--spacing) * 2); padding: calc(var(--spacing) * 5) 0; border-bottom: 1px solid var(--color-line); }
+  .sf-review:first-child { padding-top: 0; }
+  .sf-review__who { display: flex; flex-wrap: wrap; gap: calc(var(--spacing) * 2); margin: 0; font-size: 14px; line-height: 20px; }
+  .sf-review__text { margin: 0; color: var(--color-ink-soft); white-space: pre-line; text-wrap: pretty; overflow-wrap: anywhere; }
+  /* A height, not line-clamp: with line-clamp Chrome leaves the cut lines out of scrollHeight, and "Ver más" never shows. */
+  .sf-review__text--clamped { max-height: 5lh; overflow: hidden; }
+  .sf-review__text--faded { mask-image: linear-gradient(to bottom, #000 calc(100% - 1lh), transparent); }
+  .sf-review__more { padding: 0; border: 0; border-radius: var(--radius); background: none; font: inherit; font-size: 14px; line-height: 20px; font-weight: 600; color: var(--color-ink); cursor: pointer; }
+  .sf-review__more:hover { color: var(--color-ink-soft); }
+  .sf-review__more:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+  .sf-review-form { display: grid; gap: calc(var(--spacing) * 5); padding: calc(var(--spacing) * 6); border: 1px solid var(--color-line); border-radius: var(--radius-card); background: var(--color-surface); }
+  .sf-review-form h3 { margin: 0; }
+  .sf-my-review { display: grid; gap: calc(var(--spacing) * 3); padding: calc(var(--spacing) * 6); border: 1px solid var(--color-line); border-radius: var(--radius-card); background: var(--color-surface); }
+  .sf-my-review h3, .sf-my-review > p { margin: 0; }
+  .sf-input--area { height: auto; min-height: 112px; padding: calc(var(--spacing) * 3); line-height: 22px; resize: vertical; }
+
+  /* Gallery: never moves on its own (WCAG 2.2.2). Arrows over the photo, thumbnails under it. */
+  .sf-gallery { display: grid; gap: calc(var(--spacing) * 3); min-width: 0; }
+  .sf-gallery__stage { position: relative; touch-action: pan-y; overflow: hidden; border-radius: var(--radius-card); }
+  .sf-gallery__track { display: flex; transition: transform 350ms var(--ease-out); }
+  .sf-gallery__track--dragging { transition: none; }
+  .sf-gallery__slide { flex: 0 0 100%; min-width: 0; }
+  .sf-gallery__main { box-sizing: border-box; display: grid; place-items: center; width: 100%; aspect-ratio: 1 / 1; padding: 0; border: 0; border-radius: var(--radius-card); overflow: hidden; background: var(--color-sunken); cursor: zoom-in; }
+  .sf-gallery__main:focus-visible { outline: none; box-shadow: inset 0 0 0 2px #2440b8, inset 0 0 0 4px #ffffff; }
+  .sf-gallery__main img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .sf-gallery__main--empty { padding: calc(var(--spacing) * 6); cursor: default; text-align: center; color: var(--color-ink-muted); }
+  .sf-gallery__arrow { position: absolute; top: 50%; transform: translateY(-50%); }
+  /* aria-disabled, not disabled: a disabled button would drop the keyboard focus to the page.
+     Only the icon fades, so the focus ring keeps its full contrast (WCAG 1.4.11). */
+  .sf-gallery__arrow[aria-disabled="true"] { cursor: not-allowed; background: var(--color-surface); }
+  .sf-gallery__arrow[aria-disabled="true"] lucide-icon { opacity: 0.45; }
+  .sf-gallery__arrow--prev { left: calc(var(--spacing) * 3); }
+  .sf-gallery__arrow--next { right: calc(var(--spacing) * 3); }
+  .sf-gallery__count { margin: 0; font-size: 13px; line-height: 18px; color: var(--color-ink-muted); font-variant-numeric: tabular-nums; }
+  .sf-gallery__thumbs { display: flex; gap: calc(var(--spacing) * 2); margin: 0; padding: 2px; list-style: none; overflow-x: auto; }
+  .sf-gallery__thumb { display: block; flex: none; width: 64px; height: 64px; padding: 0; border: 1px solid var(--color-line); border-radius: var(--radius); overflow: hidden; background: var(--color-sunken); cursor: pointer; }
+  .sf-gallery__thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .sf-gallery__thumb:hover { border-color: var(--color-line-strong); }
+  .sf-gallery__thumb:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+  .sf-gallery__thumb[aria-current="true"] { border-color: var(--color-ink); box-shadow: inset 0 0 0 1px var(--color-ink); }
+
+  /* Zoom: the photo at its original size over the whole screen; scrolls when it is bigger than the screen. */
+  .sf-zoom { box-sizing: border-box; width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: calc(var(--spacing) * 4); border: 0; background: var(--color-ink); overflow: auto; cursor: zoom-out; }
+  .sf-zoom[open] { display: grid; }
+  .sf-zoom::backdrop { background: var(--color-ink); }
+  /* Auto margins center it without cutting off the top or left when it is bigger than the screen. */
+  .sf-zoom__photo { max-width: none; height: auto; margin: auto; cursor: default; }
+  .sf-zoom__close { position: fixed; top: calc(var(--spacing) * 4); right: calc(var(--spacing) * 4); z-index: 1; }
+
+  /* ---------- Pagination ---------- */
+  .sf-pagination { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: calc(var(--spacing) * 1); margin-top: calc(var(--spacing) * 10); }
+  .sf-pagination > a, .sf-pagination > button, .sf-pagination > span { box-sizing: border-box; min-width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: calc(var(--spacing) * 1); padding: 0 calc(var(--spacing) * 3); border-radius: var(--radius); color: var(--color-ink); font-size: 15px; text-decoration: none; font-variant-numeric: tabular-nums; }
+  .sf-pagination > button { border: 0; background: none; font-family: inherit; cursor: pointer; }
+  .sf-pagination :is(a, button):hover { background: var(--color-sunken); }
+  .sf-pagination :is(a, button):focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+  .sf-pagination :is(a, button)[aria-current="page"] { background: var(--color-ink); color: var(--color-on-ink); font-weight: 600; }
+  .sf-pagination :is(a, button)[aria-disabled="true"] { color: var(--color-ink-muted); opacity: 0.45; pointer-events: none; }
+  /* Smaller, for a list inside a page (the reviews). */
+  .sf-pagination--sm { margin-top: calc(var(--spacing) * 6); }
+  .sf-pagination--sm > a, .sf-pagination--sm > button, .sf-pagination--sm > span { min-width: 32px; height: 32px; padding: 0 calc(var(--spacing) * 2); font-size: 14px; }
+  .sf-pagination > span { color: var(--color-ink-muted); }
+
   /* ---------- PromoBand ---------- */
   .sf-promo { background: linear-gradient(to bottom, var(--color-accent-soft), var(--color-canvas)); padding: calc(var(--spacing) * 12) calc(var(--spacing) * 4) calc(var(--spacing) * 8); }
   .sf-promo__inner { max-width: var(--container-page); margin: 0 auto; display: grid; gap: calc(var(--spacing) * 6); }
@@ -310,6 +520,15 @@
   .sf-promo__nav { display: flex; gap: calc(var(--spacing) * 2); }
   .sf-promo__track { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(200px, 1fr); gap: calc(var(--spacing) * 6); overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: calc(var(--spacing) * 2); }
   .sf-promo__track > * { scroll-snap-align: start; }
+
+  /* ---------- OrderRow (HU-19) ---------- */
+  /* One order in "Mis pedidos": number and date on the left, total and status on the right. The number links to the
+     detail and its hit area covers the row, like the product card. */
+  .sf-order { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: calc(var(--spacing) * 4); padding: calc(var(--spacing) * 4); border-radius: var(--radius-card); background: var(--color-surface); box-shadow: var(--shadow-card); transition: box-shadow 200ms var(--ease-out); }
+  .sf-order:hover { box-shadow: var(--shadow-card-hover); }
+  .sf-order:has(.sf-order__link:focus-visible) { box-shadow: var(--shadow-focus); }
+  .sf-order__link { color: inherit; text-decoration: none; }
+  .sf-order__link::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
 
   /* ---------- OrderSummary ---------- */
   .sf-summary {
@@ -335,12 +554,12 @@
   .sf-summary__note { margin: 0; font-size: 12px; line-height: 16px; color: var(--color-ink-muted); }
 
   /* ---------- EmptyState ---------- */
-  .sf-empty { display: grid; gap: calc(var(--spacing) * 4); justify-items: start; max-width: 440px; padding: calc(var(--spacing) * 12) 0; }
-  .sf-empty__icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: var(--radius); background: var(--color-sunken); color: var(--color-ink-muted); }
-  .sf-empty h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 28px; line-height: 34px; letter-spacing: -0.01em; }
-  .sf-empty p { margin: 0; color: var(--color-ink-muted); }
-  .sf-error { display: grid; gap: calc(var(--spacing) * 3); justify-items: start; max-width: 440px; }
-  .sf-error__msg { display: flex; gap: calc(var(--spacing) * 2); align-items: flex-start; padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4); border-radius: var(--radius); background: var(--color-danger-soft); color: var(--color-danger); font-size: 14px; line-height: 20px; }
+  .sf-empty { display: grid; gap: calc(var(--spacing) * 6); justify-items: center; text-align: center; max-width: 480px; margin-inline: auto; padding: calc(var(--spacing) * 16) 0; }
+  .sf-empty__icon { display: grid; place-items: center; width: 72px; height: 72px; border-radius: 50%; background: var(--color-sunken); color: var(--color-ink-muted); }
+  .sf-empty__icon svg { width: 32px; height: 32px; }
+  .sf-empty h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 32px; line-height: 38px; letter-spacing: -0.01em; text-wrap: balance; }
+  .sf-empty p { margin: calc(var(--spacing) * -3) 0 0; color: var(--color-ink-muted); text-wrap: pretty; }
+  .sf-error { display: grid; gap: calc(var(--spacing) * 5); justify-items: center; max-width: 440px; margin-inline: auto; }
 
   /* ---------- Skeleton ---------- */
   .sf-skel {
@@ -390,3 +609,8 @@
   .sf-qr { width: 64px; height: 64px; border-radius: var(--radius); background: var(--color-surface); display: grid; place-items: center; color: var(--color-ink); font: 600 10px/1 var(--font-mono); }
 
 }
+
+/* HU-11 · Outside the layer on purpose: the global :focus-visible ring in styles.css is unlayered and would win
+   over anything in @layer components. On the card link it would draw a stroke under each clamped line of the name;
+   the ring goes on the whole card instead (.sf-card:has(...) above). */
+.sf-card__link:focus-visible, .sf-order__link:focus-visible { box-shadow: none; }

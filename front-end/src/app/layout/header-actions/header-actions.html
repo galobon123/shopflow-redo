@@ -21,6 +21,11 @@
                     <strong>{{ authStore.userName() }}</strong>
                     <span>{{ authStore.userEmail() }}</span>
                 </div>
+                <hr class="sf-menu__sep">
+                <!-- HU-19 -->
+                <a class="sf-menu__item" cdkMenuItem routerLink="/account/orders">
+                    <lucide-icon [img]="icons.orders" />Mis pedidos
+                </a>
                 @if (authStore.isAdmin()) {
                     <hr class="sf-menu__sep">
                     <div class="sf-menu__group sf-label">Administración</div>
@@ -36,6 +41,7 @@
         </ng-template>
     } @else {
         <a sfButton="ghost" size="sm" routerLink="/login">Ingresar</a>
-        <a sfButton size="sm" routerLink="/register">Crear cuenta</a>
+        <!-- Small phones: no room for both; "Crear cuenta" is one tap away on the login page -->
+        <a sfButton size="sm" routerLink="/register" class="max-sm:hidden">Crear cuenta</a>
     }
 </div>
