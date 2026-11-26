@@ -73,6 +73,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(InvalidSignatureException.class)
+    public ProblemDetail handleInvalidSignature(InvalidSignatureException ex) {
+        return problem(HttpStatus.UNAUTHORIZED, "Firma inválida", ex.getMessage());
+    }
+
     @ExceptionHandler(AuthenticationException.class)
     public ProblemDetail handleAuthentication(AuthenticationException ex) {
         return problem(HttpStatus.UNAUTHORIZED, "No autenticado", "Tenés que iniciar sesión para continuar.");

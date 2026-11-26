@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, viewChild } from '@angular/core';
 import { BackButton } from "../../components/back-button/back-button";
-import { PaymentForm } from './payment-form/payment-form';
 import { ShippingForm } from './shipping-form/shipping-form';
 import { SummarizeOrder } from '../../components/summarize-order/summarize-order';
 import { EcommerceStore } from '../../ecommerce-store';
@@ -10,7 +9,7 @@ import { ArsPipe, SfAlert, SfAlertAction, SfBadge, SfButton } from '../../ui';
 
 @Component({
   selector: 'app-checkout',
-  imports: [BackButton, ShippingForm, PaymentForm, SummarizeOrder, RouterLink, ArsPipe, SfAlert, SfAlertAction, SfBadge, SfButton],
+  imports: [BackButton, ShippingForm, SummarizeOrder, RouterLink, ArsPipe, SfAlert, SfAlertAction, SfBadge, SfButton],
   templateUrl: './checkout.html',
   styleUrl: './checkout.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

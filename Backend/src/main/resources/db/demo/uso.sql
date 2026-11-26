@@ -4,6 +4,8 @@
 -- paula@demo.local received products she hasn't reviewed (to write a review) and bought again a towel she
 -- had reviewed (to change it).
 -- One review is hidden, as if an admin had moderated it.
+-- florencia@demo.local's last order waits for its payment (it can be paid from "Mis pedidos") for about 14 minutes
+-- after loading; then the expiry job (HU-18) cancels it and gives its units back.
 
 INSERT INTO users (name, email, password, role, created_at, email_verified)
 SELECT u.name, u.email, '-', 'USER', now() - interval '200 days', TRUE
@@ -67,7 +69,9 @@ JOIN city c ON c.name = a.city AND c.state_id = a.state_id;
 
 INSERT INTO orders (created_at, user_id, total, address_id, status, expires_at)
 SELECT o.created_at, u.id, 0, (SELECT min(id) FROM address WHERE created_by = u.id), o.status,
-       CASE WHEN o.status = 'PENDIENTE_PAGO' THEN now() + interval '30 minutes' END
+       -- HU-17/HU-18 · 30 minutes to pay from when it was made, like a real one. Only orders made less than 30
+       -- minutes ago are seeded unpaid; older unpaid ones come cancelled, as the expiry job would have left them.
+       CASE WHEN o.status = 'PENDIENTE_PAGO' THEN o.created_at + interval '30 minutes' END
 FROM (VALUES
     ('martina@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '73 days 54 minutes'),
     ('martina@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '122 days 90 minutes'),
@@ -79,7 +83,7 @@ FROM (VALUES
     ('sofia@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '135 days 339 minutes'),
     ('sofia@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '50 days 320 minutes'),
     ('sofia@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '36 days 428 minutes'),
-    ('sofia@demo.local', 'PENDIENTE_PAGO', date_trunc('minute', now()) - interval '0 days 469 minutes'),
+    ('sofia@demo.local', 'CANCELADA', date_trunc('minute', now()) - interval '0 days 469 minutes'),
     ('tomas@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '198 days 116 minutes'),
     ('tomas@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '80 days 531 minutes'),
     ('tomas@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '85 days 220 minutes'),
@@ -100,10 +104,10 @@ FROM (VALUES
     ('agustina@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '120 days 479 minutes'),
     ('agustina@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '68 days 186 minutes'),
     ('agustina@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '86 days 416 minutes'),
-    ('agustina@demo.local', 'PENDIENTE_PAGO', date_trunc('minute', now()) - interval '0 days 51 minutes'),
+    ('agustina@demo.local', 'CANCELADA', date_trunc('minute', now()) - interval '0 days 51 minutes'),
     ('matias@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '69 days 111 minutes'),
     ('matias@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '34 days 396 minutes'),
-    ('matias@demo.local', 'PENDIENTE_PAGO', date_trunc('minute', now()) - interval '0 days 293 minutes'),
+    ('matias@demo.local', 'CANCELADA', date_trunc('minute', now()) - interval '0 days 293 minutes'),
     ('lucia@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '195 days 400 minutes'),
     ('lucia@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '27 days 490 minutes'),
     ('lucia@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '128 days 597 minutes'),
@@ -135,11 +139,11 @@ FROM (VALUES
     ('rocio@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '166 days 372 minutes'),
     ('rocio@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '34 days 142 minutes'),
     ('rocio@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '118 days 422 minutes'),
-    ('rocio@demo.local', 'PENDIENTE_PAGO', date_trunc('minute', now()) - interval '0 days 56 minutes'),
+    ('rocio@demo.local', 'CANCELADA', date_trunc('minute', now()) - interval '0 days 56 minutes'),
     ('gonzalo@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '37 days 251 minutes'),
     ('gonzalo@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '143 days 245 minutes'),
     ('gonzalo@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '40 days 590 minutes'),
-    ('gonzalo@demo.local', 'PENDIENTE_PAGO', date_trunc('minute', now()) - interval '0 days 407 minutes'),
+    ('gonzalo@demo.local', 'CANCELADA', date_trunc('minute', now()) - interval '0 days 407 minutes'),
     ('micaela@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '135 days 324 minutes'),
     ('micaela@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '128 days 124 minutes'),
     ('micaela@demo.local', 'ENVIADA', date_trunc('minute', now()) - interval '3 days 232 minutes'),
@@ -149,7 +153,7 @@ FROM (VALUES
     ('ezequiel@demo.local', 'CANCELADA', date_trunc('minute', now()) - interval '1 days 54 minutes'),
     ('antonella@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '33 days 244 minutes'),
     ('antonella@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '70 days 138 minutes'),
-    ('antonella@demo.local', 'PENDIENTE_PAGO', date_trunc('minute', now()) - interval '0 days 236 minutes'),
+    ('antonella@demo.local', 'CANCELADA', date_trunc('minute', now()) - interval '0 days 236 minutes'),
     ('paula@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '9 days 233 minutes'),
     ('paula@demo.local', 'ENVIADA', date_trunc('minute', now()) - interval '2 days 346 minutes'),
     ('paula@demo.local', 'ENTREGADA', date_trunc('minute', now()) - interval '60 days 224 minutes'),
@@ -321,7 +325,7 @@ FROM (VALUES
     ('florencia@demo.local', date_trunc('minute', now()) - interval '60 days 93 minutes', 'Maceta de terracota con plato', 1),
     ('florencia@demo.local', date_trunc('minute', now()) - interval '60 days 93 minutes', 'Toallón de algodón 600 g', 1),
     ('florencia@demo.local', date_trunc('minute', now()) - interval '0 days 16 minutes', 'Almohadón de lino con relleno', 2),
-    ('florencia@demo.local', date_trunc('minute', now()) - interval '0 days 16 minutes', 'Organizador de ducha de bambú', 1),
+    ('florencia@demo.local', date_trunc('minute', now()) - interval '0 days 16 minutes', 'Toallón de algodón 600 g', 1),
     ('martin@demo.local', date_trunc('minute', now()) - interval '186 days 452 minutes', 'Juego de sábanas 2 plazas 300 hilos', 1),
     ('martin@demo.local', date_trunc('minute', now()) - interval '145 days 260 minutes', 'Cubiertos x24 de acero mate', 1),
     ('martin@demo.local', date_trunc('minute', now()) - interval '145 days 260 minutes', 'Mantel de lino rústico 2,5 m', 1),
@@ -392,6 +396,14 @@ FROM (VALUES
 JOIN users u ON u.email = i.email
 JOIN orders o ON o.user_id = u.id AND o.created_at = i.created_at
 JOIN products p ON p.name = i.product;
+
+-- HU-18 · An unpaid order holds its units, as createOrder takes them: when the expiry job cancels it, what it
+-- gives back was taken first (the others are history, before the stock the catalog starts with).
+UPDATE products p SET stock = p.stock - held.units
+FROM (SELECT i.product_id, sum(i.quantity) AS units FROM order_items i JOIN orders o ON o.id = i.order_id
+      JOIN users u ON u.id = o.user_id
+      WHERE o.status = 'PENDIENTE_PAGO' AND u.email LIKE '%@demo.local' GROUP BY i.product_id) held
+WHERE p.id = held.product_id;
 
 UPDATE orders o SET total = (SELECT sum(quantity * unit_price) FROM order_items WHERE order_id = o.id)
 WHERE o.user_id IN (SELECT id FROM users WHERE email LIKE '%@demo.local');

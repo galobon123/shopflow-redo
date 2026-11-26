@@ -774,18 +774,18 @@ Escenario: Confirmo dos veces la misma compra
 ---
 
 ### HU-18 · Pago con Mercado Pago y estados de la orden
-**Prioridad:** Must · **Auditoría:** #2
+**Prioridad:** Must · **Auditoría:** #2 · **Estado:** Hecha (falta probarla con credenciales de sandbox reales)
 
 > Como **cliente** quiero pagar con Mercado Pago y que mi pedido se confirme solo cuando el pago se aprueba.
 
 **Tareas**
-- [ ] BE: crear la preferencia de Checkout Pro con los ítems de la orden, `external_reference = orderId` y las `back_urls`.
-- [ ] BE: `POST /api/payments/webhook`: validar la firma `x-signature`, consultar el pago en la API de MP y actualizar la orden.
-- [ ] BE (Redis): idempotencia con `SET mp:event:{id} NX EX 86400` para no procesar dos veces el mismo aviso.
-- [ ] BE: máquina de estados `PENDIENTE_PAGO → PAGADA → ENVIADA → ENTREGADA`, y `PENDIENTE_PAGO|PAGADA → CANCELADA`.
-- [ ] BE: job programado cada minuto que cancela las órdenes `PENDIENTE_PAGO` vencidas y devuelve el stock.
-- [ ] FE: botón "Pagar con Mercado Pago" (redirect) y páginas de resultado aprobado, pendiente y rechazado que consultan el estado real.
-- [ ] OPS: credenciales de sandbox para dev y de producción por variables de entorno.
+- [x] BE: crear la preferencia de Checkout Pro con los ítems de la orden, `external_reference = orderId` y las `back_urls`.
+- [x] BE: `POST /api/payments/webhook`: validar la firma `x-signature`, consultar el pago en la API de MP y actualizar la orden.
+- [x] BE (Redis): idempotencia con `SET mp:event:{id} NX EX 86400` para no procesar dos veces el mismo aviso.
+- [x] BE: máquina de estados `PENDIENTE_PAGO → PAGADA → ENVIADA → ENTREGADA`, y `PENDIENTE_PAGO|PAGADA → CANCELADA`.
+- [x] BE: job programado cada minuto que cancela las órdenes `PENDIENTE_PAGO` vencidas y devuelve el stock.
+- [x] FE: botón "Pagar con Mercado Pago" (redirect) y páginas de resultado aprobado, pendiente y rechazado que consultan el estado real.
+- [x] OPS: credenciales de sandbox para dev y de producción por variables de entorno.
 
 **Escenarios**
 ```gherkin

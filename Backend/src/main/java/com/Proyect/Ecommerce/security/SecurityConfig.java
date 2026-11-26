@@ -56,6 +56,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/verify-email/resend").authenticated()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                // HU-18 · Mercado Pago's webhook: no session, PaymentService checks its x-signature.
+                .requestMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                 // HU-16 · Provinces and cities for the address form.

@@ -1,8 +1,11 @@
 package com.Proyect.Ecommerce;
 
+import java.io.IOException;
+
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
+import org.springframework.test.context.DynamicPropertyRegistrar;
 import org.testcontainers.neo4j.Neo4jContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
@@ -39,5 +42,16 @@ public class TestcontainersConfiguration {
     @Bean
     RecordingMailSender mailSender() {
         return new RecordingMailSender();
+    }
+
+    /** HU-18 · Mercado Pago's API, on a local port. */
+    @Bean(destroyMethod = "stop")
+    FakeMercadoPago fakeMercadoPago() throws IOException {
+        return new FakeMercadoPago();
+    }
+
+    @Bean
+    DynamicPropertyRegistrar mercadoPagoUrl(FakeMercadoPago mercadoPago) {
+        return registry -> registry.add("app.mercadopago.api-url", mercadoPago::url);
     }
 }

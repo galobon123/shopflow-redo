@@ -44,6 +44,16 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     @Query("UPDATE Product p SET p.stock = p.stock - :quantity WHERE p.id = :id AND p.stock >= :quantity")
     int decrementStock(@Param("id") Long id, @Param("quantity") int quantity);
 
+    /** HU-18 · Gives back the units an order took. Called once, by the move to CANCELADA that won. */
+    @Modifying
+    @Query(value = """
+            UPDATE products p SET stock = p.stock + taken.units
+            FROM (SELECT product_id, sum(quantity) AS units FROM order_items WHERE order_id = :orderId
+                  GROUP BY product_id) taken
+            WHERE p.id = taken.product_id
+            """, nativeQuery = true)
+    int restock(@Param("orderId") Long orderId);
+
     /** HU-15 · Recommended products with their category (no N+1); the caller puts them back in ranking order. */
     @EntityGraph(attributePaths = "category")
     List<Product> findByIdIn(Collection<Long> ids);

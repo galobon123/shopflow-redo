@@ -31,6 +31,14 @@ export interface OrderItem {
     canReview: boolean;
 }
 
+/** HU-18 · Where the customer pays the order in Mercado Pago. */
+export interface PaymentCheckout {
+    checkoutUrl: string;
+}
+
+/** HU-18 · How Mercado Pago sent the customer back (the result page's URL). A hint: the order's status is the truth. */
+export type PaymentOutcome = 'approved' | 'pending' | 'rejected';
+
 /** HU-19 · How a customer reads each status. */
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
     PENDIENTE_PAGO: 'Esperando el pago',

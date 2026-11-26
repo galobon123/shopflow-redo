@@ -65,12 +65,18 @@ export const routes: Routes = [
     .then(m => m.Checkout)
   },
   {
-    // HU-19 · Reads the order by its id, so a reload still shows it.
-    path: 'order-success/:id',
-    title: 'Pedido recibido · ShopFlow',
+    // HU-18 · Where Mercado Pago sends the customer back (approved, pending or rejected). Reads the order by its id.
+    path: 'checkout/result/:id/:outcome',
+    title: 'Resultado del pago · ShopFlow',
     canActivate: [authGuard],
-    loadComponent: () => import('./pages/order-success/order-success')
-    .then(m => m.OrderSuccess)
+    loadComponent: () => import('./pages/payment-result/payment-result')
+    .then(m => m.PaymentResult)
+  },
+  {
+    // HU-19's receipt after buying. HU-18 · The checkout now goes to Mercado Pago, and the order's page (where it can
+    // also be paid) took its place: old links land there.
+    path: 'order-success/:id',
+    redirectTo: 'account/orders/:id'
   },
   {
     path: 'account/orders',

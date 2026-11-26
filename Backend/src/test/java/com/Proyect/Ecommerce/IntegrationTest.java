@@ -31,7 +31,14 @@ import org.testcontainers.junit.jupiter.Testcontainers;
         // The Neo4j retry job runs when a test calls it, not on the clock.
         "app.neo4j-sync.retry-cron=-",
         // So does the email worker (HU-20): tests call MailQueue.deliverDue themselves.
-        "app.mail.worker-cron=-"
+        "app.mail.worker-cron=-",
+        // HU-18 · And the job that cancels expired orders: tests call OrderExpiry.cancelExpired.
+        "app.orders.expiry-cron=-",
+        // HU-18 · Test credentials, whatever the developer's .env has; the API is FakeMercadoPago.
+        "app.mercadopago.access-token=TEST-access-token",
+        "app.mercadopago.webhook-secret=test-webhook-secret",
+        "app.mercadopago.sandbox=true",
+        "app.api-public-url=https://api.shopflow.test"
 })
 @Import(TestcontainersConfiguration.class)
 @Testcontainers(disabledWithoutDocker = true)

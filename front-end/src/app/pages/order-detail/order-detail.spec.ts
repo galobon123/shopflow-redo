@@ -4,10 +4,16 @@ import { Title } from '@angular/platform-browser';
 import { OrderDetail } from './order-detail';
 import { anOrder, anOrderItem, testProviders } from '../../testing/test-providers';
 import { environment } from '../../../environments/environment';
+import { PaymentService } from '../../core/services/payment.service';
 
 const api = environment.apiUrl;
 /** Text with every space as a plain one (prices and dates use non-breaking ones). */
 const text = (el: Element | null) => el?.textContent?.replace(/\s+/g, ' ') ?? '';
+
+/** HU-18 · The browser shows the page again: from its back/forward cache (`persisted`) or loaded anew. */
+function pageshow(persisted: boolean) {
+  window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted }));
+}
 
 describe('OrderDetail (HU-19)', () => {
   function render(id: string) {
@@ -76,6 +82,103 @@ describe('OrderDetail (HU-19)', () => {
 
     expect(el.querySelector('sf-alert')).toBeNull();
     expect(el.querySelector('[data-order-heading] sf-badge')?.textContent).toContain('Pagado');
+  });
+
+  /** HU-18 · Also where the checkout leaves the order when Mercado Pago couldn't be opened. */
+  it('while it can be paid, "Pagar con Mercado Pago" takes the customer to the order\'s checkout', async () => {
+    const { backend, update } = render('7');
+    const goTo = vi.spyOn(TestBed.inject(PaymentService), 'goTo').mockImplementation(() => {});
+    backend.expectOne(`${api}/orders/7`).flush(anOrder());
+    const el = await update();
+
+    const pay = [...el.querySelectorAll('button')].find((b) => b.textContent?.includes('Pagar con Mercado Pago'))!;
+    pay.focus();
+    pay.click();
+    await update();
+    expect(pay.getAttribute('aria-busy')).toBe('true');
+    expect(pay.disabled).toBe(false); // busy, not disabled: it keeps the focus
+    expect(document.activeElement).toBe(pay);
+    pay.click(); // ignored while it waits
+    backend.expectOne({ method: 'POST', url: `${api}/orders/7/payment` }).flush({ checkoutUrl: 'https://mp.example/7' });
+
+    expect(goTo).toHaveBeenCalledWith('https://mp.example/7');
+  });
+
+  /** Back from Mercado Pago with Atrás: the button lets go, keeps the focus and the order is read again. */
+  it('back from Mercado Pago, the button stops waiting and the order is read again', async () => {
+    const { backend, update } = render('7');
+    vi.spyOn(TestBed.inject(PaymentService), 'goTo').mockImplementation(() => {});
+    backend.expectOne(`${api}/orders/7`).flush(anOrder());
+    const el = await update();
+    const pay = [...el.querySelectorAll('button')].find((b) => b.textContent?.includes('Pagar con Mercado Pago'))!;
+    pay.focus();
+    pay.click();
+    backend.expectOne(`${api}/orders/7/payment`).flush({ checkoutUrl: 'https://mp.example/7' });
+    await update();
+    expect(pay.getAttribute('aria-busy')).toBe('true');
+
+    pageshow(true);
+    TestBed.tick(); // not whenStable: the order read again is still unanswered
+
+    expect(pay.getAttribute('aria-busy')).toBeNull();
+    backend.expectOne(`${api}/orders/7`).flush(anOrder());
+    await update();
+    const again = [...el.querySelectorAll('button')].find((b) => b.textContent?.includes('Pagar con Mercado Pago'))!;
+    expect(again).toBe(pay); // the same button, still focused: the order stayed on screen while read again
+    expect(document.activeElement).toBe(pay);
+
+    pay.click(); // the same order's checkout, no new order
+    backend.expectOne({ method: 'POST', url: `${api}/orders/7/payment` }).flush({ checkoutUrl: 'https://mp.example/7' });
+    backend.expectNone({ method: 'POST', url: `${api}/orders` });
+  });
+
+  it('when paying is not available, says why under the button and lets it be tried again', async () => {
+    const { backend, update } = render('7');
+    backend.expectOne(`${api}/orders/7`).flush(anOrder());
+    const el = await update();
+
+    const pay = [...el.querySelectorAll('button')].find((b) => b.textContent?.includes('Pagar con Mercado Pago'))!;
+    pay.focus();
+    pay.click();
+    backend.expectOne(`${api}/orders/7/payment`).flush(
+      { status: 503, detail: 'El pago no está disponible en este momento. Probá de nuevo más tarde.' },
+      { status: 503, statusText: 'Service Unavailable' },
+    );
+    await update();
+
+    expect(el.querySelector('app-pay-button sf-alert[role="alert"]')?.textContent)
+      .toContain('El pago no está disponible en este momento.');
+    expect(pay.getAttribute('aria-busy')).toBeNull();
+    expect(document.activeElement).toBe(pay);
+  });
+
+  /** A 409: it was paid or ran out of time meanwhile. The order is read again and shows why. */
+  it('when the order can no longer be paid, reads it again and puts the focus on its title', async () => {
+    const { backend, update } = render('7');
+    backend.expectOne(`${api}/orders/7`).flush(anOrder());
+    const el = await update();
+
+    const pay = [...el.querySelectorAll('button')].find((b) => b.textContent?.includes('Pagar con Mercado Pago'))!;
+    pay.focus();
+    pay.click();
+    backend.expectOne(`${api}/orders/7/payment`).flush(
+      { status: 409, detail: 'Este pedido ya no está esperando el pago.' }, { status: 409, statusText: 'Conflict' },
+    );
+    TestBed.tick();
+    backend.expectOne(`${api}/orders/7`).flush(anOrder({ status: 'PAGADA' }));
+    await update();
+
+    expect(el.querySelector('[data-order-heading] sf-badge')?.textContent).toContain('Pagado');
+    expect(el.textContent).not.toContain('Pagar con Mercado Pago');
+    expect(document.activeElement).toBe(el.querySelector('h1'));
+  });
+
+  it('offers no payment once the time is up or it is paid', async () => {
+    const { backend, update } = render('7');
+    backend.expectOne(`${api}/orders/7`).flush(anOrder({ expiresAt: '2026-11-01T03:00:00Z' }));
+    const el = await update();
+
+    expect(el.querySelector('app-pay-button')).toBeNull();
   });
 
   it('offers "Calificar" only for the delivered products not reviewed yet, to the reviews of the product', async () => {

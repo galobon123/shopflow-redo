@@ -1,8 +1,9 @@
 import { signal } from '@angular/core';
-import { aCartItem, testProviders } from '../../testing/test-providers';
+import { aCartItem, anOrder, testProviders } from '../../testing/test-providers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpTestingController } from '@angular/common/http/testing';
 import { AuthStore } from '../../auth-store';
+import { PaymentService } from '../../core/services/payment.service';
 import { environment } from '../../../environments/environment';
 
 import { Checkout } from './checkout';
@@ -59,6 +60,9 @@ describe('Checkout with an unavailable product', () => {
   });
 });
 
+/** The summary's total, with every space as a plain one. */
+const total = (el: HTMLElement) => el.querySelector('.sf-summary__total')?.textContent?.replace(/\s+/g, ' ') ?? '';
+
 /** HU-16 · The order goes to the chosen address; a wrong form sends nothing. */
 describe('Checkout shipping', () => {
   const api = environment.apiUrl;
@@ -86,7 +90,7 @@ describe('Checkout shipping', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
-    const confirm = [...el.querySelectorAll('button')].find((b) => b.textContent!.includes('Confirmar compra'))!;
+    const confirm = [...el.querySelectorAll('button')].find((b) => b.textContent!.includes('Pagar con Mercado Pago'))!;
     return { backend, fixture, el, confirm };
   }
 
@@ -96,7 +100,29 @@ describe('Checkout shipping', () => {
     expect(el.querySelector('h1')?.textContent).toBe('Finalizar compra');
     expect(el.textContent).toContain('Volver al carrito');
     expect(el.textContent).toContain('Envío');
-    expect(el.textContent).toContain('Medio de pago');
+    // HU-18 · No card fields here: the payment happens in Mercado Pago.
+    expect(el.textContent).toContain('Te llevamos a Mercado Pago para pagar');
+    expect(el.querySelector('input[autocomplete^="cc-"]')).toBeNull();
+  });
+
+  /** HU-18 · The same click makes the order and opens Mercado Pago; it keeps waiting until the page leaves. */
+  it('pays in Mercado Pago right after making the order, waiting all along with the summary as it was', async () => {
+    const { backend, fixture, el, confirm } = await open([saved]);
+    const goTo = vi.spyOn(TestBed.inject(PaymentService), 'goTo').mockImplementation(() => {});
+
+    confirm.click();
+    backend.expectOne({ method: 'POST', url: `${api}/orders` }).flush(anOrder({ id: 31 }));
+    fixture.detectChanges();
+    expect(confirm.getAttribute('aria-busy')).toBe('true');
+    // Not "$ 0" while Mercado Pago opens: the products and total stay until the page leaves.
+    expect(total(el)).toContain('$ 97.800');
+
+    backend.expectOne({ method: 'POST', url: `${api}/orders/31/payment` }).flush({ checkoutUrl: 'https://mp.example/31' });
+    fixture.detectChanges();
+
+    expect(goTo).toHaveBeenCalledWith('https://mp.example/31');
+    expect(confirm.getAttribute('aria-busy')).toBe('true');
+    expect(total(el)).toContain('$ 97.800');
   });
 
   it('confirms to the saved address that comes chosen', async () => {
@@ -110,21 +136,26 @@ describe('Checkout shipping', () => {
   });
 
   /** HU-17 · Escenario: Confirmo dos veces la misma compra (double click). */
-  it('sends the purchase once, with its key, and waits with the button disabled', async () => {
+  /** HU-18 · Busy, not disabled: a disabled button would drop the focus to the page (WCAG 2.4.3). */
+  it('sends the purchase once, with its key, and waits busy, keeping the focus', async () => {
     const { backend, fixture, confirm } = await open([saved]);
 
+    confirm.focus();
     confirm.click();
     fixture.detectChanges();
     confirm.click();
 
     const order = backend.expectOne({ method: 'POST', url: `${api}/orders` });
     expect(order.request.headers.get('Idempotency-Key')).toBeTruthy();
-    expect(confirm.disabled).toBe(true);
     expect(confirm.getAttribute('aria-busy')).toBe('true');
+    expect(confirm.getAttribute('aria-disabled')).toBe('true');
+    expect(confirm.disabled).toBe(false);
+    expect(document.activeElement).toBe(confirm);
 
     order.flush({ status: 503 }, { status: 503, statusText: 'Service Unavailable' });
     fixture.detectChanges();
-    expect(confirm.disabled).toBe(false);
+    expect(confirm.getAttribute('aria-busy')).toBeNull();
+    expect(confirm.getAttribute('aria-disabled')).toBeNull();
   });
 
   it('with a wrong form sends nothing and marks the fields', async () => {

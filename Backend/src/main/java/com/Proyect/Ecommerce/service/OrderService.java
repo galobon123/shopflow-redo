@@ -194,19 +194,84 @@ public class OrderService {
     }
 
     /**
-     * HU-15 · An order waiting for its payment becomes PAGADA. HU-18's approved-payment webhook is meant to call
-     * this; nothing else does yet. After the commit its purchases go to Neo4j (GraphSync), which also forgets
-     * the customer's cached recommendations, and the confirmation email is queued (HU-20, OrderMails).
+     * HU-15 · An order waiting for its payment becomes PAGADA (409 if it wasn't waiting). After the commit its
+     * purchases go to Neo4j (GraphSync), which also forgets the customer's cached recommendations, and the
+     * confirmation email is queued (HU-20, OrderMails).
      */
     @Transactional
     public void markPaid(Long orderId) {
+        markPaid(orderId, null);
+    }
+
+    /** HU-18 · Same, from Mercado Pago's approved payment, which the order keeps (a refund of it cancels the order). */
+    @Transactional
+    public void markPaid(Long orderId, String paymentId) {
+        transition(orderId, OrderStatus.PAGADA);
+        if (paymentId != null) orderRepository.setPaymentId(orderId, paymentId);
+    }
+
+    /**
+     * HU-18 · The state machine: the order moves to {@code to} if its status allows it
+     * ({@link OrderStatus#canTransitionTo}), else 409. HU-23's order management uses it for ENVIADA and ENTREGADA.
+     */
+    @Transactional
+    public void transition(Long orderId, OrderStatus to) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("Orden no encontrada: " + orderId));
-        if (order.getStatus() != OrderStatus.PENDIENTE_PAGO) {
-            throw new ConflictException("Esta orden ya no está esperando el pago.");
+        OrderStatus from = order.getStatus();
+        if (!from.canTransitionTo(to) || !move(orderId, from, to)) {
+            throw new ConflictException("El pedido #" + orderId + " no puede pasar de " + from + " a " + to + ".");
         }
-        order.setStatus(OrderStatus.PAGADA);
-        events.publishEvent(new OrderStatusChanged(orderId, OrderStatus.PAGADA));
+    }
+
+    /**
+     * HU-18 · The expiry job: cancels an order whose time to pay is up and gives its stock back. False when it's no
+     * longer waiting for its payment (an approved payment got there first): then nothing changes.
+     */
+    @Transactional
+    public boolean cancelExpired(Long orderId) {
+        return move(orderId, OrderStatus.PENDIENTE_PAGO, OrderStatus.CANCELADA);
+    }
+
+    /** HU-18 · Marks the order's payment for someone to look at (HU-23 shows it); the status stays as it is. */
+    @Transactional
+    public void flagPayment(Long orderId, String issue) {
+        orderRepository.setPaymentIssue(orderId, issue);
+    }
+
+    /**
+     * Every status change goes through here. The UPDATE only moves the order if it's still {@code from}, so of two
+     * changes at once only one happens: the stock goes back once, and one event is published. Its listeners run
+     * after the commit (Neo4j, emails).
+     */
+    private boolean move(Long orderId, OrderStatus from, OrderStatus to) {
+        if (orderRepository.moveStatus(orderId, from, to) == 0) return false;
+        if (to == OrderStatus.CANCELADA) productRepository.restock(orderId);
+        events.publishEvent(new OrderStatusChanged(orderId, to));
+        return true;
+    }
+
+    /**
+     * HU-18 · The customer's order they're about to pay in Mercado Pago, with its items and products loaded: only
+     * while it's waiting for its payment and still on time (409 otherwise). Someone else's answers 404.
+     */
+    @Transactional(readOnly = true)
+    public Order payable(Long userId, Long orderId) {
+        Order order = orderRepository.findByIdAndUserId(orderId, userId)
+                .orElseThrow(() -> new NotFoundException("Pedido no encontrado."));
+        if (order.getStatus() != OrderStatus.PENDIENTE_PAGO) {
+            throw new ConflictException("Este pedido ya no está esperando el pago.");
+        }
+        if (order.getExpiresAt() != null && !order.getExpiresAt().isAfter(LocalDateTime.now())) {
+            throw new ConflictException("Se venció el plazo para pagar este pedido.");
+        }
+        return order;
+    }
+
+    /** HU-18 · Remembers the order's Mercado Pago checkout, so every attempt to pay it uses the same one. */
+    @Transactional
+    public void saveCheckoutUrl(Long orderId, String url) {
+        orderRepository.setCheckoutUrl(orderId, url);
     }
 
     /** HU-19 · Products of these orders' delivered ones that the customer already reviewed: one query, none without any. */

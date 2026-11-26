@@ -14,11 +14,13 @@ import { CartItem } from './core/models/cart.model';
 import { CartService } from './core/services/cart.service';
 import { OrderService } from './core/services/order.service';
 import { AddressService } from './core/services/address.service';
+import { paymentErrorMessage, PaymentService } from './core/services/payment.service';
 import { AddressRequest, AddressResponse } from './core/models/address.model';
 import { OrderResponse } from './core/models/order.model';
 import { forkJoin, Observable, of } from 'rxjs';
 import { map, catchError, switchMap, finalize, tap } from 'rxjs/operators';
 import { Router } from '@angular/router';
+import { onPageRestored } from './core/util/page-restored';
 
 type EcommerceState = {
   categories: CategoryResponse[];
@@ -50,6 +52,8 @@ type EcommerceState = {
   checkoutKey: string;
   /** HU-17 · The cart the key was first sent with: another cart is another purchase, with a new key. */
   checkoutCart: string | null;
+  /** HU-18 · The order just made, while the page leaves for Mercado Pago to pay it. */
+  payingOrder: number | null;
   loading: boolean;
   error: string | null;
 };
@@ -73,6 +77,7 @@ const initialState: EcommerceState = {
   addressesError: null,
   checkoutKey: '',
   checkoutCart: null,
+  payingOrder: null,
   loading: false,
   error: null,
 };
@@ -130,6 +135,7 @@ export const EcommerceStore = signalStore(
     cartService = inject(CartService),
     orderService = inject(OrderService),
     addressService = inject(AddressService),
+    paymentService = inject(PaymentService),
     router = inject(Router),
     toaster = inject(Toaster)) => {
   /**
@@ -432,11 +438,20 @@ export const EcommerceStore = signalStore(
       switchMap((id) => orderService.createOrder(id, key)),
     ).subscribe({
       next: (order) => {
-        patchState(store, { cartItems: [], loading: false });
         newCheckoutKey();
-        // HU-19 · The receipt reads the order by its id, so it survives a reload.
-        router.navigate(['/order-success', order.id]);
-        toaster.success('¡Listo! Recibimos tu pedido.');
+        patchState(store, { payingOrder: order.id });
+        // HU-18 · Then to Mercado Pago, still loading until the page leaves. The summary keeps the products and
+        // total meanwhile (the server already emptied the cart; it's read again on the way back). The order exists
+        // from here on: if Mercado Pago can't be opened, its page in "Mis pedidos" pays it, so no second order is
+        // ever made.
+        paymentService.checkout(order.id).subscribe({
+          next: ({ checkoutUrl }) => paymentService.goTo(checkoutUrl),
+          error: (err) => {
+            patchState(store, { cartItems: [], loading: false, payingOrder: null });
+            toaster.error(`Guardamos tu pedido #${order.id}, pero no pudimos abrir Mercado Pago: ${paymentErrorMessage(err)} Podés pagarlo desde acá.`);
+            router.navigate(['/account/orders', order.id]);
+          },
+        });
       },
       error: (err) => {
         patchState(store, { loading: false, error: errorMessage(err) });
@@ -454,6 +469,20 @@ export const EcommerceStore = signalStore(
         }
       },
     });
+  },
+  /**
+   * HU-18 · Back from Mercado Pago without paying, with the checkout restored as it left (busy, the old summary).
+   * Its order already exists: buying again would make another. So the button lets go, the cart is read again (the
+   * server emptied it) and the customer goes to the order's page, which pays that same order. The next purchase
+   * gets a new Idempotency-Key (made when this order was).
+   */
+  pageRestored(): void {
+    const orderId = store.payingOrder();
+    if (orderId === null) return;
+    patchState(store, { payingOrder: null, loading: false, cartItems: [] });
+    router.navigate(['/account/orders', orderId], { replaceUrl: true });
+    toaster.info(`Tu pedido #${orderId} sigue esperando el pago. Podés pagarlo desde acá.`);
+    cartService.getCart().subscribe({ next: (items) => setCart(items), error: () => { /* the next read fixes it */ } });
   },
   moveToWishlist(item: CartItem): void {
     if (!authStore.isAuthenticated()) {
@@ -531,6 +560,8 @@ export const EcommerceStore = signalStore(
   withHooks({
     onInit(store) {
       const authStore = inject(AuthStore);
+
+      onPageRestored(() => store.pageRestored());
 
       store.loadCategories();
 

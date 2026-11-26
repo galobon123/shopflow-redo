@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { EcommerceStore } from './ecommerce-store';
 import { AuthStore } from './auth-store';
 import { Toaster } from './core/services/toaster.service';
+import { PaymentService } from './core/services/payment.service';
 import { errorMessage } from './core/util/error-message';
 import { environment } from '../environments/environment';
 import { aCartItem, aProduct, aWishItem, testProviders } from './testing/test-providers';
@@ -13,10 +14,17 @@ const api = environment.apiUrl;
 const NEW_ADDRESS = { firstName: 'Lucía', lastName: 'Pérez', address: 'San Martín 123', stateId: 82, cityId: 1, zipCode: '2000' };
 const SAVED = { ...NEW_ADDRESS, id: 9, cityName: 'Rosario', stateName: 'Santa Fe' };
 
+/** HU-18 · The browser shows the page again: from its back/forward cache (`persisted`) or loaded anew. */
+function pageshow(persisted: boolean) {
+  window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted }));
+}
+
 describe('EcommerceStore', () => {
   let store: InstanceType<typeof EcommerceStore>;
   let backend: HttpTestingController;
   let toaster: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn>; info: ReturnType<typeof vi.fn> };
+  /** HU-18 · Leaving for Mercado Pago, which a test never does. */
+  let goTo: ReturnType<typeof vi.fn<(url: string) => void>>;
   const loggedIn = signal(false);
 
   function setup(authenticated: boolean, cart = [aCartItem()]) {
@@ -31,6 +39,8 @@ describe('EcommerceStore', () => {
       ],
     });
     backend = TestBed.inject(HttpTestingController);
+    goTo = vi.fn<(url: string) => void>();
+    vi.spyOn(TestBed.inject(PaymentService), 'goTo').mockImplementation(goTo);
     store = TestBed.inject(EcommerceStore);
     TestBed.tick();
 
@@ -43,6 +53,11 @@ describe('EcommerceStore', () => {
     } else {
       backend.expectOne({ method: 'GET', url: `${api}/cart` }).flush(cart);
     }
+  }
+
+  /** HU-18 · After the order, the store asks for its Mercado Pago checkout. */
+  function payment(orderId: number) {
+    return backend.expectOne({ method: 'POST', url: `${api}/orders/${orderId}/payment` });
   }
 
   /** The session starts (any way in: password, Google, code, email link): the store reacts to AuthStore. */
@@ -261,7 +276,8 @@ describe('EcommerceStore', () => {
     expect(store.cartError()).toBe('Algo falló de nuestro lado.');
   });
 
-  it('places the order: address first, then the order; empties the cart and goes to the receipt', () => {
+  /** HU-18 · Then Mercado Pago's checkout of that order, and off to it, still loading while the page leaves. */
+  it('places the order: address first, then the order; goes to pay it in Mercado Pago with the cart still shown', () => {
     setup(true);
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
 
@@ -272,8 +288,82 @@ describe('EcommerceStore', () => {
     expect(req.request.body).toEqual({ addressId: 9 });
     req.flush(order);
 
+    // The summary keeps its products while Mercado Pago opens (the server already emptied the cart).
+    expect(store.cartItems()).toHaveLength(1);
+    expect(store.loading()).toBe(true);
+    payment(1).flush({ checkoutUrl: 'https://sandbox.mercadopago.com.ar/checkout/v1/redirect?pref_id=p-1' });
+
+    expect(goTo).toHaveBeenCalledWith('https://sandbox.mercadopago.com.ar/checkout/v1/redirect?pref_id=p-1');
+    expect(navigate).not.toHaveBeenCalled();
+    expect(store.loading()).toBe(true);
+  });
+
+  /**
+   * HU-18 · The order is made but Mercado Pago can't be opened: never a second order. The customer goes to the
+   * order's page, which pays it, and the next purchase has a new key.
+   */
+  it('when Mercado Pago cannot be opened, keeps the order and goes to its page to pay it from there', () => {
+    setup(true);
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+    store.placeOrder(9);
+    const first = backend.expectOne({ method: 'POST', url: `${api}/orders` });
+    first.flush({ id: 1, total: 97800, items: [] });
+    payment(1).flush(
+      { status: 503, detail: 'El pago no está disponible en este momento. Probá de nuevo más tarde.' },
+      { status: 503, statusText: 'Service Unavailable' },
+    );
+
+    expect(goTo).not.toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith(['/account/orders', 1]);
+    expect(toaster.error).toHaveBeenCalledWith(
+      'Guardamos tu pedido #1, pero no pudimos abrir Mercado Pago: El pago no está disponible en este momento. '
+      + 'Probá de nuevo más tarde. Podés pagarlo desde acá.');
+    expect(store.loading()).toBe(false);
     expect(store.cartItems()).toEqual([]);
-    expect(navigate).toHaveBeenCalledWith(['/order-success', 1]);
+    backend.expectNone({ method: 'POST', url: `${api}/orders` });
+
+    store.placeOrder(9);
+    const next = backend.expectOne({ method: 'POST', url: `${api}/orders` });
+    expect(next.request.headers.get('Idempotency-Key')).not.toBe(first.request.headers.get('Idempotency-Key'));
+    next.flush({ status: 400 }, { status: 400, statusText: 'Bad Request' });
+  });
+
+  /**
+   * HU-18 · Back from Mercado Pago without paying: the checkout comes back from the browser's cache, busy. The order
+   * exists, so it isn't bought again: the button lets go, the cart is read again and the customer goes to the
+   * order's page to pay it. The next purchase has a new Idempotency-Key.
+   */
+  it('back from Mercado Pago, lets the button go and takes the customer to the order to pay it', () => {
+    setup(true);
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    store.startCheckout();
+    store.placeOrder(9);
+    const first = backend.expectOne({ method: 'POST', url: `${api}/orders` });
+    first.flush({ id: 1, total: 97800, items: [] });
+    payment(1).flush({ checkoutUrl: 'https://mp.example/1' });
+    expect(store.loading()).toBe(true);
+
+    pageshow(false); // a page loaded anew is not a restored one
+    expect(store.loading()).toBe(true);
+
+    pageshow(true);
+
+    expect(store.loading()).toBe(false);
+    expect(navigate).toHaveBeenCalledWith(['/account/orders', 1], { replaceUrl: true });
+    expect(toaster.info).toHaveBeenCalledWith('Tu pedido #1 sigue esperando el pago. Podés pagarlo desde acá.');
+    backend.expectOne({ method: 'GET', url: `${api}/cart` }).flush([]);
+    expect(store.cartItems()).toEqual([]);
+
+    pageshow(true); // once: nothing is left waiting
+    expect(navigate).toHaveBeenCalledTimes(1);
+
+    store.addToCart(aProduct({ id: 20 }));
+    backend.expectOne({ method: 'POST', url: `${api}/cart/20?qty=1` }).flush(null);
+    store.placeOrder(9);
+    const next = backend.expectOne({ method: 'POST', url: `${api}/orders` });
+    expect(next.request.headers.get('Idempotency-Key')).not.toBe(first.request.headers.get('Idempotency-Key'));
+    next.flush({ status: 400 }, { status: 400, statusText: 'Bad Request' });
   });
 
   /** HU-16 · One of "Mis direcciones": nothing new is saved. */
@@ -285,6 +375,7 @@ describe('EcommerceStore', () => {
     const req = backend.expectOne({ method: 'POST', url: `${api}/orders` });
     expect(req.request.body).toEqual({ addressId: 9 });
     req.flush({ id: 1, total: 97800, items: [] });
+    payment(1).flush({ checkoutUrl: 'https://mp.example/1' });
 
     backend.expectNone(`${api}/addresses`);
   });
@@ -305,11 +396,13 @@ describe('EcommerceStore', () => {
     const retry = backend.expectOne({ method: 'POST', url: `${api}/orders` });
     expect(retry.request.headers.get('Idempotency-Key')).toBe(key);
     retry.flush({ id: 1, total: 97800, items: [] });
+    payment(1).flush({ checkoutUrl: 'https://mp.example/1' });
 
     store.placeOrder(9);
     const next = backend.expectOne({ method: 'POST', url: `${api}/orders` });
     expect(next.request.headers.get('Idempotency-Key')).not.toBe(key);
     next.flush({ id: 2, total: 97800, items: [] });
+    payment(2).flush({ checkoutUrl: 'https://mp.example/2' });
   });
 
   it('starts a new purchase when the checkout opens again or the cart is another one', () => {
@@ -354,6 +447,7 @@ describe('EcommerceStore', () => {
     const retry = backend.expectOne({ method: 'POST', url: `${api}/orders` });
     expect(retry.request.headers.get('Idempotency-Key')).toBe(first.request.headers.get('Idempotency-Key'));
     retry.flush({ id: 1, total: 97800, items: [] });
+    payment(1).flush({ checkoutUrl: 'https://mp.example/1' });
   });
 
   /** HU-16 · The new address is saved even if the order fails: trying again must not save it twice. */
