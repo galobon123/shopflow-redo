@@ -1,6 +1,8 @@
 package com.Proyect.Ecommerce.controller;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -8,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -24,6 +27,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import com.Proyect.Ecommerce.IntegrationTest;
 import com.Proyect.Ecommerce.RecordingMailSender;
 import com.Proyect.Ecommerce.security.SecureTokens;
+import com.Proyect.Ecommerce.service.MailQueue;
 import com.jayway.jsonpath.JsonPath;
 
 /** HU-09 · Recuperar contraseña, against real Postgres and Redis. */
@@ -38,6 +42,7 @@ class PasswordResetIntegrationTest {
     @Autowired private JdbcTemplate jdbc;
     @Autowired private StringRedisTemplate redis;
     @Autowired private RecordingMailSender mail;
+    @Autowired private MailQueue mailQueue;
 
     private String registeredJwt;
     private String deviceToken;
@@ -45,7 +50,7 @@ class PasswordResetIntegrationTest {
     @BeforeEach
     void anaHasAnAccount() throws Exception {
         jdbc.execute("TRUNCATE order_items, orders, address, wishlist, users RESTART IDENTITY CASCADE");
-        for (String pattern : Set.of("login:*", "device:*", "verify:*", "pwreset:*")) {
+        for (String pattern : Set.of("login:*", "device:*", "verify:*", "pwreset:*", "mail:*")) {
             var keys = redis.keys(pattern);
             if (keys != null && !keys.isEmpty()) {
                 redis.delete(keys);
@@ -196,5 +201,55 @@ class PasswordResetIntegrationTest {
         mail.goDown();
 
         forgot(ANA).andExpect(status().isNoContent());
+    }
+
+    /** HU-20 · Asked with the SMTP down: the first send fails off the request and the queue retries it. */
+    private Instant askWithTheEmailServerDown() throws Exception {
+        mail.goDown();
+        Instant asked = Instant.now();
+        forgot(ANA).andExpect(status().isNoContent());
+        await().atMost(Duration.ofSeconds(10)).until(() -> mail.refused() == 1);
+        return asked;
+    }
+
+    @Test
+    void withTheEmailServerDownTheLinkArrivesOnARetry() throws Exception {
+        Instant asked = askWithTheEmailServerDown();
+        mail.comeBack();
+
+        mailQueue.deliverDue(asked.plusSeconds(30));
+        assertTrue(mail.to(ANA).isEmpty(), "the first retry waits a minute");
+        mailQueue.deliverDue(asked.plusSeconds(70));
+
+        assertEquals("Restablecé tu contraseña de ShopFlow", mail.lastTo(ANA).getSubject());
+        reset(linkToken(), "nuevaClave99").andExpect(status().isOk());
+    }
+
+    /** A dead link isn't sent, and leaves Redis with the email that carried it. */
+    @Test
+    void aLinkThatExpiredWhileWaitingIsNotSent() throws Exception {
+        Instant asked = askWithTheEmailServerDown();
+        mail.comeBack();
+
+        mailQueue.deliverDue(asked.plus(Duration.ofMinutes(31)));
+
+        assertTrue(mail.to(ANA).isEmpty());
+        assertEquals(0, redis.opsForZSet().size(MailQueue.QUEUE));
+        assertEquals(0, redis.opsForList().size(MailQueue.FAILED));
+    }
+
+    /** After the last retry the email is set aside without its link, which still works for a few minutes. */
+    @Test
+    void aLinkThatNeverGoesOutIsNotKeptInTheFailedList() throws Exception {
+        Instant asked = askWithTheEmailServerDown();
+
+        mailQueue.deliverDue(asked.plusSeconds(70));
+        mailQueue.deliverDue(asked.plus(Duration.ofMinutes(7)));
+        mailQueue.deliverDue(asked.plus(Duration.ofMinutes(23)));
+
+        assertEquals(4, mail.refused());
+        String failed = redis.opsForList().index(MailQueue.FAILED, 0);
+        assertTrue(failed.contains("Restablecé tu contraseña de ShopFlow"), failed);
+        assertFalse(failed.contains("reset-password"), failed);
     }
 }

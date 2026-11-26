@@ -15,10 +15,17 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.Proyect.Ecommerce.exception.ServiceUnavailableException;
+import com.Proyect.Ecommerce.security.PasswordResetService;
 
 /**
- * Account emails (HU-07, HU-09, HU-31, HU-33). Plain text for now; HU-20 adds templates and a retry queue.
- * In development they land in Mailpit (http://localhost:8025) instead of a real inbox.
+ * Account emails (HU-07, HU-09, HU-31, HU-33, HU-20). In development they land in Mailpit (http://localhost:8025)
+ * instead of a real inbox.
+ * <p>
+ * HU-20 · The welcome and the password reset go through {@link MailQueue}, with HTML and retries. The verification
+ * link, the sign-in code and the login alert stay plain text and are sent once, right away: the code must fail the
+ * sign-in when it can't be sent and is dead after 10 minutes anyway, and the person asks for another link or code
+ * from the screen they are on. That also keeps the verification token and the code out of Redis, which only
+ * keeps their hashes.
  */
 @Service
 public class MailService {
@@ -30,15 +37,29 @@ public class MailService {
             .withZone(ZoneId.of("America/Argentina/Buenos_Aires"));
 
     private final JavaMailSender mailSender;
+    private final MailQueue queue;
+    private final MailTemplates templates;
     private final String from;
     private final String publicUrl;
 
     public MailService(JavaMailSender mailSender,
+                       MailQueue queue,
+                       MailTemplates templates,
                        @Value("${app.mail.from}") String from,
                        @Value("${app.public-url}") String publicUrl) {
         this.mailSender = mailSender;
+        this.queue = queue;
+        this.templates = templates;
         this.from = from;
         this.publicUrl = publicUrl.replaceAll("/+$", "");
+    }
+
+    /**
+     * HU-20 · When the email is confirmed (link, sign-in code, password reset or Google), not on registering: the
+     * address may still be a typo or someone else's. Queued, it can wait; never fails the caller.
+     */
+    public void sendWelcome(String to, String name) {
+        queue.enqueue(templates.welcome(to, name));
     }
 
     /**
@@ -64,23 +85,12 @@ public class MailService {
     /**
      * HU-09 · Sent off the request thread and never fails the caller: waiting for the SMTP server, or
      * a 503, would tell that the email has an account. The person can ask again after a minute.
+     * HU-20 · The first send is right away; if it fails, the queue retries it while the link still works. Only then
+     * the token waits in Redis in the clear (inside the email), and never past its 30 minutes.
      */
     @Async
     public void sendPasswordResetLink(String to, String name, String token) {
-        String link = publicUrl + "/reset-password?token=" + token;
-        try {
-            send(to, "Restablecé tu contraseña de ShopFlow", """
-                    Hola %s,
-
-                    Para elegir una contraseña nueva, abrí este enlace:
-                    %s
-
-                    Vence en 30 minutos y sirve una sola vez. Si no lo pediste, ignorá este mensaje:
-                    tu contraseña no cambia.
-                    """.formatted(name, link));
-        } catch (MailException e) {
-            log.warn("Password reset email to {} not sent: {}", to, e.getMessage());
-        }
+        queue.sendOrQueue(templates.passwordReset(to, name, token, Instant.now().plus(PasswordResetService.TTL)));
     }
 
     /** Fails with 503: without the email the person can't finish signing in, so they must know. */

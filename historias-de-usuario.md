@@ -838,14 +838,14 @@ Escenario: Pedido de otro cliente
 ---
 
 ### HU-20 · Emails transaccionales
-**Prioridad:** Should
+**Prioridad:** Should · **Estado:** Hecha (el mail de orden enviada espera a que la HU-18 o la HU-23 pasen la orden a ENVIADA)
 
 > Como **cliente** quiero recibir emails cuando compro o cambia el estado de mi pedido para estar al tanto sin entrar a la tienda.
 
 **Tareas**
-- [ ] BE: Spring Mail + plantillas para bienvenida, orden pagada, orden enviada y recuperación de contraseña.
-- [ ] BE (Redis): cola `mail:queue` (lista o Stream); un worker envía con hasta 3 reintentos y backoff.
-- [ ] BE: el envío nunca bloquea ni revierte la operación de negocio.
+- [x] BE: Spring Mail + plantillas para bienvenida, orden pagada, orden enviada y recuperación de contraseña.
+- [x] BE (Redis): cola `mail:queue` (lista o Stream); un worker envía con hasta 3 reintentos y backoff.
+- [x] BE: el envío nunca bloquea ni revierte la operación de negocio.
 
 **Escenarios**
 ```gherkin

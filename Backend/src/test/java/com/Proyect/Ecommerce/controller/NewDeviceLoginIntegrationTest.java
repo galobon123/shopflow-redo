@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Instant;
 import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +22,7 @@ import org.springframework.test.web.servlet.ResultActions;
 
 import com.Proyect.Ecommerce.IntegrationTest;
 import com.Proyect.Ecommerce.RecordingMailSender;
+import com.Proyect.Ecommerce.service.MailQueue;
 import com.jayway.jsonpath.JsonPath;
 
 /** HU-33 · Verificación de dispositivo nuevo, against real Postgres and Redis. */
@@ -34,11 +36,12 @@ class NewDeviceLoginIntegrationTest {
     @Autowired private JdbcTemplate jdbc;
     @Autowired private StringRedisTemplate redis;
     @Autowired private RecordingMailSender mail;
+    @Autowired private MailQueue mailQueue;
 
     @BeforeEach
     void anaHasAnAccount() throws Exception {
         jdbc.execute("TRUNCATE order_items, orders, address, wishlist, users RESTART IDENTITY CASCADE");
-        for (String pattern : Set.of("login:*", "device:*", "verify:*")) {
+        for (String pattern : Set.of("login:*", "device:*", "verify:*", "mail:*")) {
             var keys = redis.keys(pattern);
             if (keys != null && !keys.isEmpty()) {
                 redis.delete(keys);
@@ -166,6 +169,19 @@ class NewDeviceLoginIntegrationTest {
         assertEquals(true, jdbc.queryForObject("SELECT email_verified FROM users", Boolean.class));
     }
 
+    /** HU-20 · Confirming the email with the code welcomes too, once. */
+    @Test
+    void theCodeWelcomesTheFirstTime() throws Exception {
+        sendCode(loginFromANewBrowser(), codeInEmail()).andExpect(status().isOk());
+        mailQueue.deliverDue(Instant.now());
+        assertEquals(1, mail.to(ANA, "Te damos la bienvenida a ShopFlow").size());
+
+        sendCode(loginFromANewBrowser(), codeInEmail()).andExpect(status().isOk());
+        mailQueue.deliverDue(Instant.now());
+        assertEquals(1, mail.to(ANA, "Te damos la bienvenida a ShopFlow").size());
+    }
+
+    /** HU-20 · The code isn't queued: it fails the sign-in now, and would be dead by the first retry. */
     @Test
     void withTheEmailServerDownThePersonIsTold() throws Exception {
         mail.goDown();
@@ -173,5 +189,6 @@ class NewDeviceLoginIntegrationTest {
         login(null)
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.detail").value("No pudimos enviarte el código. Probá de nuevo en unos minutos."));
+        assertEquals(0, redis.opsForZSet().size(MailQueue.QUEUE), "the code isn't kept anywhere to retry");
     }
 }

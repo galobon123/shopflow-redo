@@ -196,7 +196,7 @@ public class OrderService {
     /**
      * HU-15 · An order waiting for its payment becomes PAGADA. HU-18's approved-payment webhook is meant to call
      * this; nothing else does yet. After the commit its purchases go to Neo4j (GraphSync), which also forgets
-     * the customer's cached recommendations.
+     * the customer's cached recommendations, and the confirmation email is queued (HU-20, OrderMails).
      */
     @Transactional
     public void markPaid(Long orderId) {
@@ -206,7 +206,7 @@ public class OrderService {
             throw new ConflictException("Esta orden ya no está esperando el pago.");
         }
         order.setStatus(OrderStatus.PAGADA);
-        events.publishEvent(new OrderStatusChanged(orderId));
+        events.publishEvent(new OrderStatusChanged(orderId, OrderStatus.PAGADA));
     }
 
     /** HU-19 · Products of these orders' delivered ones that the customer already reviewed: one query, none without any. */

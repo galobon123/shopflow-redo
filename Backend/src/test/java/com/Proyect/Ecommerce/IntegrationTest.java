@@ -29,7 +29,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
         // No sample catalog: each test creates the products it needs.
         "app.demo-data.enabled=false",
         // The Neo4j retry job runs when a test calls it, not on the clock.
-        "app.neo4j-sync.retry-cron=-"
+        "app.neo4j-sync.retry-cron=-",
+        // So does the email worker (HU-20): tests call MailQueue.deliverDue themselves.
+        "app.mail.worker-cron=-"
 })
 @Import(TestcontainersConfiguration.class)
 @Testcontainers(disabledWithoutDocker = true)

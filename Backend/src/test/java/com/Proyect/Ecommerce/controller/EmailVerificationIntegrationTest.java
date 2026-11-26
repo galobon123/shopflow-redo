@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Instant;
 import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +21,7 @@ import org.springframework.test.web.servlet.ResultActions;
 
 import com.Proyect.Ecommerce.IntegrationTest;
 import com.Proyect.Ecommerce.RecordingMailSender;
+import com.Proyect.Ecommerce.service.MailQueue;
 import com.jayway.jsonpath.JsonPath;
 
 /** HU-31 · Verificación del email, against real Postgres and Redis. */
@@ -28,16 +30,18 @@ import com.jayway.jsonpath.JsonPath;
 class EmailVerificationIntegrationTest {
 
     private static final String ANA = "ana@mail.com";
+    private static final String WELCOME = "Te damos la bienvenida a ShopFlow";
 
     @Autowired private MockMvc mvc;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private StringRedisTemplate redis;
     @Autowired private RecordingMailSender mail;
+    @Autowired private MailQueue mailQueue;
 
     @BeforeEach
     void clean() {
         jdbc.execute("TRUNCATE order_items, orders, address, wishlist, users RESTART IDENTITY CASCADE");
-        for (String pattern : Set.of("login:*", "device:*", "verify:*")) {
+        for (String pattern : Set.of("login:*", "device:*", "verify:*", "mail:*")) {
             var keys = redis.keys(pattern);
             if (keys != null && !keys.isEmpty()) {
                 redis.delete(keys);
@@ -128,6 +132,22 @@ class EmailVerificationIntegrationTest {
 
         resend(jwt).andExpect(status().isOk()).andExpect(jsonPath("$.emailVerified").value(true));
         assertTrue(mail.to(ANA).isEmpty());
+    }
+
+    /** HU-20 · Not on registering: the address may still be a typo or someone else's. */
+    @Test
+    void theWelcomeArrivesWhenTheEmailIsConfirmed() throws Exception {
+        register();
+        mailQueue.deliverDue(Instant.now());
+        assertTrue(mail.to(ANA, WELCOME).isEmpty(), "not on registering");
+
+        openLink(linkToken()).andExpect(status().isOk());
+        mailQueue.deliverDue(Instant.now());
+
+        var welcome = mail.to(ANA, WELCOME);
+        assertEquals(1, welcome.size());
+        assertTrue(welcome.getFirst().getText().contains("Hola Ana,"), welcome.getFirst().getText());
+        assertTrue(welcome.getFirst().getHtml().contains("Hola Ana,"), welcome.getFirst().getHtml());
     }
 
     @Test

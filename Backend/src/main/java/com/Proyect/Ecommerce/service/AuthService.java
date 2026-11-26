@@ -192,9 +192,13 @@ public class AuthService {
         // Hash first: if it failed after confirm, the single-use link would be gone.
         String hash = passwordEncoder.encode(password);
         User user = user(passwordResets.confirm(token));
+        boolean welcome = !user.isEmailVerified();
         user.setPassword(hash);
         user.setEmailVerified(true);
         userRepository.save(user);
+        if (welcome) {
+            mail.sendWelcome(user.getEmail(), user.getName());
+        }
         return session(user, trustedDevices.trust(user.getId()));
     }
 
@@ -202,19 +206,25 @@ public class AuthService {
      * HU-32 · Google already proved the email, so the account is verified and the browser trusted.
      * Found by Google's id first; else an account with the same email is joined (it keeps its password,
      * orders and wishlist); else a new one without password is created.
+     * HU-20 · A new account, or one that wasn't verified yet, gets the welcome email.
      */
     public AuthResponseDTO loginWithGoogle(String credential) {
         GoogleIdentity identity = google.verify(credential);
         User user = userRepository.findByGoogleSub(identity.subject())
                 .or(() -> userRepository.findByEmail(identity.email()))
                 .orElseGet(() -> newGoogleUser(identity));
+        boolean welcome = !user.isEmailVerified();
         user.setGoogleSub(identity.subject());
         user.setEmailVerified(true);
         try {
             userRepository.saveAndFlush(user);
         } catch (DataIntegrityViolationException e) {
-            // Two first sign-ins at once created the account twice; the other one won, use it.
+            // Two first sign-ins at once created the account twice; the other one won, use it (and welcomes).
             user = userRepository.findByGoogleSub(identity.subject()).orElseThrow(() -> e);
+            welcome = false;
+        }
+        if (welcome) {
+            mail.sendWelcome(user.getEmail(), user.getName());
         }
         return session(user, trustedDevices.trust(user.getId()));
     }
@@ -232,10 +242,12 @@ public class AuthService {
         return user;
     }
 
+    /** HU-20 · The first time, with the welcome email. */
     private void markVerified(User user) {
         if (!user.isEmailVerified()) {
             user.setEmailVerified(true);
             userRepository.save(user);
+            mail.sendWelcome(user.getEmail(), user.getName());
         }
     }
 

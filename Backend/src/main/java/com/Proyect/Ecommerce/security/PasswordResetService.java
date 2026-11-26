@@ -16,7 +16,7 @@ import com.Proyect.Ecommerce.exception.BadRequestException;
 @Service
 public class PasswordResetService {
 
-    static final Duration TTL = Duration.ofMinutes(30);
+    public static final Duration TTL = Duration.ofMinutes(30);
     static final Duration RESEND_AFTER = Duration.ofSeconds(60);
 
     private final StringRedisTemplate redis;

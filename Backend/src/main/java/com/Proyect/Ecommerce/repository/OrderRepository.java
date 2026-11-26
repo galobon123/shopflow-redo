@@ -32,6 +32,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @EntityGraph(attributePaths = {"items", "items.product", "address", "address.city", "address.city.state"})
     Optional<Order> findByIdAndUserId(Long id, Long userId);
 
+    /** HU-20 · The order with what its emails show: customer, items, their products and the address. */
+    @EntityGraph(attributePaths = {"user", "items", "items.product", "address", "address.city", "address.city.state"})
+    Optional<Order> findWithItemsById(Long id);
+
     /** HU-30 · The customer's latest order in that status that has the product. */
     Optional<Order> findFirstByUserIdAndStatusAndItemsProductIdOrderByCreatedAtDesc(Long userId, OrderStatus status,
                                                                                     Long productId);

@@ -2,18 +2,22 @@ package com.Proyect.Ecommerce.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -21,8 +25,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import com.Proyect.Ecommerce.IntegrationTest;
+import com.Proyect.Ecommerce.RecordingMailSender;
 import com.Proyect.Ecommerce.security.GoogleTokenVerifier;
 import com.Proyect.Ecommerce.security.GoogleTokenVerifier.GoogleIdentity;
+import com.Proyect.Ecommerce.service.MailQueue;
 
 /**
  * HU-32 · Ingreso con Google: what happens to accounts. Checking Google's signature is
@@ -35,10 +41,15 @@ class GoogleLoginIntegrationTest {
     @Autowired private MockMvc mvc;
     @Autowired private JdbcTemplate jdbc;
     @MockitoBean private GoogleTokenVerifier google;
+    @Autowired private MailQueue mailQueue;
+    @Autowired private RecordingMailSender mail;
+    @Autowired private StringRedisTemplate redis;
 
     @BeforeEach
     void clean() {
         jdbc.execute("TRUNCATE order_items, orders, address, wishlist, users RESTART IDENTITY CASCADE");
+        redis.delete(List.of(MailQueue.QUEUE, MailQueue.SENDING));
+        mail.clear();
         when(google.verify("credencial-de-ana")).thenReturn(new GoogleIdentity("google-ana", "ana@gmail.com", "Ana Gómez"));
         when(google.clientId()).thenReturn("shopflow.apps.googleusercontent.com");
     }
@@ -64,6 +75,19 @@ class GoogleLoginIntegrationTest {
         assertEquals("Ana Gómez", ana.get("name"));
         assertNull(ana.get("password"));
         assertEquals("google-ana", ana.get("google_sub"));
+    }
+
+    /** HU-20 · Registering with Google proves the email at once, so it welcomes at once; only the first time. */
+    @Test
+    void theFirstTimeWelcomesTheSecondDoesNot() throws Exception {
+        signInWithGoogle();
+        mailQueue.deliverDue(Instant.now());
+        signInWithGoogle();
+        mailQueue.deliverDue(Instant.now());
+
+        var welcome = mail.to("ana@gmail.com", "Te damos la bienvenida a ShopFlow");
+        assertEquals(1, welcome.size());
+        assertTrue(welcome.getFirst().getText().contains("Hola Ana Gómez,"), welcome.getFirst().getText());
     }
 
     @Test
