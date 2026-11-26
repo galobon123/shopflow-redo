@@ -16,6 +16,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Data;
@@ -51,7 +52,9 @@ public class Order {
     /** Until when an unpaid order holds its stock (set by HU-17). */
     private LocalDateTime expiresAt;
 
+    /** HU-19 · In the order they were bought, so the receipt and "Mis pedidos" list them the same way every time. */
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
+    @OrderBy("id")
     private List<OrderItem> items;
 
     @PrePersist

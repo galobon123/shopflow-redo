@@ -65,10 +65,27 @@ export const routes: Routes = [
     .then(m => m.Checkout)
   },
   {
-    path: 'order-success',
+    // HU-19 · Reads the order by its id, so a reload still shows it.
+    path: 'order-success/:id',
+    title: 'Pedido recibido · ShopFlow',
     canActivate: [authGuard],
     loadComponent: () => import('./pages/order-success/order-success')
     .then(m => m.OrderSuccess)
+  },
+  {
+    path: 'account/orders',
+    title: 'Mis pedidos · ShopFlow',
+    canActivate: [authGuard],
+    loadComponent: () => import('./pages/my-orders/my-orders')
+    .then(m => m.MyOrders)
+  },
+  {
+    // HU-19 · The title becomes "Pedido #N" once it loads.
+    path: 'account/orders/:id',
+    title: 'Pedido · ShopFlow',
+    canActivate: [authGuard],
+    loadComponent: () => import('./pages/order-detail/order-detail')
+    .then(m => m.OrderDetail)
   },
   {
     path: 'wishlist',

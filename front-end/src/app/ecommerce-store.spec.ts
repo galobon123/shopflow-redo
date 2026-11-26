@@ -273,7 +273,7 @@ describe('EcommerceStore', () => {
     req.flush(order);
 
     expect(store.cartItems()).toEqual([]);
-    expect(navigate).toHaveBeenCalledWith(['/order-success'], { state: { order } });
+    expect(navigate).toHaveBeenCalledWith(['/order-success', 1]);
   });
 
   /** HU-16 · One of "Mis direcciones": nothing new is saved. */

@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { ActivatedRoute } from '@angular/router';
 import { HttpTestingController } from '@angular/common/http/testing';
 import { ProductReviews } from './product-reviews';
 import { testProviders } from '../../testing/test-providers';
@@ -29,11 +30,14 @@ function reviews(overrides: Partial<Reviews> = {}, items: Review[] = [
 describe('ProductReviews (HU-30)', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  function render() {
+  function render(fragment: string | null = null) {
     localStorage.clear();
     // The test DOM has no layout: "Ver más" never shows up here (it has its own tests).
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
-    TestBed.configureTestingModule({ imports: [ProductReviews], providers: testProviders() });
+    TestBed.configureTestingModule({
+      imports: [ProductReviews],
+      providers: [...testProviders(), { provide: ActivatedRoute, useValue: { snapshot: { fragment } } }],
+    });
     const fixture = TestBed.createComponent(ProductReviews);
     fixture.componentRef.setInput('productId', 15);
     const reviewed = vi.fn();
@@ -58,6 +62,31 @@ describe('ProductReviews (HU-30)', () => {
     const items = () => [...el.querySelectorAll('[data-review]')];
     return { fixture, backend, el, update, settle, button, listRequest, items, reviewed };
   }
+
+  /** HU-19 · "Calificar" in "Mis pedidos" links to /product/:id#reviews. */
+  it('with #reviews in the URL, takes the view and the focus to the panel once it loads', async () => {
+    // jsdom has no layout, so no scrollIntoView either.
+    const scrollIntoView = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    const { listRequest, update, el } = render('reviews');
+
+    listRequest('page=0').flush(reviews({ canReview: true }));
+    await update();
+
+    const title = el.querySelector('#reviews-title');
+    expect(scrollIntoView.mock.contexts[0]).toBe(title);
+    expect(document.activeElement).toBe(title);
+    delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView;
+  });
+
+  it('without #reviews, leaves the focus where it is', async () => {
+    const { listRequest, update, el } = render();
+
+    listRequest('page=0').flush(reviews());
+    await update();
+
+    expect(document.activeElement).not.toBe(el.querySelector('#reviews-title'));
+  });
 
   it('shows a skeleton while it loads', () => {
     const { el, listRequest } = render();

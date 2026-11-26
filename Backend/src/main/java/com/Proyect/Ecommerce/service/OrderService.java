@@ -2,18 +2,29 @@ package com.Proyect.Ecommerce.service;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import com.Proyect.Ecommerce.dto.PageResponse;
 import com.Proyect.Ecommerce.dto.address.AddressResponseDTO;
 import com.Proyect.Ecommerce.dto.cart.CartItemDTO;
 import com.Proyect.Ecommerce.dto.order.OrderItemDTO;
@@ -32,6 +43,7 @@ import com.Proyect.Ecommerce.model.User;
 import com.Proyect.Ecommerce.repository.AddressRepository;
 import com.Proyect.Ecommerce.repository.OrderRepository;
 import com.Proyect.Ecommerce.repository.ProductRepository;
+import com.Proyect.Ecommerce.repository.ReviewRepository;
 import com.Proyect.Ecommerce.repository.UserRepository;
 
 @Service
@@ -42,10 +54,15 @@ public class OrderService {
     /** HU-17 · How long an unpaid order holds its stock (HU-18 cancels it after that). */
     static final Duration PAYMENT_WINDOW = Duration.ofMinutes(30);
 
+    /** HU-19 · Orders per page of "Mis pedidos". */
+    public static final int PAGE_SIZE = 10;
+    private static final Sort NEWEST = Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"));
+
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
     private final AddressRepository addressRepository;
     private final UserRepository userRepository;
+    private final ReviewRepository reviewRepository;
     private final CartService cartService;
     private final ApplicationEventPublisher events;
 
@@ -53,12 +70,14 @@ public class OrderService {
                         ProductRepository productRepository,
                         AddressRepository addressRepository,
                         UserRepository userRepository,
+                        ReviewRepository reviewRepository,
                         CartService cartService,
                         ApplicationEventPublisher events) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
         this.addressRepository = addressRepository;
         this.userRepository = userRepository;
+        this.reviewRepository = reviewRepository;
         this.cartService = cartService;
         this.events = events;
     }
@@ -144,15 +163,34 @@ public class OrderService {
             }
         });
 
-        return toResponseDTO(savedOrder);
+        return toResponseDTO(savedOrder, Set.of());
     }
 
-    /** HU-17 · One of the customer's orders; someone else's answers like a missing one. */
+    /**
+     * HU-17 · One of the customer's orders; someone else's answers like a missing one.
+     * HU-19 · The detail in "Mis pedidos" and the receipt after buying.
+     */
     @Transactional(readOnly = true)
     public OrderResponseDTO findOwn(Long userId, Long orderId) {
-        return orderRepository.findByIdAndUserId(orderId, userId)
-                .map(this::toResponseDTO)
-                .orElseThrow(() -> new NotFoundException("Orden no encontrada: " + orderId));
+        Order order = orderRepository.findByIdAndUserId(orderId, userId)
+                .orElseThrow(() -> new NotFoundException("Pedido no encontrado."));
+        return toResponseDTO(order, reviewedProducts(userId, List.of(order)));
+    }
+
+    /**
+     * HU-19 · "Mis pedidos": one page of the customer's orders, newest first. The same few queries whatever the
+     * page holds: the page of ids (and its count), those orders with their items, and their products' photos.
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<OrderResponseDTO> findPage(Long userId, int page) {
+        if (page < 0) {
+            throw new BadRequestException("La página no puede ser negativa.");
+        }
+        Page<Long> ids = orderRepository.findIdsByUserId(userId, PageRequest.of(page, PAGE_SIZE, NEWEST));
+        Map<Long, Order> orders = ids.isEmpty() ? Map.of() : orderRepository.findByIdIn(ids.getContent()).stream()
+                .collect(Collectors.toMap(Order::getId, Function.identity()));
+        Set<Long> reviewed = reviewedProducts(userId, orders.values());
+        return PageResponse.of(ids, id -> toResponseDTO(orders.get(id), reviewed));
     }
 
     /**
@@ -171,32 +209,41 @@ public class OrderService {
         events.publishEvent(new OrderStatusChanged(orderId));
     }
 
-    public List<OrderResponseDTO> findByUserId(Long userId) {
-        return orderRepository.findByUserIdOrderByCreatedAtDesc(userId)
-                .stream()
-                .map(this::toResponseDTO)
+    /** HU-19 · Products of these orders' delivered ones that the customer already reviewed: one query, none without any. */
+    private Set<Long> reviewedProducts(Long userId, Collection<Order> orders) {
+        List<Long> delivered = orders.stream()
+                .filter(order -> order.getStatus() == OrderStatus.ENTREGADA)
+                .flatMap(order -> order.getItems().stream())
+                .map(item -> item.getProduct().getId())
+                .distinct()
                 .toList();
+        return delivered.isEmpty() ? Set.of() : reviewRepository.findReviewedProductIds(userId, delivered);
     }
 
-    private OrderResponseDTO toResponseDTO(Order order) {
+    private OrderResponseDTO toResponseDTO(Order order, Set<Long> reviewed) {
         OrderResponseDTO dto = new OrderResponseDTO();
         dto.setId(order.getId());
-        dto.setCreatedAt(order.getCreatedAt());
+        dto.setCreatedAt(instant(order.getCreatedAt()));
         dto.setTotal(order.getTotal());
         dto.setStatus(order.getStatus());
-        dto.setExpiresAt(order.getExpiresAt());
+        dto.setExpiresAt(order.getExpiresAt() == null ? null : instant(order.getExpiresAt()));
         dto.setAddress(toAddressDTO(order.getAddress()));
-        dto.setItems(order.getItems().stream().map(this::toItemDTO).toList());
+        boolean delivered = order.getStatus() == OrderStatus.ENTREGADA;
+        dto.setItems(order.getItems().stream().map(item -> toItemDTO(item, delivered, reviewed)).toList());
         return dto;
     }
 
-    private OrderItemDTO toItemDTO(OrderItem item) {
+    private OrderItemDTO toItemDTO(OrderItem item, boolean delivered, Set<Long> reviewed) {
+        Product product = item.getProduct();
         OrderItemDTO dto = new OrderItemDTO();
-        dto.setProductId(item.getProduct().getId());
-        dto.setProductName(item.getProduct().getName());
+        dto.setProductId(product.getId());
+        dto.setProductName(product.getName());
+        dto.setImageUrl(product.getImageUrl());
         dto.setQuantity(item.getQuantity());
         dto.setUnitPrice(item.getUnitPrice());
         dto.setSubtotal(item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
+        // Same rule as ReviewService.create: received, still for sale and not reviewed yet.
+        dto.setCanReview(delivered && product.isActive() && !reviewed.contains(product.getId()));
         return dto;
     }
 
@@ -206,9 +253,16 @@ public class OrderService {
         dto.setFirstName(address.getFirstName());
         dto.setLastName(address.getLastName());
         dto.setAddress(address.getAddress());
+        dto.setStateId(address.getCity().getState().getId());
+        dto.setCityId(address.getCity().getId());
         dto.setCityName(address.getCity().getName());
         dto.setStateName(address.getCity().getState().getName());
         dto.setZipCode(address.getZipCode());
         return dto;
+    }
+
+    /** Dates are the JVM's local time, which EcommerceApplication fixes to UTC (as in ReviewService). */
+    private static Instant instant(LocalDateTime time) {
+        return time.atZone(ZoneId.systemDefault()).toInstant();
     }
 }

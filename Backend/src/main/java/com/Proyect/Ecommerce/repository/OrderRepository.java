@@ -1,8 +1,12 @@
 package com.Proyect.Ecommerce.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,8 +17,19 @@ import com.Proyect.Ecommerce.model.OrderStatus;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
-    List<Order> findByUserIdOrderByCreatedAtDesc(Long userId);
+    /**
+     * HU-19 · One page of the customer's order ids. Paging the ids and then reading those orders with their
+     * items (findByIdIn) keeps the LIMIT in the database: a collection fetch in a paged query is paged in memory.
+     */
+    @Query("SELECT o.id FROM Order o WHERE o.user.id = :userId")
+    Page<Long> findIdsByUserId(@Param("userId") Long userId, Pageable pageable);
 
+    /** HU-19 · The orders with their items, products and address in one query; product photos come batched. */
+    @EntityGraph(attributePaths = {"items", "items.product", "address", "address.city", "address.city.state"})
+    List<Order> findByIdIn(Collection<Long> ids);
+
+    /** HU-19 · One of the customer's orders, read the same way as findByIdIn. */
+    @EntityGraph(attributePaths = {"items", "items.product", "address", "address.city", "address.city.state"})
     Optional<Order> findByIdAndUserId(Long id, Long userId);
 
     /** HU-30 · The customer's latest order in that status that has the product. */

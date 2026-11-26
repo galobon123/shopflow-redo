@@ -1,9 +1,10 @@
 import {
-  ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, computed, inject, input, linkedSignal, output,
-  signal, viewChild,
+  ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, computed, effect, inject, input, linkedSignal,
+  output, signal, viewChild,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { rxResource } from '@angular/core/rxjs-interop';
+import { ActivatedRoute } from '@angular/router';
 import { AuthStore } from '../../auth-store';
 import { ProductReviews as Reviews } from '../../core/models/review.model';
 import { ReviewService } from '../../core/services/review.service';
@@ -77,6 +78,22 @@ export class ProductReviews {
   protected readonly formatRating = formatRating;
   protected readonly starsText = starsText;
   protected readonly reviewsText = reviewsText;
+
+  constructor() {
+    // HU-19 · "Calificar" in "Mis pedidos" opens /product/:id#reviews. The panel loads after the router's own anchor
+    // scroll, so once it is on screen it goes to the top (with the form under its title) and takes the focus.
+    if (inject(ActivatedRoute).snapshot.fragment === 'reviews') {
+      const jump = effect(() => {
+        if (!this.data()) return;
+        jump.destroy();
+        afterNextRender(() => {
+          const title = this.title().nativeElement;
+          title.scrollIntoView({ block: 'start' });
+          title.focus({ preventScroll: true });
+        }, { injector: this.injector });
+      });
+    }
+  }
 
   /** Width of a star's bar: its share of every review. */
   protected share(count: number, total: number): number {

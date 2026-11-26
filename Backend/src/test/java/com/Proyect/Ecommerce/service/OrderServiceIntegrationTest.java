@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -90,7 +91,7 @@ class OrderServiceIntegrationTest {
         assertTrue(!expiresAt.isBefore(before.plusMinutes(30)) && expiresAt.isBefore(LocalDateTime.now().plusMinutes(31)),
                 "expires at " + expiresAt);
         // Postgres keeps microseconds, so the stored value may be rounded.
-        assertTrue(Duration.between(expiresAt, order.getExpiresAt()).abs().toMillis() < 1);
+        assertTrue(Duration.between(expiresAt.atZone(ZoneId.systemDefault()).toInstant(), order.getExpiresAt()).abs().toMillis() < 1);
     }
 
     /**

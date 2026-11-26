@@ -514,7 +514,7 @@ Escenario: Producto inexistente o inactivo
 ---
 
 ### HU-30 · Reseñas de productos comprados
-**Prioridad:** Should · **Estado:** Hecha (salvo el botón "Calificar" en "Mis pedidos", que llega con la HU-19)
+**Prioridad:** Should · **Estado:** Hecha
 
 > Como **cliente** quiero calificar y comentar los productos que recibí, y leer las reseñas de otros, para comprar con más confianza.
 
@@ -524,7 +524,7 @@ Escenario: Producto inexistente o inactivo
 - [x] BE: `GET /api/products/{id}/reviews?rating&page` paginado, más un resumen con promedio, total y cantidad por estrella, y `canReview` para quien pregunta.
 - [x] BE: el admin puede ocultar una reseña (moderación mínima); las ocultas no cuentan en el promedio. `PUT /api/admin/reviews/{id}/hide` y `/show`.
 - [x] FE: en el detalle (HU-11), promedio con estrellas junto al precio y panel de reseñas con filtro por estrellas. Mientras no exista "Mis pedidos", el formulario "Calificar" está en el panel, para quien puede reseñar.
-- [ ] FE: en "Mis pedidos" (HU-19), botón "Calificar" en los productos de órdenes entregadas que todavía no reseñé. Pendiente: se hace con la HU-19.
+- [x] FE: en "Mis pedidos" (HU-19), botón "Calificar" en los productos de órdenes entregadas que todavía no reseñé.
 
 **Escenarios**
 ```gherkin
@@ -813,14 +813,14 @@ Escenario: Webhook duplicado o falso
 ---
 
 ### HU-19 · Mis pedidos
-**Prioridad:** Must
+**Prioridad:** Must · **Estado:** Hecha
 
 > Como **cliente** quiero ver mis pedidos y su estado para saber cuándo me llega la compra.
 
 **Tareas**
-- [ ] BE: `GET /api/orders` paginado y `GET /api/orders/{id}` (solo del dueño); fetch join de ítems para evitar N+1.
-- [ ] FE: ruta `/account/orders` con la lista (fecha, total, estado) y el detalle.
-- [ ] FE: la página de orden exitosa lee la orden por id en lugar de `history.state`, así sobrevive a un recargo.
+- [x] BE: `GET /api/orders` paginado y `GET /api/orders/{id}` (solo del dueño); fetch join de ítems para evitar N+1.
+- [x] FE: ruta `/account/orders` con la lista (fecha, total, estado) y el detalle.
+- [x] FE: la página de orden exitosa lee la orden por id en lugar de `history.state`, así sobrevive a un recargo.
 
 **Escenarios**
 ```gherkin

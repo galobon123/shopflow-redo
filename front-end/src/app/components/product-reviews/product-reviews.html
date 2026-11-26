@@ -1,5 +1,7 @@
-<section class="sf-reviews" aria-labelledby="reviews-title">
-  <h2 #title id="reviews-title" class="font-display text-heading" tabindex="-1">Reseñas</h2>
+<section id="reviews" class="sf-reviews" aria-labelledby="reviews-title">
+  <!-- HU-19 · The margin keeps the title clear of the sticky header when "Calificar" brings it into view. -->
+  <h2 #title id="reviews-title" class="font-display text-heading scroll-mt-[calc(var(--header-height)+--spacing(6))]"
+    tabindex="-1">Reseñas</h2>
 
   @if (error(); as message) {
     <sf-error-state [message]="message" (retry)="reviews.reload()" />

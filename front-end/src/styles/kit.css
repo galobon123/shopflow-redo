@@ -229,6 +229,8 @@
   .sf-badge--out { background: var(--color-sunken); color: var(--color-ink-muted); }
   .sf-badge--promo { background: var(--color-accent); color: var(--color-on-accent); }
   .sf-badge--new { background: var(--color-surface); color: var(--color-ink); box-shadow: inset 0 0 0 1px var(--color-ink); }
+  /* HU-19 · An order on its way (paid, shipped). */
+  .sf-badge--info { background: var(--color-accent-soft); color: var(--color-accent); }
 
   /* ---------- ProductCard ---------- */
   .sf-card { display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; border-radius: var(--radius-card); background: var(--color-surface); box-shadow: var(--shadow-card); color: var(--color-ink); text-decoration: none; transition: box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out); }
@@ -519,6 +521,15 @@
   .sf-promo__track { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(200px, 1fr); gap: calc(var(--spacing) * 6); overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: calc(var(--spacing) * 2); }
   .sf-promo__track > * { scroll-snap-align: start; }
 
+  /* ---------- OrderRow (HU-19) ---------- */
+  /* One order in "Mis pedidos": number and date on the left, total and status on the right. The number links to the
+     detail and its hit area covers the row, like the product card. */
+  .sf-order { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: calc(var(--spacing) * 4); padding: calc(var(--spacing) * 4); border-radius: var(--radius-card); background: var(--color-surface); box-shadow: var(--shadow-card); transition: box-shadow 200ms var(--ease-out); }
+  .sf-order:hover { box-shadow: var(--shadow-card-hover); }
+  .sf-order:has(.sf-order__link:focus-visible) { box-shadow: var(--shadow-focus); }
+  .sf-order__link { color: inherit; text-decoration: none; }
+  .sf-order__link::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+
   /* ---------- OrderSummary ---------- */
   .sf-summary {
     box-sizing: border-box;
@@ -602,4 +613,4 @@
 /* HU-11 · Outside the layer on purpose: the global :focus-visible ring in styles.css is unlayered and would win
    over anything in @layer components. On the card link it would draw a stroke under each clamped line of the name;
    the ring goes on the whole card instead (.sf-card:has(...) above). */
-.sf-card__link:focus-visible { box-shadow: none; }
+.sf-card__link:focus-visible, .sf-order__link:focus-visible { box-shadow: none; }

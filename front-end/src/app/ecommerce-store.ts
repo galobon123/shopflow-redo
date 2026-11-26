@@ -434,7 +434,8 @@ export const EcommerceStore = signalStore(
       next: (order) => {
         patchState(store, { cartItems: [], loading: false });
         newCheckoutKey();
-        router.navigate(['/order-success'], { state: { order } });
+        // HU-19 · The receipt reads the order by its id, so it survives a reload.
+        router.navigate(['/order-success', order.id]);
         toaster.success('¡Listo! Recibimos tu pedido.');
       },
       error: (err) => {

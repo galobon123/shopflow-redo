@@ -1,7 +1,9 @@
 package com.Proyect.Ecommerce.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,4 +30,8 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     boolean existsByProductIdAndUserId(Long productId, Long userId);
 
     Optional<Review> findByProductIdAndUserId(Long productId, Long userId);
+
+    /** HU-19 · Which of these products the customer already reviewed ("Calificar" is not shown for them). */
+    @Query("SELECT r.product.id FROM Review r WHERE r.user.id = :userId AND r.product.id IN :productIds")
+    Set<Long> findReviewedProductIds(Long userId, Collection<Long> productIds);
 }
